@@ -29,6 +29,7 @@ class NetworkScanner:
         port_range: str = "1-1000",
         enable_os_detection: bool = True,
         enable_service_detection: bool = True,
+        scan_type: str = "network",
     ) -> Scan:
         """
         Perform a network scan
@@ -39,6 +40,7 @@ class NetworkScanner:
             port_range: Port range to scan (e.g., "1-1000", "common", "all")
             enable_os_detection: Enable OS fingerprinting
             enable_service_detection: Enable service/version detection
+            scan_type: Type of scan ("network" for full subnet, "device" for single device)
 
         Returns:
             Scan object with results
@@ -69,6 +71,7 @@ class NetworkScanner:
         scan = Scan(
             started_at=datetime.utcnow(),
             status="running",
+            scan_type=scan_type,
             scan_profile=scan_profile,
             subnet=subnet,
         )

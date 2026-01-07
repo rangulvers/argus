@@ -14,6 +14,7 @@ class Scan(Base):
     started_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     completed_at = Column(DateTime, nullable=True)
     status = Column(String(20), default="running", nullable=False)  # running, completed, failed
+    scan_type = Column(String(20), default="network", nullable=False)  # network, device
     scan_profile = Column(String(20), default="normal")  # quick, normal, intensive
     subnet = Column(String(50), nullable=False)
     devices_found = Column(Integer, default=0)

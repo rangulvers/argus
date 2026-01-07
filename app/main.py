@@ -332,8 +332,11 @@ async def get_device_history(db: Session = Depends(get_db)):
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, db: Session = Depends(get_db)):
     """Dashboard home page"""
-    # Get latest scan
-    latest_scan = db.query(Scan).filter(Scan.status == "completed").order_by(desc(Scan.started_at)).first()
+    # Get latest network scan (not single-device scans)
+    latest_scan = db.query(Scan).filter(
+        Scan.status == "completed",
+        Scan.scan_type == "network"
+    ).order_by(desc(Scan.started_at)).first()
 
     # Get devices from latest scan
     devices = []
@@ -384,9 +387,13 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
 @app.get("/devices", response_class=HTMLResponse)
 async def devices_page(request: Request, scan_id: Optional[int] = None, db: Session = Depends(get_db)):
     """Devices list page"""
-    scans = db.query(Scan).filter(Scan.status == "completed").order_by(desc(Scan.started_at)).limit(20).all()
+    # Only show network scans in dropdown (not single-device scans)
+    scans = db.query(Scan).filter(
+        Scan.status == "completed",
+        Scan.scan_type == "network"
+    ).order_by(desc(Scan.started_at)).limit(20).all()
 
-    # Get selected scan or latest
+    # Get selected scan or latest network scan
     if scan_id:
         current_scan = db.query(Scan).filter(Scan.id == scan_id).first()
     else:
@@ -521,6 +528,7 @@ async def get_scan_status(db: Session = Depends(get_db)):
         return {
             "scanning": True,
             "scan_id": running_scan.id,
+            "scan_type": running_scan.scan_type,
             "subnet": running_scan.subnet,
             "profile": running_scan.scan_profile,
             "started_at": running_scan.started_at.isoformat()
@@ -583,10 +591,10 @@ async def trigger_device_scan(
                 port_range=config.scanning.port_range,
                 enable_os_detection=config.scanning.enable_os_detection,
                 enable_service_detection=config.scanning.enable_service_detection,
+                scan_type="device",  # Mark as single-device scan
             )
-            if scan.status == "completed":
-                detector = ChangeDetector(db_session)
-                detector.detect_changes(scan.id)
+            # Note: Don't run change detection for single device scans
+            # as it would incorrectly report other devices as "removed"
         finally:
             db_session.close()
 
