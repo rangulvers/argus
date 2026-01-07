@@ -1,7 +1,8 @@
 """Configuration management for Argus"""
 
 from pydantic_settings import BaseSettings
-from typing import Optional, List
+from pydantic import ConfigDict
+from typing import Optional, List, Any
 import yaml
 import os
 
@@ -69,6 +70,12 @@ class WebConfig(BaseSettings):
     password: Optional[str] = None
 
 
+class ScheduleConfig(BaseSettings):
+    """Schedule configuration - managed by scheduler module"""
+    model_config = ConfigDict(extra="allow")
+    jobs: List[Any] = []
+
+
 class Config(BaseSettings):
     """Main application configuration"""
     network: NetworkConfig = NetworkConfig()
@@ -77,6 +84,7 @@ class Config(BaseSettings):
     notifications: NotificationsConfig = NotificationsConfig()
     database: DatabaseConfig = DatabaseConfig()
     web: WebConfig = WebConfig()
+    schedule: ScheduleConfig = ScheduleConfig()
 
     class Config:
         env_file = ".env"
