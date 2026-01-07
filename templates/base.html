@@ -91,19 +91,7 @@
                     </div>
                     <div class="flex items-center space-x-4">
                         <!-- Scan Status Indicator -->
-                        <div x-data="{
-                                status: { scanning: false },
-                                async checkStatus() {
-                                    try {
-                                        const res = await fetch('/api/scan/status');
-                                        this.status = await res.json();
-                                    } catch (e) { }
-                                },
-                                init() {
-                                    this.checkStatus();
-                                    setInterval(() => this.checkStatus(), 5000);
-                                }
-                             }"
+                        <div x-data="scanStatus()" x-init="init()"
                              x-show="status.scanning"
                              x-cloak
                              class="flex items-center px-3 py-1.5 bg-amber-100 text-amber-800 rounded-md text-sm font-medium">
@@ -111,7 +99,7 @@
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            <span>Scanning <span x-text="status.subnet" class="font-mono"></span>...</span>
+                            <span x-text="displayText()"></span>
                         </div>
 
                         <!-- Scan button with dropdown -->
@@ -131,17 +119,17 @@
                                  @click.away="open = false"
                                  class="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
                                 <div class="py-1">
-                                    <button @click="scanning = true; open = false; fetch('/api/scan/trigger?profile=quick', {method: 'POST'}).then(() => { scanning = false; alert('Quick scan started! Refresh in ~1 minute.'); })"
+                                    <button @click="open = false; triggerScan('/api/scan/trigger?profile=quick')"
                                             class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                         <div class="font-medium">Quick Scan</div>
                                         <div class="text-xs text-gray-500">Ping only, ~30 seconds</div>
                                     </button>
-                                    <button @click="scanning = true; open = false; fetch('/api/scan/trigger?profile=normal', {method: 'POST'}).then(() => { scanning = false; alert('Normal scan started! Refresh in 5-10 minutes.'); })"
+                                    <button @click="open = false; triggerScan('/api/scan/trigger?profile=normal')"
                                             class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                         <div class="font-medium">Normal Scan</div>
                                         <div class="text-xs text-gray-500">Ports 1-1000, 5-10 minutes</div>
                                     </button>
-                                    <button @click="scanning = true; open = false; fetch('/api/scan/trigger?profile=intensive', {method: 'POST'}).then(() => { scanning = false; alert('Intensive scan started! Refresh in 15-30 minutes.'); })"
+                                    <button @click="open = false; triggerScan('/api/scan/trigger?profile=intensive')"
                                             class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                         <div class="font-medium">Intensive Scan</div>
                                         <div class="text-xs text-gray-500">All ports + OS detection, 15-30 min</div>
@@ -161,6 +149,47 @@
             </main>
         </div>
     </div>
+
+    <script>
+        // Global scan status checker
+        function scanStatus() {
+            return {
+                status: { scanning: false, subnet: '', profile: '' },
+                async checkStatus() {
+                    try {
+                        const res = await fetch('/api/scan/status');
+                        this.status = await res.json();
+                    } catch (e) { }
+                },
+                displayText() {
+                    if (!this.status.scanning) return '';
+                    const subnet = this.status.subnet || '';
+                    const profile = this.status.profile || 'normal';
+                    // Check if single device scan (/32)
+                    if (subnet.endsWith('/32')) {
+                        const ip = subnet.replace('/32', '');
+                        return `Scanning ${ip} (${profile})...`;
+                    }
+                    return `Scanning ${subnet} (${profile})...`;
+                },
+                init() {
+                    this.checkStatus();
+                    // Poll every 2 seconds for faster updates
+                    setInterval(() => this.checkStatus(), 2000);
+                    // Listen for custom event to trigger immediate check
+                    window.addEventListener('scan-started', () => {
+                        setTimeout(() => this.checkStatus(), 500);
+                    });
+                }
+            }
+        }
+
+        // Helper to trigger scan and notify status checker
+        async function triggerScan(url) {
+            await fetch(url, { method: 'POST' });
+            window.dispatchEvent(new Event('scan-started'));
+        }
+    </script>
 
     {% block extra_js %}{% endblock %}
 </body>
