@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Changes - Argus{% endblock %}
+{% block page_title %}Network Changes{% endblock %}
+
+{% block content %}
+<!-- Filter by scan -->
+{% if scans %}
+<div class="mb-6">
+    <label for="scan-filter" class="block text-sm font-medium text-gray-700">Filter by Scan</label>
+    <select id="scan-filter"
+            onchange="window.location='/changes' + (this.value ? '?scan_id=' + this.value : '')"
+            class="mt-1 block w-64 rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+        <option value="">All Scans</option>
+        {% for scan in scans %}
+        <option value="{{ scan.id }}" {% if scan.id == selected_scan_id %}selected{% endif %}>
+            Scan #{{ scan.id }} - {{ scan.started_at.strftime('%Y-%m-%d %H:%M') }}
+        </option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}
+
+{% if changes %}
+<div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg">
+    <table class="min-w-full divide-y divide-gray-300">
+        <thead class="bg-gray-50">
+            <tr>
+                <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">Severity</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Type</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Device</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Port</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Detected</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Scan</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 bg-white">
+            {% for change in changes %}
+            <tr class="hover:bg-gray-50">
+                <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm">
+                    {% if change.severity == 'critical' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        Critical
+                    </span>
+                    {% elif change.severity == 'warning' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        Warning
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Info
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+                    {% if change.change_type == 'device_added' %}
+                    <span class="text-green-600">+ Device Added</span>
+                    {% elif change.change_type == 'device_removed' %}
+                    <span class="text-red-600">- Device Removed</span>
+                    {% elif change.change_type == 'port_opened' %}
+                    <span class="text-green-600">+ Port Opened</span>
+                    {% elif change.change_type == 'port_closed' %}
+                    <span class="text-red-600">- Port Closed</span>
+                    {% elif change.change_type == 'service_changed' %}
+                    <span class="text-yellow-600">~ Service Changed</span>
+                    {% elif change.change_type == 'device_ip_changed' %}
+                    <span class="text-yellow-600">~ IP Changed</span>
+                    {% else %}
+                    {{ change.change_type | replace('_', ' ') | title }}
+                    {% endif %}
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 font-mono">
+                    {{ change.device_ip or '-' }}
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    {% if change.port_number %}
+                    {{ change.port_number }}/{{ change.protocol }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td class="px-3 py-4 text-sm text-gray-500 max-w-md">
+                    {{ change.description }}
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    {{ change.detected_at.strftime('%Y-%m-%d %H:%M') }}
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    <a href="/devices?scan_id={{ change.scan_id }}" class="text-indigo-600 hover:text-indigo-900">
+                        #{{ change.scan_id }}
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-12 bg-white rounded-lg shadow">
+    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <h3 class="mt-2 text-sm font-medium text-gray-900">No changes detected</h3>
+    <p class="mt-1 text-sm text-gray-500">
+        {% if selected_scan_id %}
+        No changes were detected in this scan.
+        {% else %}
+        Run at least two scans to start detecting changes in your network.
+        {% endif %}
+    </p>
+</div>
+{% endif %}
+{% endblock %}

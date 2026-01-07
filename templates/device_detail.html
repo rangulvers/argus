@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+
+{% block title %}{{ device.ip_address }} - Argus{% endblock %}
+{% block page_title %}Device Details{% endblock %}
+
+{% block content %}
+<!-- Back link -->
+<div class="mb-4">
+    <a href="/devices" class="text-sm text-indigo-600 hover:text-indigo-500">&larr; Back to Devices</a>
+</div>
+
+<!-- Security Assessment Banner -->
+{% if device.risk_level in ['medium', 'high', 'critical'] %}
+<div class="mb-6 rounded-lg overflow-hidden shadow-lg
+    {% if device.risk_level == 'critical' %}bg-red-600{% elif device.risk_level == 'high' %}bg-orange-500{% else %}bg-yellow-500{% endif %}">
+    <div class="px-4 py-5 sm:px-6">
+        <div class="flex items-center">
+            <div class="flex-shrink-0">
+                <svg class="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-lg font-bold text-white">
+                    {% if device.risk_level == 'critical' %}CRITICAL SECURITY RISK
+                    {% elif device.risk_level == 'high' %}HIGH SECURITY RISK
+                    {% else %}MEDIUM SECURITY RISK{% endif %}
+                </h3>
+                <p class="text-sm text-white text-opacity-90">
+                    {{ device.threat_summary or 'This device has open ports that may pose security risks.' }}
+                </p>
+            </div>
+            <div class="ml-auto">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-white bg-opacity-20 text-white">
+                    Score: {{ device.risk_score }}/100
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+{% elif device.risk_level == 'low' %}
+<div class="mb-6 rounded-lg bg-blue-50 border border-blue-200 p-4">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+            </svg>
+        </div>
+        <div class="ml-3">
+            <h3 class="text-sm font-medium text-blue-800">Low Risk</h3>
+            <p class="mt-1 text-sm text-blue-700">{{ device.threat_summary or 'Minor security considerations detected. Review recommendations below.' }}</p>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="mb-6 rounded-lg bg-green-50 border border-green-200 p-4">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+            </svg>
+        </div>
+        <div class="ml-3">
+            <h3 class="text-sm font-medium text-green-800">No Known Threats</h3>
+            <p class="mt-1 text-sm text-green-700">No risky ports detected on this device. Continue monitoring with regular scans.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Device info card -->
+<div class="bg-white shadow rounded-lg overflow-hidden">
+    <div class="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-lg font-medium text-gray-900">{{ device.ip_address }}</h3>
+                <p class="mt-1 text-sm text-gray-500">{{ device.hostname or 'No hostname' }}</p>
+                {% if device.device_type %}
+                <p class="mt-1 text-sm font-medium text-indigo-600">{{ device.device_type }}</p>
+                {% endif %}
+            </div>
+            <div class="flex items-center space-x-2">
+                <!-- HTTP Quick Access Buttons -->
+                {% set http_ports = device.ports|selectattr('port_number', 'in', [80, 8080, 8000, 3000, 5000])|list %}
+                {% set https_ports = device.ports|selectattr('port_number', 'in', [443, 8443])|list %}
+                {% if https_ports %}
+                <a href="https://{{ device.ip_address }}{% if https_ports[0].port_number != 443 %}:{{ https_ports[0].port_number }}{% endif %}"
+                   target="_blank"
+                   class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 shadow-sm">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                    Open HTTPS
+                </a>
+                {% endif %}
+                {% if http_ports %}
+                <a href="http://{{ device.ip_address }}{% if http_ports[0].port_number != 80 %}:{{ http_ports[0].port_number }}{% endif %}"
+                   target="_blank"
+                   class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 shadow-sm">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                    Open HTTP
+                </a>
+                {% endif %}
+
+                <!-- Risk and Status Badges -->
+                {% if device.risk_level == 'critical' %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Critical Risk</span>
+                {% elif device.risk_level == 'high' %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">High Risk</span>
+                {% elif device.risk_level == 'medium' %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Medium Risk</span>
+                {% elif device.risk_level == 'low' %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Low Risk</span>
+                {% endif %}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {% if device.status == 'up' %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {{ device.status | upper }}
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="px-4 py-5 sm:p-6">
+        <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+                <dt class="text-sm font-medium text-gray-500">MAC Address</dt>
+                <dd class="mt-1 text-sm text-gray-900 font-mono">{{ device.mac_address or '-' }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Vendor</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ device.vendor or '-' }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Device Type</dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {% if device.device_type %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                        {{ device.device_type }}
+                    </span>
+                    {% else %}
+                    <span class="text-gray-400">Unknown</span>
+                    {% endif %}
+                </dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Operating System</dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {% if device.os_name %}
+                    {{ device.os_name }}
+                    {% if device.os_accuracy %}
+                    <span class="text-gray-500">({{ device.os_accuracy }}% confidence)</span>
+                    {% endif %}
+                    {% else %}
+                    -
+                    {% endif %}
+                </dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">First Seen</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ device.first_seen.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Last Seen</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ device.last_seen.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Scan ID</dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    <a href="/scans/{{ device.scan_id }}" class="text-indigo-600 hover:text-indigo-500">
+                        #{{ device.scan_id }}
+                    </a>
+                </dd>
+            </div>
+        </dl>
+    </div>
+</div>
+
+<!-- Security Threats & Recommendations -->
+{% if device.threat_details and device.threat_details.threats %}
+<div class="mt-8">
+    <h3 class="text-lg font-medium text-gray-900 mb-4">
+        Security Issues & Recommendations
+    </h3>
+
+    {% if device.threat_details.top_recommendation %}
+    <div class="mb-4 rounded-md bg-indigo-50 border border-indigo-200 p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-indigo-800">Top Priority</h3>
+                <p class="mt-1 text-sm text-indigo-700">{{ device.threat_details.top_recommendation }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="space-y-4">
+        {% for threat in device.threat_details.threats %}
+        <div class="bg-white rounded-lg shadow border-l-4
+            {% if threat.risk_level == 'critical' %}border-red-500
+            {% elif threat.risk_level == 'high' %}border-orange-500
+            {% elif threat.risk_level == 'medium' %}border-yellow-500
+            {% else %}border-blue-500{% endif %}">
+            <div class="p-4">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center">
+                        <span class="inline-flex items-center justify-center w-10 h-10 rounded-full
+                            {% if threat.risk_level == 'critical' %}bg-red-100 text-red-700
+                            {% elif threat.risk_level == 'high' %}bg-orange-100 text-orange-700
+                            {% elif threat.risk_level == 'medium' %}bg-yellow-100 text-yellow-700
+                            {% else %}bg-blue-100 text-blue-700{% endif %} font-mono font-bold text-sm">
+                            {{ threat.port }}
+                        </span>
+                        <div class="ml-3">
+                            <h4 class="text-sm font-semibold text-gray-900">
+                                Port {{ threat.port }}/{{ threat.protocol }} - {{ threat.service_name }}
+                            </h4>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                {% if threat.risk_level == 'critical' %}bg-red-100 text-red-800
+                                {% elif threat.risk_level == 'high' %}bg-orange-100 text-orange-800
+                                {% elif threat.risk_level == 'medium' %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                {{ threat.risk_level | upper }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <p class="text-sm text-gray-600">
+                        <span class="font-medium">Issue:</span> {{ threat.description }}
+                    </p>
+                </div>
+                <div class="mt-2 p-3 bg-gray-50 rounded-md">
+                    <p class="text-sm text-gray-700">
+                        <span class="font-medium text-indigo-600">Recommendation:</span> {{ threat.recommendation }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Open Ports -->
+<div class="mt-8">
+    <h3 class="text-lg font-medium text-gray-900 mb-4">Open Ports ({{ device.ports | length }})</h3>
+    {% if device.ports %}
+    <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg">
+        <table class="min-w-full divide-y divide-gray-300">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">Port</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Protocol</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Risk</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Service</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Product / Version</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 bg-white">
+                {% for port in device.ports %}
+                {% set port_risk = namespace(level='safe') %}
+                {% if port.port_number in [23, 512, 513, 514, 31337, 12345, 4444, 5554, 9996] %}
+                    {% set port_risk.level = 'critical' %}
+                {% elif port.port_number in [21, 25, 135, 137, 138, 139, 445, 1433, 1434, 3306, 3389, 5900, 5901, 6379, 27017] %}
+                    {% set port_risk.level = 'high' %}
+                {% elif port.port_number in [22, 53, 80, 110, 143, 161, 1900, 5000, 8080] %}
+                    {% set port_risk.level = 'medium' %}
+                {% endif %}
+                <tr class="{% if port_risk.level == 'critical' %}bg-red-50{% elif port_risk.level == 'high' %}bg-orange-50{% elif port_risk.level == 'medium' %}bg-yellow-50{% endif %}">
+                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
+                        <div class="flex items-center">
+                            {% if port_risk.level in ['critical', 'high'] %}
+                            <svg class="h-4 w-4 text-red-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                            </svg>
+                            {% endif %}
+                            {{ port.port_number }}
+                        </div>
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 uppercase">
+                        {{ port.protocol }}
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-4 text-sm">
+                        {% if port_risk.level == 'critical' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Critical
+                        </span>
+                        {% elif port_risk.level == 'high' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            High
+                        </span>
+                        {% elif port_risk.level == 'medium' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            Medium
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Safe
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {{ port.service_name or '-' }}
+                    </td>
+                    <td class="px-3 py-4 text-sm text-gray-500">
+                        {% if port.service_product %}
+                        {{ port.service_product }}{% if port.service_version %} {{ port.service_version }}{% endif %}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-8 bg-white rounded-lg shadow">
+        <p class="text-sm text-gray-500">No open ports detected on this device.</p>
+        <p class="text-xs text-gray-400 mt-1">Try running a "normal" or "intensive" scan profile to detect ports.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

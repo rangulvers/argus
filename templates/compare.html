@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Compare Scans - Argus{% endblock %}
+{% block page_title %}Compare Scans{% endblock %}
+
+{% block content %}
+<!-- Scan selectors -->
+<div class="bg-white shadow rounded-lg p-6 mb-6">
+    <form method="GET" action="/compare" class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div>
+            <label for="scan1" class="block text-sm font-medium text-gray-700">Previous Scan</label>
+            <select id="scan1" name="scan1"
+                    class="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+                <option value="">Select scan...</option>
+                {% for scan in scans %}
+                <option value="{{ scan.id }}" {% if scan.id == scan1_id %}selected{% endif %}>
+                    #{{ scan.id }} - {{ scan.started_at.strftime('%Y-%m-%d %H:%M') }} ({{ scan.devices_found }} devices)
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="scan2" class="block text-sm font-medium text-gray-700">Current Scan</label>
+            <select id="scan2" name="scan2"
+                    class="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+                <option value="">Select scan...</option>
+                {% for scan in scans %}
+                <option value="{{ scan.id }}" {% if scan.id == scan2_id %}selected{% endif %}>
+                    #{{ scan.id }} - {{ scan.started_at.strftime('%Y-%m-%d %H:%M') }} ({{ scan.devices_found }} devices)
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex items-end">
+            <button type="submit"
+                    class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none">
+                Compare
+            </button>
+        </div>
+    </form>
+</div>
+
+{% if comparison %}
+<!-- Comparison Summary -->
+<div class="grid grid-cols-1 gap-5 sm:grid-cols-4 mb-6">
+    <div class="bg-white overflow-hidden shadow rounded-lg">
+        <div class="p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                    </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Devices Added</dt>
+                        <dd class="text-lg font-medium text-green-600">{{ comparison.devices_added | length }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white overflow-hidden shadow rounded-lg">
+        <div class="p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                    </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Devices Removed</dt>
+                        <dd class="text-lg font-medium text-red-600">{{ comparison.devices_removed | length }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white overflow-hidden shadow rounded-lg">
+        <div class="p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Ports Opened</dt>
+                        <dd class="text-lg font-medium text-green-600">{{ comparison.ports_opened | length }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white overflow-hidden shadow rounded-lg">
+        <div class="p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                    </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Ports Closed</dt>
+                        <dd class="text-lg font-medium text-red-600">{{ comparison.ports_closed | length }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Side by side comparison -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Previous Scan -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+                Scan #{{ comparison.scan1.id }}
+                <span class="text-sm font-normal text-gray-500">
+                    ({{ comparison.scan1.started_at.strftime('%Y-%m-%d %H:%M') }})
+                </span>
+            </h3>
+            <p class="mt-1 text-sm text-gray-500">{{ comparison.scan1.devices_found }} devices</p>
+        </div>
+        <div class="px-4 py-5 sm:p-6">
+            <ul class="space-y-2">
+                {% for device in comparison.scan1_devices %}
+                <li class="flex items-center justify-between py-2 {% if device.ip_address in comparison.removed_ips %}bg-red-50 -mx-4 px-4{% endif %}">
+                    <div>
+                        <span class="font-mono text-sm">{{ device.ip_address }}</span>
+                        {% if device.hostname %}
+                        <span class="text-gray-500 text-sm">({{ device.hostname }})</span>
+                        {% endif %}
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        {% if device.ports | length > 0 %}
+                        {{ device.ports | length }} ports
+                        {% endif %}
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Current Scan -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+                Scan #{{ comparison.scan2.id }}
+                <span class="text-sm font-normal text-gray-500">
+                    ({{ comparison.scan2.started_at.strftime('%Y-%m-%d %H:%M') }})
+                </span>
+            </h3>
+            <p class="mt-1 text-sm text-gray-500">{{ comparison.scan2.devices_found }} devices</p>
+        </div>
+        <div class="px-4 py-5 sm:p-6">
+            <ul class="space-y-2">
+                {% for device in comparison.scan2_devices %}
+                <li class="flex items-center justify-between py-2 {% if device.ip_address in comparison.added_ips %}bg-green-50 -mx-4 px-4{% endif %}">
+                    <div>
+                        <span class="font-mono text-sm">{{ device.ip_address }}</span>
+                        {% if device.hostname %}
+                        <span class="text-gray-500 text-sm">({{ device.hostname }})</span>
+                        {% endif %}
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        {% if device.ports | length > 0 %}
+                        {{ device.ports | length }} ports
+                        {% endif %}
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Changes -->
+{% if comparison.changes %}
+<div class="mt-6 bg-white shadow rounded-lg overflow-hidden">
+    <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+        <h3 class="text-lg font-medium text-gray-900">Detailed Changes</h3>
+    </div>
+    <ul class="divide-y divide-gray-200">
+        {% for change in comparison.changes %}
+        <li class="px-4 py-4 sm:px-6">
+            <div class="flex items-center">
+                {% if change.change_type in ['device_added', 'port_opened'] %}
+                <span class="flex-shrink-0 inline-flex items-center justify-center h-8 w-8 rounded-full bg-green-100">
+                    <svg class="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                    </svg>
+                </span>
+                {% elif change.change_type in ['device_removed', 'port_closed'] %}
+                <span class="flex-shrink-0 inline-flex items-center justify-center h-8 w-8 rounded-full bg-red-100">
+                    <svg class="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                    </svg>
+                </span>
+                {% else %}
+                <span class="flex-shrink-0 inline-flex items-center justify-center h-8 w-8 rounded-full bg-yellow-100">
+                    <svg class="h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                </span>
+                {% endif %}
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-900">{{ change.description }}</p>
+                    <p class="text-sm text-gray-500">
+                        {{ change.change_type | replace('_', ' ') | title }}
+                        {% if change.device_ip %} - {{ change.device_ip }}{% endif %}
+                    </p>
+                </div>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% elif scans | length < 2 %}
+<div class="text-center py-12 bg-white rounded-lg shadow">
+    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+    </svg>
+    <h3 class="mt-2 text-sm font-medium text-gray-900">Not enough scans</h3>
+    <p class="mt-1 text-sm text-gray-500">Run at least two scans to compare network changes.</p>
+</div>
+{% else %}
+<div class="text-center py-12 bg-white rounded-lg shadow">
+    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+    </svg>
+    <h3 class="mt-2 text-sm font-medium text-gray-900">Select two scans to compare</h3>
+    <p class="mt-1 text-sm text-gray-500">Choose a previous and current scan above to see the differences.</p>
+</div>
+{% endif %}
+{% endblock %}

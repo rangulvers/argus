@@ -1,0 +1,46 @@
+# Git
+.git/
+.gitignore
+
+# Python virtual environments
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data (will be mounted as volume)
+data/
+*.db
+
+# Logs
+*.log
+logs/
+
+# Config (will be mounted)
+config.yaml
+.env
+
+# Documentation (not needed in container)
+*.md
+!README.md
+
+# Claude
+.claude/
+
+# Test files
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+
+# OS files
+.DS_Store
+Thumbs.db

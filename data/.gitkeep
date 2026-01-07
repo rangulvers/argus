@@ -1,0 +1,3 @@
+# Database and cache files stored here
+# - argus.db (SQLite database)
+# - manuf (MAC vendor lookup cache)

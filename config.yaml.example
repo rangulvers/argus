@@ -1,0 +1,46 @@
+# Argus Configuration File
+
+network:
+  subnet: "192.168.1.0/24"
+  scan_schedule: "0 2 * * 0"  # Cron format: 2 AM every Sunday
+  scan_profile: "normal"  # quick, normal, intensive
+
+scanning:
+  port_range: "1-1000"  # or "common" for top 100, or "all" for all 65535 ports
+  enable_os_detection: true
+  enable_service_detection: true
+  timeout: 300  # seconds
+
+alerts:
+  enabled: true
+  new_device: true
+  new_port: true
+  threshold_ports: 10  # Alert if more than X new ports detected
+
+notifications:
+  email:
+    enabled: false
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    smtp_username: "your-email@gmail.com"
+    smtp_password: "your-app-password"
+    from_address: "argus@yourdomain.com"
+    recipients:
+      - "admin@yourdomain.com"
+
+  webhook:
+    enabled: false
+    url: "https://your-webhook-url.com/alerts"
+    secret: "your-webhook-secret"
+
+database:
+  type: "sqlite"
+  path: "./data/argus.db"
+  retention_days: 365  # Keep scan data for 1 year
+
+web:
+  host: "0.0.0.0"
+  port: 8080
+  enable_auth: false
+  username: "admin"
+  password: "changeme"

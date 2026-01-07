@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Scan History - Argus{% endblock %}
+{% block page_title %}Scan History{% endblock %}
+
+{% block content %}
+{% if scans %}
+<div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg">
+    <table class="min-w-full divide-y divide-gray-300">
+        <thead class="bg-gray-50">
+            <tr>
+                <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">ID</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Started</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Completed</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Profile</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Subnet</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Devices</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Changes</th>
+                <th scope="col" class="relative py-3.5 pl-3 pr-4">
+                    <span class="sr-only">Actions</span>
+                </th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 bg-white">
+            {% for scan in scans %}
+            <tr class="hover:bg-gray-50">
+                <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
+                    #{{ scan.id }}
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    {{ scan.started_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    {% if scan.completed_at %}
+                    {{ scan.completed_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm">
+                    {% if scan.status == 'completed' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Completed
+                    </span>
+                    {% elif scan.status == 'running' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Running
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        Failed
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    {{ scan.scan_profile }}
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 font-mono">
+                    {{ scan.subnet }}
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    {{ scan.devices_found }}
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    {% set change_count = scan.changes | length %}
+                    {% if change_count > 0 %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        {{ change_count }}
+                    </span>
+                    {% else %}
+                    <span class="text-gray-400">0</span>
+                    {% endif %}
+                </td>
+                <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium space-x-3">
+                    <a href="/devices?scan_id={{ scan.id }}" class="text-indigo-600 hover:text-indigo-900">Devices</a>
+                    <a href="/changes?scan_id={{ scan.id }}" class="text-indigo-600 hover:text-indigo-900">Changes</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-12 bg-white rounded-lg shadow">
+    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+    </svg>
+    <h3 class="mt-2 text-sm font-medium text-gray-900">No scans yet</h3>
+    <p class="mt-1 text-sm text-gray-500">Run your first scan to start monitoring your network.</p>
+</div>
+{% endif %}
+{% endblock %}

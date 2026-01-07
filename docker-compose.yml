@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  argus:
+    build: .
+    container_name: argus
+    image: argus:latest
+
+    # Network configuration - use host network for nmap scanning
+    network_mode: host
+
+    # Capabilities required for nmap
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
+    # Privileged mode (alternative to cap_add if needed)
+    # privileged: true
+
+    # Volumes
+    volumes:
+      - ./data:/app/data              # Database storage
+      - ./config.yaml:/app/config.yaml:ro  # Configuration (read-only)
+      - ./logs:/var/log                # Logs
+
+    # Environment variables
+    environment:
+      - DATABASE_URL=sqlite:///./data/argus.db
+      - PYTHONUNBUFFERED=1
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Devices - Argus{% endblock %}
+{% block page_title %}Devices{% endblock %}
+
+{% block content %}
+<!-- Scan selector -->
+<div class="mb-6 flex items-center justify-between">
+    <div>
+        <label for="scan-select" class="block text-sm font-medium text-gray-700">Select Scan</label>
+        <select id="scan-select"
+                onchange="window.location='/devices?scan_id=' + this.value"
+                class="mt-1 block w-64 rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+            {% for scan in scans %}
+            <option value="{{ scan.id }}" {% if scan.id == selected_scan_id %}selected{% endif %}>
+                Scan #{{ scan.id }} - {{ scan.started_at.strftime('%Y-%m-%d %H:%M') }} ({{ scan.devices_found }} devices)
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="text-sm text-gray-500">
+        {% if current_scan %}
+        Showing {{ devices|length }} devices from scan #{{ current_scan.id }}
+        {% endif %}
+    </div>
+</div>
+
+<!-- Risk Summary (if any threats) -->
+{% set at_risk = devices|selectattr('risk_level', 'in', ['medium', 'high', 'critical'])|list %}
+{% if at_risk|length > 0 %}
+<div class="mb-6 rounded-md bg-red-50 border border-red-200 p-4">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+            </svg>
+        </div>
+        <div class="ml-3">
+            <h3 class="text-sm font-medium text-red-800">Security Alert</h3>
+            <p class="mt-1 text-sm text-red-700">
+                {{ at_risk|length }} device{{ 's' if at_risk|length > 1 else '' }} with potential security risks detected.
+                Click "View" on flagged devices to see recommendations.
+            </p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Devices table -->
+{% if devices %}
+<div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg">
+    <table class="min-w-full divide-y divide-gray-300">
+        <thead class="bg-gray-50">
+            <tr>
+                <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">IP Address</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Device</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">MAC / Vendor</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Risk</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Open Ports</th>
+                <th scope="col" class="relative py-3.5 pl-3 pr-4">
+                    <span class="sr-only">Actions</span>
+                </th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 bg-white">
+            {% for device in devices %}
+            <tr class="{% if device.risk_level == 'critical' %}bg-red-50 hover:bg-red-100{% elif device.risk_level == 'high' %}bg-orange-50 hover:bg-orange-100{% else %}hover:bg-gray-50{% endif %}">
+                <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
+                    <div class="flex items-center">
+                        {% if device.risk_level in ['high', 'critical'] %}
+                        <svg class="h-4 w-4 text-red-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                        </svg>
+                        {% endif %}
+                        {{ device.ip_address }}
+                    </div>
+                </td>
+                <td class="px-3 py-4 text-sm text-gray-500">
+                    <div class="font-medium text-gray-900">{{ device.hostname or '-' }}</div>
+                    {% if device.device_type %}
+                    <div class="text-xs text-indigo-600">{{ device.device_type }}</div>
+                    {% endif %}
+                    {% if device.os_name %}
+                    <div class="text-xs text-gray-400 truncate max-w-[150px]" title="{{ device.os_name }}">{{ device.os_name }}</div>
+                    {% endif %}
+                </td>
+                <td class="px-3 py-4 text-sm text-gray-500">
+                    <div class="font-mono text-xs">{{ device.mac_address or '-' }}</div>
+                    {% if device.vendor %}
+                    <div class="text-xs text-gray-400 truncate max-w-[150px]" title="{{ device.vendor }}">{{ device.vendor }}</div>
+                    {% endif %}
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm">
+                    {% if device.risk_level == 'critical' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        Critical
+                    </span>
+                    {% elif device.risk_level == 'high' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                        High
+                    </span>
+                    {% elif device.risk_level == 'medium' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        Medium
+                    </span>
+                    {% elif device.risk_level == 'low' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Low
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Safe
+                    </span>
+                    {% endif %}
+                    {% if device.risk_score and device.risk_score > 0 %}
+                    <span class="ml-1 text-xs text-gray-400">({{ device.risk_score }})</span>
+                    {% endif %}
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    {% if device.ports|length > 0 %}
+                    <div class="flex flex-wrap gap-1">
+                        {% for port in device.ports[:5] %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                            {% if port.port_number in [23, 512, 513, 514, 31337, 12345, 4444, 5554, 9996] %}bg-red-100 text-red-800
+                            {% elif port.port_number in [21, 25, 135, 137, 138, 139, 445, 1433, 1434, 3306, 3389, 5900, 5901, 6379, 27017] %}bg-orange-100 text-orange-800
+                            {% elif port.port_number in [22, 53, 80, 110, 143, 161, 1900, 5000, 8080] %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-blue-100 text-blue-800{% endif %}">
+                            {{ port.port_number }}
+                        </span>
+                        {% endfor %}
+                        {% if device.ports|length > 5 %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                            +{{ device.ports|length - 5 }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <span class="text-gray-400">None</span>
+                    {% endif %}
+                </td>
+                <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium">
+                    <div class="flex items-center justify-end space-x-2">
+                        {% set http_ports = device.ports|selectattr('port_number', 'in', [80, 8080, 8000, 3000, 5000])|list %}
+                        {% set https_ports = device.ports|selectattr('port_number', 'in', [443, 8443])|list %}
+                        {% if https_ports %}
+                        <a href="https://{{ device.ip_address }}{% if https_ports[0].port_number != 443 %}:{{ https_ports[0].port_number }}{% endif %}"
+                           target="_blank"
+                           class="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-700 hover:bg-green-200"
+                           title="Open HTTPS interface">
+                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                            </svg>
+                            HTTPS
+                        </a>
+                        {% elif http_ports %}
+                        <a href="http://{{ device.ip_address }}{% if http_ports[0].port_number != 80 %}:{{ http_ports[0].port_number }}{% endif %}"
+                           target="_blank"
+                           class="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-700 hover:bg-blue-200"
+                           title="Open HTTP interface">
+                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                            </svg>
+                            HTTP
+                        </a>
+                        {% endif %}
+                        <a href="/devices/{{ device.id }}" class="text-indigo-600 hover:text-indigo-900">View</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-12 bg-white rounded-lg shadow">
+    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+    </svg>
+    <h3 class="mt-2 text-sm font-medium text-gray-900">No devices found</h3>
+    <p class="mt-1 text-sm text-gray-500">Run a scan to discover devices on your network.</p>
+</div>
+{% endif %}
+{% endblock %}

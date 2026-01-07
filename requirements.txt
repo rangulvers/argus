@@ -1,0 +1,28 @@
+# FastAPI and ASGI server
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.9
+
+# Database (Python 3.13 compatible)
+sqlalchemy>=2.0.36
+alembic>=1.14.0
+
+# Network scanning
+python-nmap>=0.7.1
+
+# Templates and static files
+jinja2>=3.1.4
+
+# Configuration
+pyyaml>=6.0.2
+python-dotenv>=1.0.1
+
+# Date/Time utilities
+python-dateutil>=2.9.0
+
+# HTTP client (for webhooks)
+httpx>=0.28.0
+
+# Validation
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
