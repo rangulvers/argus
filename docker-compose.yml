@@ -24,7 +24,7 @@ services:
     # Volumes
     volumes:
       - ./data:/app/data              # Database storage
-      - ./config.yaml:/app/config.yaml:ro  # Configuration (read-only)
+      - ./config.yaml:/app/config.yaml  # Configuration (read-write for schedule updates)
       - ./logs:/var/log                # Logs
 
     # Environment variables
