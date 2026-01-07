@@ -512,6 +512,22 @@ async def compare_page(
     })
 
 
+@app.get("/api/scan/status")
+async def get_scan_status(db: Session = Depends(get_db)):
+    """Check if there are any running scans"""
+    running_scan = db.query(Scan).filter(Scan.status == "running").first()
+
+    if running_scan:
+        return {
+            "scanning": True,
+            "scan_id": running_scan.id,
+            "subnet": running_scan.subnet,
+            "profile": running_scan.scan_profile,
+            "started_at": running_scan.started_at.isoformat()
+        }
+    return {"scanning": False}
+
+
 @app.post("/api/scan/trigger")
 async def trigger_scan_htmx(
     background_tasks: BackgroundTasks,
