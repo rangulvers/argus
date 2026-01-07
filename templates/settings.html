@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Argus{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Scheduled Scans -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Scheduled Scans</h3>
+            <p class="mt-1 text-sm text-gray-500">Configure automatic network scans</p>
+        </div>
+        <div class="px-4 py-5 sm:p-6" x-data="scheduleSettings()">
+            <form @submit.prevent="saveSchedule" class="space-y-6">
+                <!-- Enable/Disable Toggle -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <label class="text-sm font-medium text-gray-900">Enable Scheduled Scans</label>
+                        <p class="text-sm text-gray-500">Automatically scan your network on a schedule</p>
+                    </div>
+                    <button type="button"
+                            @click="enabled = !enabled"
+                            :class="enabled ? 'bg-indigo-600' : 'bg-gray-200'"
+                            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2">
+                        <span :class="enabled ? 'translate-x-5' : 'translate-x-0'"
+                              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                    </button>
+                </div>
+
+                <!-- Schedule Presets -->
+                <div x-show="enabled" x-cloak>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Schedule</label>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                        <button type="button" @click="setCron('0 2 * * 0')"
+                                :class="cron === '0 2 * * 0' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-white'"
+                                class="px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50">
+                            Weekly<br><span class="text-xs text-gray-500">Sun 2 AM</span>
+                        </button>
+                        <button type="button" @click="setCron('0 2 * * *')"
+                                :class="cron === '0 2 * * *' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-white'"
+                                class="px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50">
+                            Daily<br><span class="text-xs text-gray-500">2 AM</span>
+                        </button>
+                        <button type="button" @click="setCron('0 */6 * * *')"
+                                :class="cron === '0 */6 * * *' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-white'"
+                                class="px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50">
+                            Every 6h<br><span class="text-xs text-gray-500">0:00, 6:00...</span>
+                        </button>
+                        <button type="button" @click="setCron('0 */12 * * *')"
+                                :class="cron === '0 */12 * * *' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-white'"
+                                class="px-4 py-2 border rounded-md text-sm font-medium hover:bg-gray-50">
+                            Twice Daily<br><span class="text-xs text-gray-500">0:00, 12:00</span>
+                        </button>
+                    </div>
+
+                    <!-- Custom Cron -->
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Custom Cron Expression</label>
+                        <div class="flex space-x-2">
+                            <input type="text" x-model="cron"
+                                   class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm font-mono"
+                                   placeholder="0 2 * * 0">
+                            <div class="text-sm text-gray-500 self-center">
+                                <span class="font-mono">min hour day month weekday</span>
+                            </div>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">
+                            Examples: <code class="bg-gray-100 px-1">0 2 * * 0</code> (Sun 2AM),
+                            <code class="bg-gray-100 px-1">0 */4 * * *</code> (every 4h),
+                            <code class="bg-gray-100 px-1">30 3 * * 1-5</code> (weekdays 3:30AM)
+                        </p>
+                    </div>
+
+                    <!-- Scan Profile -->
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Scan Profile</label>
+                        <div class="grid grid-cols-3 gap-3">
+                            <button type="button" @click="profile = 'quick'"
+                                    :class="profile === 'quick' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-white'"
+                                    class="px-4 py-3 border rounded-md text-sm font-medium hover:bg-gray-50 text-left">
+                                <div class="font-semibold">Quick</div>
+                                <div class="text-xs text-gray-500">Ping only, ~30s</div>
+                            </button>
+                            <button type="button" @click="profile = 'normal'"
+                                    :class="profile === 'normal' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-white'"
+                                    class="px-4 py-3 border rounded-md text-sm font-medium hover:bg-gray-50 text-left">
+                                <div class="font-semibold">Normal</div>
+                                <div class="text-xs text-gray-500">Ports 1-1000, 5-10min</div>
+                            </button>
+                            <button type="button" @click="profile = 'intensive'"
+                                    :class="profile === 'intensive' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-white'"
+                                    class="px-4 py-3 border rounded-md text-sm font-medium hover:bg-gray-50 text-left">
+                                <div class="font-semibold">Intensive</div>
+                                <div class="text-xs text-gray-500">All ports + OS, 15-30min</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status & Save -->
+                <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+                    <div>
+                        <template x-if="nextRun">
+                            <p class="text-sm text-gray-600">
+                                <span class="font-medium">Next scan:</span>
+                                <span x-text="formatDate(nextRun)"></span>
+                            </p>
+                        </template>
+                        <template x-if="!enabled">
+                            <p class="text-sm text-gray-500">Scheduled scans are disabled</p>
+                        </template>
+                        <template x-if="message">
+                            <p class="text-sm mt-1" :class="messageType === 'error' ? 'text-red-600' : 'text-green-600'" x-text="message"></p>
+                        </template>
+                    </div>
+                    <button type="submit"
+                            :disabled="saving"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none disabled:opacity-50">
+                        <span x-text="saving ? 'Saving...' : 'Save Changes'"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Network Configuration (Read-only, from config.yaml) -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Network Configuration</h3>
+            <p class="mt-1 text-sm text-gray-500">Current settings from config.yaml</p>
+        </div>
+        <div class="px-4 py-5 sm:p-6">
+            <dl class="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Subnet</dt>
+                    <dd class="mt-1 text-sm text-gray-900 font-mono">{{ config.network.subnet }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Default Scan Profile</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ config.network.scan_profile }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Port Range</dt>
+                    <dd class="mt-1 text-sm text-gray-900 font-mono">{{ config.scanning.port_range }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">OS Detection</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ "Enabled" if config.scanning.enable_os_detection else "Disabled" }}</dd>
+                </div>
+            </dl>
+            <p class="mt-4 text-xs text-gray-500">
+                To change these settings, edit <code class="bg-gray-100 px-1">config.yaml</code> and restart the application.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+function scheduleSettings() {
+    return {
+        enabled: {{ schedule.enabled | tojson }},
+        cron: '{{ schedule.cron }}',
+        profile: '{{ schedule.profile }}',
+        nextRun: {{ schedule.next_run | tojson if schedule.next_run else 'null' }},
+        saving: false,
+        message: '',
+        messageType: '',
+
+        setCron(value) {
+            this.cron = value;
+        },
+
+        formatDate(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            return date.toLocaleString();
+        },
+
+        async saveSchedule() {
+            this.saving = true;
+            this.message = '';
+
+            try {
+                const response = await fetch('/api/schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        enabled: this.enabled,
+                        cron: this.cron,
+                        profile: this.profile
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'error') {
+                    this.message = 'Error: ' + data.error;
+                    this.messageType = 'error';
+                } else {
+                    this.nextRun = data.next_run;
+                    this.message = 'Settings saved successfully!';
+                    this.messageType = 'success';
+                    setTimeout(() => { this.message = ''; }, 3000);
+                }
+            } catch (error) {
+                this.message = 'Failed to save settings';
+                this.messageType = 'error';
+            }
+
+            this.saving = false;
+        }
+    }
+}
+</script>
+{% endblock %}

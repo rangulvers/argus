@@ -20,6 +20,9 @@ python-dotenv>=1.0.1
 # Date/Time utilities
 python-dateutil>=2.9.0
 
+# Scheduling
+apscheduler>=3.10.4
+
 # HTTP client (for webhooks)
 httpx>=0.28.0
 
