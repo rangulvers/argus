@@ -15,7 +15,10 @@ from app.models import Scan, Device, Port, Change, DeviceHistory
 from app.scanner import NetworkScanner
 from app.utils.change_detector import ChangeDetector
 from app.config import get_config
-from app.scheduler import init_scheduler, get_schedule_status, update_scheduled_job, load_schedule_config
+from app.scheduler import (
+    init_scheduler, get_all_schedules, add_schedule_job,
+    update_schedule_job, delete_schedule_job
+)
 from pydantic import BaseModel
 
 # Setup logging
@@ -51,10 +54,18 @@ class ScanRequest(BaseModel):
     detect_changes: bool = True
 
 
-class ScheduleUpdate(BaseModel):
-    enabled: bool
+class ScheduleJobCreate(BaseModel):
+    name: str
     cron: str
     profile: str = "normal"
+    enabled: bool = True
+
+
+class ScheduleJobUpdate(BaseModel):
+    name: str
+    cron: str
+    profile: str = "normal"
+    enabled: bool = True
 
 
 class ScanResponse(BaseModel):
@@ -613,16 +624,33 @@ async def trigger_device_scan(
 
 # Schedule API Endpoints
 @app.get("/api/schedule")
-async def get_schedule():
-    """Get current scan schedule configuration"""
-    return get_schedule_status()
+async def get_schedules():
+    """Get all scheduled scan jobs"""
+    return {"jobs": get_all_schedules()}
 
 
 @app.post("/api/schedule")
-async def update_schedule(schedule: ScheduleUpdate):
-    """Update scan schedule configuration"""
-    result = update_scheduled_job(schedule.enabled, schedule.cron, schedule.profile)
-    return {**result, "cron": schedule.cron, "profile": schedule.profile}
+async def create_schedule(job: ScheduleJobCreate):
+    """Create a new scheduled scan job"""
+    result = add_schedule_job(job.name, job.cron, job.profile, job.enabled)
+    return result
+
+
+@app.put("/api/schedule/{job_id}")
+async def update_schedule(job_id: str, job: ScheduleJobUpdate):
+    """Update an existing scheduled scan job"""
+    result = update_schedule_job(job_id, job.name, job.cron, job.profile, job.enabled)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return result
+
+
+@app.delete("/api/schedule/{job_id}")
+async def delete_schedule(job_id: str):
+    """Delete a scheduled scan job"""
+    if not delete_schedule_job(job_id):
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {"status": "deleted", "job_id": job_id}
 
 
 # Settings UI Page
@@ -630,13 +658,13 @@ async def update_schedule(schedule: ScheduleUpdate):
 async def settings_page(request: Request):
     """Settings page"""
     config = get_config()
-    schedule = get_schedule_status()
+    schedules = get_all_schedules()
 
     return templates.TemplateResponse("settings.html", {
         "request": request,
         "active_page": "settings",
         "config": config,
-        "schedule": schedule,
+        "schedules": schedules,
     })
 
 

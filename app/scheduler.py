@@ -1,10 +1,11 @@
-"""Scheduled scan management using APScheduler"""
+"""Scheduled scan management using APScheduler - supports multiple scan jobs"""
 
 import logging
 import yaml
+import uuid
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
@@ -15,7 +16,6 @@ CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
 
 # Global scheduler instance
 _scheduler: Optional[BackgroundScheduler] = None
-_job_id = "scheduled_network_scan"
 
 
 def get_scheduler() -> BackgroundScheduler:
@@ -28,25 +28,25 @@ def get_scheduler() -> BackgroundScheduler:
     return _scheduler
 
 
-def load_schedule_config() -> Dict[str, Any]:
-    """Load schedule configuration from config.yaml"""
+def load_schedule_config() -> List[Dict[str, Any]]:
+    """Load schedule jobs from config.yaml"""
     try:
         if CONFIG_PATH.exists():
             with open(CONFIG_PATH, 'r') as f:
                 config = yaml.safe_load(f) or {}
-                return {
-                    "enabled": config.get("schedule", {}).get("enabled", False),
-                    "cron": config.get("schedule", {}).get("cron", "0 2 * * 0"),
-                    "profile": config.get("schedule", {}).get("profile", "normal"),
-                }
+                jobs = config.get("schedule", {}).get("jobs", [])
+                # Ensure each job has an ID
+                for job in jobs:
+                    if "id" not in job:
+                        job["id"] = str(uuid.uuid4())[:8]
+                return jobs
     except Exception as e:
         logger.error(f"Failed to load schedule config: {e}")
+    return []
 
-    return {"enabled": False, "cron": "0 2 * * 0", "profile": "normal"}
 
-
-def save_schedule_config(enabled: bool, cron: str, profile: str) -> bool:
-    """Save schedule configuration to config.yaml"""
+def save_schedule_config(jobs: List[Dict[str, Any]]) -> bool:
+    """Save schedule jobs to config.yaml"""
     try:
         config = {}
         if CONFIG_PATH.exists():
@@ -56,37 +56,34 @@ def save_schedule_config(enabled: bool, cron: str, profile: str) -> bool:
         if "schedule" not in config:
             config["schedule"] = {}
 
-        config["schedule"]["enabled"] = enabled
-        config["schedule"]["cron"] = cron
-        config["schedule"]["profile"] = profile
+        config["schedule"]["jobs"] = jobs
 
         with open(CONFIG_PATH, 'w') as f:
-            yaml.dump(config, f, default_flow_style=False)
+            yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
-        logger.info(f"Schedule config saved: enabled={enabled}, cron={cron}, profile={profile}")
+        logger.info(f"Schedule config saved: {len(jobs)} jobs")
         return True
     except Exception as e:
         logger.error(f"Failed to save schedule config: {e}")
         return False
 
 
-def run_scheduled_scan():
+def run_scheduled_scan(profile: str, job_name: str):
     """Execute a scheduled network scan"""
     from app.database import SessionLocal
     from app.scanner import NetworkScanner
     from app.utils.change_detector import ChangeDetector
     from app.config import get_config
 
-    logger.info("Starting scheduled network scan")
+    logger.info(f"Starting scheduled scan: {job_name} (profile: {profile})")
     config = get_config()
-    schedule_config = load_schedule_config()
 
     db = SessionLocal()
     try:
         scanner = NetworkScanner(db)
         scan = scanner.perform_scan(
             subnet=config.network.subnet,
-            scan_profile=schedule_config.get("profile", "normal"),
+            scan_profile=profile,
             port_range=config.scanning.port_range,
             enable_os_detection=config.scanning.enable_os_detection,
             enable_service_detection=config.scanning.enable_service_detection,
@@ -96,9 +93,9 @@ def run_scheduled_scan():
         if scan.status == "completed":
             detector = ChangeDetector(db)
             detector.detect_changes(scan.id)
-            logger.info(f"Scheduled scan completed: {scan.devices_found} devices found")
+            logger.info(f"Scheduled scan '{job_name}' completed: {scan.devices_found} devices found")
     except Exception as e:
-        logger.error(f"Scheduled scan failed: {e}")
+        logger.error(f"Scheduled scan '{job_name}' failed: {e}")
     finally:
         db.close()
 
@@ -118,63 +115,143 @@ def parse_cron_expression(cron: str) -> Dict[str, str]:
     }
 
 
-def update_scheduled_job(enabled: bool, cron: str, profile: str) -> Dict[str, Any]:
-    """Update the scheduled scan job"""
+def get_job_id(job_id: str) -> str:
+    """Get the APScheduler job ID for a config job"""
+    return f"scan_job_{job_id}"
+
+
+def sync_scheduler_jobs():
+    """Sync APScheduler jobs with config"""
     scheduler = get_scheduler()
+    jobs = load_schedule_config()
 
-    # Remove existing job if any
-    if scheduler.get_job(_job_id):
-        scheduler.remove_job(_job_id)
-        logger.info("Removed existing scheduled job")
+    # Get current APScheduler job IDs
+    current_job_ids = {job.id for job in scheduler.get_jobs()}
+    config_job_ids = {get_job_id(job["id"]) for job in jobs if job.get("enabled", False)}
 
-    # Save to config
-    save_schedule_config(enabled, cron, profile)
+    # Remove jobs that are no longer in config or disabled
+    for job_id in current_job_ids:
+        if job_id.startswith("scan_job_") and job_id not in config_job_ids:
+            scheduler.remove_job(job_id)
+            logger.info(f"Removed job: {job_id}")
 
-    if not enabled:
-        return {"status": "disabled", "next_run": None}
+    # Add/update jobs from config
+    for job in jobs:
+        if not job.get("enabled", False):
+            continue
 
-    try:
-        cron_kwargs = parse_cron_expression(cron)
-        trigger = CronTrigger(**cron_kwargs)
+        job_id = get_job_id(job["id"])
+        try:
+            cron_kwargs = parse_cron_expression(job["cron"])
+            trigger = CronTrigger(**cron_kwargs)
 
-        job = scheduler.add_job(
-            run_scheduled_scan,
-            trigger=trigger,
-            id=_job_id,
-            name="Network Scan",
-            replace_existing=True,
-        )
+            if scheduler.get_job(job_id):
+                scheduler.reschedule_job(job_id, trigger=trigger)
+                logger.info(f"Updated job: {job['name']}")
+            else:
+                scheduler.add_job(
+                    run_scheduled_scan,
+                    trigger=trigger,
+                    id=job_id,
+                    name=job.get("name", "Scheduled Scan"),
+                    args=[job.get("profile", "normal"), job.get("name", "Scheduled Scan")],
+                    replace_existing=True,
+                )
+                logger.info(f"Added job: {job['name']}")
+        except Exception as e:
+            logger.error(f"Failed to schedule job '{job.get('name')}': {e}")
 
-        next_run = job.next_run_time.isoformat() if job.next_run_time else None
-        logger.info(f"Scheduled job updated: next run at {next_run}")
 
-        return {"status": "enabled", "next_run": next_run}
-    except Exception as e:
-        logger.error(f"Failed to schedule job: {e}")
-        return {"status": "error", "error": str(e)}
+def add_schedule_job(name: str, cron: str, profile: str, enabled: bool = True) -> Dict[str, Any]:
+    """Add a new scheduled scan job"""
+    jobs = load_schedule_config()
 
-
-def get_schedule_status() -> Dict[str, Any]:
-    """Get current schedule status"""
-    config = load_schedule_config()
-    scheduler = get_scheduler()
-    job = scheduler.get_job(_job_id)
-
-    return {
-        "enabled": config["enabled"],
-        "cron": config["cron"],
-        "profile": config["profile"],
-        "next_run": job.next_run_time.isoformat() if job and job.next_run_time else None,
-        "job_active": job is not None,
+    new_job = {
+        "id": str(uuid.uuid4())[:8],
+        "name": name,
+        "cron": cron,
+        "profile": profile,
+        "enabled": enabled,
     }
+    jobs.append(new_job)
+
+    save_schedule_config(jobs)
+    sync_scheduler_jobs()
+
+    return get_job_status(new_job["id"])
+
+
+def update_schedule_job(job_id: str, name: str, cron: str, profile: str, enabled: bool) -> Optional[Dict[str, Any]]:
+    """Update an existing scheduled scan job"""
+    jobs = load_schedule_config()
+
+    for job in jobs:
+        if job["id"] == job_id:
+            job["name"] = name
+            job["cron"] = cron
+            job["profile"] = profile
+            job["enabled"] = enabled
+            break
+    else:
+        return None
+
+    save_schedule_config(jobs)
+    sync_scheduler_jobs()
+
+    return get_job_status(job_id)
+
+
+def delete_schedule_job(job_id: str) -> bool:
+    """Delete a scheduled scan job"""
+    jobs = load_schedule_config()
+    original_count = len(jobs)
+
+    jobs = [j for j in jobs if j["id"] != job_id]
+
+    if len(jobs) == original_count:
+        return False
+
+    save_schedule_config(jobs)
+    sync_scheduler_jobs()
+
+    return True
+
+
+def get_job_status(job_id: str) -> Optional[Dict[str, Any]]:
+    """Get status of a specific job"""
+    jobs = load_schedule_config()
+    scheduler = get_scheduler()
+
+    for job in jobs:
+        if job["id"] == job_id:
+            apscheduler_job = scheduler.get_job(get_job_id(job_id))
+            return {
+                **job,
+                "next_run": apscheduler_job.next_run_time.isoformat() if apscheduler_job and apscheduler_job.next_run_time else None,
+            }
+    return None
+
+
+def get_all_schedules() -> List[Dict[str, Any]]:
+    """Get all scheduled jobs with their status"""
+    jobs = load_schedule_config()
+    scheduler = get_scheduler()
+    result = []
+
+    for job in jobs:
+        apscheduler_job = scheduler.get_job(get_job_id(job["id"]))
+        result.append({
+            **job,
+            "next_run": apscheduler_job.next_run_time.isoformat() if apscheduler_job and apscheduler_job.next_run_time else None,
+        })
+
+    return result
 
 
 def init_scheduler():
     """Initialize scheduler with saved configuration"""
-    config = load_schedule_config()
-    if config["enabled"]:
-        result = update_scheduled_job(True, config["cron"], config["profile"])
-        logger.info(f"Scheduler initialized: {result}")
-    else:
-        logger.info("Scheduler initialized but no job scheduled (disabled)")
-    return get_scheduler()
+    get_scheduler()
+    sync_scheduler_jobs()
+    jobs = load_schedule_config()
+    enabled_count = sum(1 for j in jobs if j.get("enabled", False))
+    logger.info(f"Scheduler initialized with {enabled_count} active jobs")
