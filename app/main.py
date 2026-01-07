@@ -14,7 +14,7 @@ from app.database import get_db, init_db
 from app.models import Scan, Device, Port, Change, DeviceHistory
 from app.scanner import NetworkScanner
 from app.utils.change_detector import ChangeDetector
-from app.config import get_config
+from app.config import get_config, save_config, reload_config
 from app.scheduler import (
     init_scheduler, get_all_schedules, add_schedule_job,
     update_schedule_job, delete_schedule_job
@@ -66,6 +66,21 @@ class ScheduleJobUpdate(BaseModel):
     cron: str
     profile: str = "normal"
     enabled: bool = True
+
+
+class NetworkConfigUpdate(BaseModel):
+    subnet: str
+    scan_profile: str
+
+
+class ScanningConfigUpdate(BaseModel):
+    port_range: str
+    enable_os_detection: bool
+
+
+class ConfigUpdate(BaseModel):
+    network: NetworkConfigUpdate
+    scanning: ScanningConfigUpdate
 
 
 class ScanResponse(BaseModel):
@@ -651,6 +666,62 @@ async def delete_schedule(job_id: str):
     if not delete_schedule_job(job_id):
         raise HTTPException(status_code=404, detail="Job not found")
     return {"status": "deleted", "job_id": job_id}
+
+
+@app.put("/api/config")
+async def update_config(config_update: ConfigUpdate):
+    """Update configuration and save to config.yaml"""
+    try:
+        # Get current config
+        config = get_config()
+
+        # Update network settings
+        config.network.subnet = config_update.network.subnet
+        config.network.scan_profile = config_update.network.scan_profile
+
+        # Update scanning settings
+        config.scanning.port_range = config_update.scanning.port_range
+        config.scanning.enable_os_detection = config_update.scanning.enable_os_detection
+
+        # Save to YAML file
+        save_config(config)
+
+        # Reload config to ensure consistency
+        reload_config()
+
+        return {
+            "status": "success",
+            "message": "Configuration updated successfully",
+            "config": {
+                "network": {
+                    "subnet": config.network.subnet,
+                    "scan_profile": config.network.scan_profile
+                },
+                "scanning": {
+                    "port_range": config.scanning.port_range,
+                    "enable_os_detection": config.scanning.enable_os_detection
+                }
+            }
+        }
+    except Exception as e:
+        logger.error(f"Failed to update config: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update configuration: {str(e)}")
+
+
+@app.get("/api/config")
+async def get_config_endpoint():
+    """Get current configuration"""
+    config = get_config()
+    return {
+        "network": {
+            "subnet": config.network.subnet,
+            "scan_profile": config.network.scan_profile
+        },
+        "scanning": {
+            "port_range": config.scanning.port_range,
+            "enable_os_detection": config.scanning.enable_os_detection
+        }
+    }
 
 
 # Settings UI Page

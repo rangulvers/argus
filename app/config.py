@@ -125,3 +125,58 @@ def reload_config():
     global config
     config = Config.from_yaml()
     return config
+
+
+def save_config(config_obj: Config, yaml_path: str = "config.yaml"):
+    """Save configuration to YAML file"""
+    # Convert Config object to dict
+    config_dict = {
+        "network": {
+            "subnet": config_obj.network.subnet,
+            "scan_schedule": config_obj.network.scan_schedule,
+            "scan_profile": config_obj.network.scan_profile,
+        },
+        "scanning": {
+            "port_range": config_obj.scanning.port_range,
+            "enable_os_detection": config_obj.scanning.enable_os_detection,
+            "enable_service_detection": config_obj.scanning.enable_service_detection,
+            "timeout": config_obj.scanning.timeout,
+        },
+        "alerts": {
+            "enabled": config_obj.alerts.enabled,
+            "new_device": config_obj.alerts.new_device,
+            "new_port": config_obj.alerts.new_port,
+            "threshold_ports": config_obj.alerts.threshold_ports,
+        },
+        "notifications": {
+            "email": {
+                "enabled": config_obj.notifications.email.enabled,
+                "smtp_server": config_obj.notifications.email.smtp_server,
+                "smtp_port": config_obj.notifications.email.smtp_port,
+                "smtp_username": config_obj.notifications.email.smtp_username,
+                "smtp_password": config_obj.notifications.email.smtp_password,
+                "from_address": config_obj.notifications.email.from_address,
+                "recipients": config_obj.notifications.email.recipients,
+            },
+            "webhook": {
+                "enabled": config_obj.notifications.webhook.enabled,
+                "url": config_obj.notifications.webhook.url,
+                "secret": config_obj.notifications.webhook.secret,
+            },
+        },
+        "database": {
+            "type": config_obj.database.type,
+            "path": config_obj.database.path,
+            "retention_days": config_obj.database.retention_days,
+        },
+        "web": {
+            "host": config_obj.web.host,
+            "port": config_obj.web.port,
+            "enable_auth": config_obj.web.enable_auth,
+            "username": config_obj.web.username,
+            "password": config_obj.web.password,
+        },
+    }
+
+    with open(yaml_path, "w") as f:
+        yaml.dump(config_dict, f, default_flow_style=False, sort_keys=False)
