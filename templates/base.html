@@ -90,16 +90,41 @@
                         <h1 class="text-xl font-semibold text-gray-900">{% block page_title %}Dashboard{% endblock %}</h1>
                     </div>
                     <div class="flex items-center space-x-4">
-                        <!-- Scan button -->
-                        <button hx-post="/api/scan/trigger"
-                                hx-swap="none"
-                                hx-on::after-request="alert('Scan started! Refresh the page in a few minutes to see results.')"
-                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none">
-                            <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                            </svg>
-                            Run Scan
-                        </button>
+                        <!-- Scan button with dropdown -->
+                        <div class="relative" x-data="{ open: false, scanning: false }">
+                            <button @click="open = !open"
+                                    :disabled="scanning"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+                                <svg class="mr-2 h-4 w-4" :class="{ 'animate-spin': scanning }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                                <span x-text="scanning ? 'Scanning...' : 'Run Scan'"></span>
+                                <svg class="ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                            <div x-show="open" x-cloak
+                                 @click.away="open = false"
+                                 class="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                                <div class="py-1">
+                                    <button @click="scanning = true; open = false; fetch('/api/scan/trigger?profile=quick', {method: 'POST'}).then(() => { scanning = false; alert('Quick scan started! Refresh in ~1 minute.'); })"
+                                            class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        <div class="font-medium">Quick Scan</div>
+                                        <div class="text-xs text-gray-500">Ping only, ~30 seconds</div>
+                                    </button>
+                                    <button @click="scanning = true; open = false; fetch('/api/scan/trigger?profile=normal', {method: 'POST'}).then(() => { scanning = false; alert('Normal scan started! Refresh in 5-10 minutes.'); })"
+                                            class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        <div class="font-medium">Normal Scan</div>
+                                        <div class="text-xs text-gray-500">Ports 1-1000, 5-10 minutes</div>
+                                    </button>
+                                    <button @click="scanning = true; open = false; fetch('/api/scan/trigger?profile=intensive', {method: 'POST'}).then(() => { scanning = false; alert('Intensive scan started! Refresh in 15-30 minutes.'); })"
+                                            class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        <div class="font-medium">Intensive Scan</div>
+                                        <div class="text-xs text-gray-500">All ports + OS detection, 15-30 min</div>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

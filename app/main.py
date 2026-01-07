@@ -513,9 +513,14 @@ async def compare_page(
 
 
 @app.post("/api/scan/trigger")
-async def trigger_scan_htmx(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    """Trigger scan from htmx button"""
+async def trigger_scan_htmx(
+    background_tasks: BackgroundTasks,
+    profile: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Trigger network scan with optional profile selection"""
     config = get_config()
+    scan_profile = profile if profile in ["quick", "normal", "intensive"] else config.network.scan_profile
 
     def run_scan():
         from app.database import SessionLocal
@@ -524,7 +529,7 @@ async def trigger_scan_htmx(background_tasks: BackgroundTasks, db: Session = Dep
             scanner = NetworkScanner(db_session)
             scan = scanner.perform_scan(
                 subnet=config.network.subnet,
-                scan_profile=config.network.scan_profile,
+                scan_profile=scan_profile,
                 port_range=config.scanning.port_range,
                 enable_os_detection=config.scanning.enable_os_detection,
                 enable_service_detection=config.scanning.enable_service_detection,
@@ -536,7 +541,41 @@ async def trigger_scan_htmx(background_tasks: BackgroundTasks, db: Session = Dep
             db_session.close()
 
     background_tasks.add_task(run_scan)
-    return {"status": "started"}
+    return {"status": "started", "profile": scan_profile}
+
+
+@app.post("/api/scan/device/{ip_address}")
+async def trigger_device_scan(
+    ip_address: str,
+    background_tasks: BackgroundTasks,
+    profile: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Trigger scan for a single device"""
+    config = get_config()
+    scan_profile = profile if profile in ["quick", "normal", "intensive"] else "normal"
+
+    def run_device_scan():
+        from app.database import SessionLocal
+        db_session = SessionLocal()
+        try:
+            scanner = NetworkScanner(db_session)
+            # Scan single IP (use /32 CIDR for single host)
+            scan = scanner.perform_scan(
+                subnet=f"{ip_address}/32",
+                scan_profile=scan_profile,
+                port_range=config.scanning.port_range,
+                enable_os_detection=config.scanning.enable_os_detection,
+                enable_service_detection=config.scanning.enable_service_detection,
+            )
+            if scan.status == "completed":
+                detector = ChangeDetector(db_session)
+                detector.detect_changes(scan.id)
+        finally:
+            db_session.close()
+
+    background_tasks.add_task(run_device_scan)
+    return {"status": "started", "target": ip_address, "profile": scan_profile}
 
 
 if __name__ == "__main__":

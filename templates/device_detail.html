@@ -80,6 +80,42 @@
                 {% endif %}
             </div>
             <div class="flex items-center space-x-2">
+                <!-- Scan This Device Button -->
+                <div class="relative" x-data="{ open: false, scanning: false }">
+                    <button @click="open = !open"
+                            :disabled="scanning"
+                            class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg class="w-4 h-4 mr-1.5" :class="{ 'animate-spin': scanning }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <span x-text="scanning ? 'Scanning...' : 'Scan Device'"></span>
+                        <svg class="ml-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div x-show="open" x-cloak
+                         @click.away="open = false"
+                         class="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                        <div class="py-1">
+                            <button @click="scanning = true; open = false; fetch('/api/scan/device/{{ device.ip_address }}?profile=quick', {method: 'POST'}).then(() => { scanning = false; alert('Quick scan started! Refresh in ~30 seconds.'); })"
+                                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                <div class="font-medium">Quick Scan</div>
+                                <div class="text-xs text-gray-500">Ping only, ~5 seconds</div>
+                            </button>
+                            <button @click="scanning = true; open = false; fetch('/api/scan/device/{{ device.ip_address }}?profile=normal', {method: 'POST'}).then(() => { scanning = false; alert('Normal scan started! Refresh in ~1 minute.'); })"
+                                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                <div class="font-medium">Normal Scan</div>
+                                <div class="text-xs text-gray-500">Ports 1-1000, ~1 minute</div>
+                            </button>
+                            <button @click="scanning = true; open = false; fetch('/api/scan/device/{{ device.ip_address }}?profile=intensive', {method: 'POST'}).then(() => { scanning = false; alert('Intensive scan started! Refresh in 2-5 minutes.'); })"
+                                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                <div class="font-medium">Intensive Scan</div>
+                                <div class="text-xs text-gray-500">All ports + OS, 2-5 min</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- HTTP Quick Access Buttons -->
                 {% set http_ports = device.ports|selectattr('port_number', 'in', [80, 8080, 8000, 3000, 5000])|list %}
                 {% set https_ports = device.ports|selectattr('port_number', 'in', [443, 8443])|list %}
