@@ -31,7 +31,7 @@ The web interface provides:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/argus.git
+git clone https://github.com/rangulvers/argus.git
 cd argus
 
 # Create config file
@@ -54,7 +54,7 @@ Access the web UI at **http://localhost:8080**
 sudo apt-get install nmap
 
 # Clone and setup
-git clone https://github.com/yourusername/argus.git
+git clone https://github.com/rangulvers/argus.git
 cd argus
 python3 -m venv .venv
 source .venv/bin/activate
