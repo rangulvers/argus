@@ -29,6 +29,42 @@ The web interface provides:
 
 ### Docker (Recommended)
 
+#### Option 1: Use Pre-built Image (Easiest)
+
+```bash
+# Create directory
+mkdir argus && cd argus
+
+# Download docker-compose file
+curl -O https://raw.githubusercontent.com/rangulvers/argus/main/docker-compose.yml
+
+# Create config file
+curl -o config.yaml https://raw.githubusercontent.com/rangulvers/argus/main/config.yaml.example
+# Edit config.yaml - set your network subnet (e.g., 192.168.1.0/24)
+
+# Pull and run
+docker compose pull
+docker compose up -d
+
+# View logs
+docker compose logs -f
+```
+
+Or use Docker directly:
+
+```bash
+docker run -d \
+  --name argus \
+  --network host \
+  --cap-add NET_ADMIN \
+  --cap-add NET_RAW \
+  -v ./data:/app/data \
+  -v ./config.yaml:/app/config.yaml:ro \
+  ghcr.io/rangulvers/argus:latest
+```
+
+#### Option 2: Build from Source
+
 ```bash
 # Clone the repository
 git clone https://github.com/rangulvers/argus.git
@@ -39,10 +75,10 @@ cp config.yaml.example config.yaml
 # Edit config.yaml - set your network subnet (e.g., 192.168.1.0/24)
 
 # Build and run
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 ```
 
 Access the web UI at **http://localhost:8080**

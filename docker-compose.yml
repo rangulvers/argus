@@ -2,9 +2,13 @@ version: '3.8'
 
 services:
   argus:
-    build: .
+    # Use pre-built image from GitHub Container Registry
+    image: ghcr.io/rangulvers/argus:latest
+
+    # OR build from local source (uncomment the line below and comment out 'image' above)
+    # build: .
+
     container_name: argus
-    image: argus:latest
 
     # Network configuration - use host network for nmap scanning
     network_mode: host
