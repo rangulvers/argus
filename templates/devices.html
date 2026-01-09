@@ -5,12 +5,12 @@
 
 {% block content %}
 <!-- Scan selector -->
-<div class="mb-6 flex items-center justify-between">
+<div class="mb-4 flex items-center justify-between">
     <div>
-        <label for="scan-select" class="block text-sm font-medium text-gray-700">Select Scan</label>
+        <label for="scan-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Select Scan</label>
         <select id="scan-select"
                 onchange="window.location='/devices?scan_id=' + this.value"
-                class="mt-1 block w-64 rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+                class="mt-1 block w-64 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
             {% for scan in scans %}
             <option value="{{ scan.id }}" {% if scan.id == selected_scan_id %}selected{% endif %}>
                 Scan #{{ scan.id }} - {{ scan.started_at.strftime('%Y-%m-%d %H:%M') }} ({{ scan.devices_found }} devices)
@@ -18,17 +18,130 @@
             {% endfor %}
         </select>
     </div>
-    <div class="text-sm text-gray-500">
+    <div id="device-count" class="text-sm text-gray-500 dark:text-gray-400">
         {% if current_scan %}
-        Showing {{ devices|length }} devices from scan #{{ current_scan.id }}
+        Showing <span id="visible-count">{{ devices|length }}</span> of {{ devices|length }} devices from scan #{{ current_scan.id }}
         {% endif %}
     </div>
 </div>
 
+<!-- Filter and Search Section -->
+{% if devices %}
+<div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-700 p-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Text Search -->
+        <div>
+            <label for="search-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
+            <div class="relative">
+                <input type="text" id="search-input"
+                       placeholder="IP, hostname, MAC, vendor..."
+                       class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 pl-10 pr-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Level Filter -->
+        <div>
+            <label for="risk-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Risk Level</label>
+            <select id="risk-filter" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="all">All Levels</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+                <option value="none">Safe (None)</option>
+            </select>
+        </div>
+
+        <!-- Trusted Status Filter -->
+        <div>
+            <label for="trusted-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trusted Status</label>
+            <select id="trusted-filter" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="all">All Devices</option>
+                <option value="trusted">Trusted Only</option>
+                <option value="untrusted">Untrusted Only</option>
+            </select>
+        </div>
+
+        <!-- Port Filter -->
+        <div>
+            <label for="port-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Port</label>
+            <input type="text" id="port-filter"
+                   placeholder="e.g., 22, 80, 443"
+                   class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 py-2 px-3 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+        </div>
+    </div>
+
+    <!-- Second Row: Vendor Filter + Zone Filter + Clear Button -->
+    <div class="mt-4 flex flex-wrap items-end gap-4">
+        <!-- Vendor Filter -->
+        <div class="flex-1 min-w-[200px] max-w-xs">
+            <label for="vendor-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vendor</label>
+            <select id="vendor-filter" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="all">All Vendors</option>
+                {% set vendors = devices|map(attribute='vendor')|select('string')|unique|sort %}
+                {% for vendor in vendors %}
+                {% if vendor %}
+                <option value="{{ vendor }}">{{ vendor|truncate(40) }}</option>
+                {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Zone Filter -->
+        <div class="flex-1 min-w-[150px] max-w-[180px]">
+            <label for="zone-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Zone</label>
+            <select id="zone-filter" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="all">All Zones</option>
+                {% set zones = devices|map(attribute='zone')|select('string')|unique|sort %}
+                {% for zone in zones %}
+                {% if zone %}
+                <option value="{{ zone }}">{{ zone }}</option>
+                {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Has Ports Filter -->
+        <div class="flex-1 min-w-[150px] max-w-[180px]">
+            <label for="ports-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Open Ports</label>
+            <select id="ports-filter" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="all">Any</option>
+                <option value="has-ports">Has Open Ports</option>
+                <option value="no-ports">No Open Ports</option>
+            </select>
+        </div>
+
+        <!-- Clear Filters Button -->
+        <div>
+            <button type="button" id="clear-filters"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                <svg class="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+                Clear Filters
+            </button>
+        </div>
+    </div>
+
+    <!-- Active Filters Display -->
+    <div id="active-filters" class="mt-3 hidden">
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs text-gray-500 dark:text-gray-400">Active filters:</span>
+            <div id="filter-tags" class="flex flex-wrap gap-2"></div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Risk Summary (if any threats) -->
 {% set at_risk = devices|selectattr('risk_level', 'in', ['medium', 'high', 'critical'])|list %}
 {% if at_risk|length > 0 %}
-<div class="mb-6 rounded-md bg-red-50 border border-red-200 p-4">
+<div class="mb-6 rounded-md bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 p-4">
     <div class="flex">
         <div class="flex-shrink-0">
             <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
@@ -36,8 +149,8 @@
             </svg>
         </div>
         <div class="ml-3">
-            <h3 class="text-sm font-medium text-red-800">Security Alert</h3>
-            <p class="mt-1 text-sm text-red-700">
+            <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Security Alert</h3>
+            <p class="mt-1 text-sm text-red-700 dark:text-red-300">
                 {{ at_risk|length }} device{{ 's' if at_risk|length > 1 else '' }} with potential security risks detected.
                 Click "View" on flagged devices to see recommendations.
             </p>
@@ -48,24 +161,34 @@
 
 <!-- Devices table -->
 {% if devices %}
-<div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg">
-    <table class="min-w-full divide-y divide-gray-300">
-        <thead class="bg-gray-50">
+<div class="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 dark:ring-gray-700 rounded-lg">
+    <table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
+        <thead class="bg-gray-50 dark:bg-gray-800">
             <tr>
-                <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">IP Address</th>
-                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Device</th>
-                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">MAC / Vendor</th>
-                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Risk</th>
-                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Open Ports</th>
+                <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white">IP Address</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Device</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">MAC / Vendor</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Risk</th>
+                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Open Ports</th>
                 <th scope="col" class="relative py-3.5 pl-3 pr-4">
                     <span class="sr-only">Actions</span>
                 </th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-200 bg-white">
+        <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
             {% for device in devices %}
-            <tr class="{% if device.risk_level == 'critical' %}bg-red-50 hover:bg-red-100{% elif device.risk_level == 'high' %}bg-orange-50 hover:bg-orange-100{% else %}hover:bg-gray-50{% endif %}">
-                <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
+            <tr class="device-row {% if device.risk_level == 'critical' %}bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50{% elif device.risk_level == 'high' %}bg-orange-50 dark:bg-orange-900/30 hover:bg-orange-100 dark:hover:bg-orange-900/50{% else %}hover:bg-gray-50 dark:hover:bg-gray-700{% endif %}"
+                data-ip="{{ device.ip_address|lower }}"
+                data-hostname="{{ (device.hostname or '')|lower }}"
+                data-mac="{{ (device.mac_address or '')|lower }}"
+                data-vendor="{{ (device.vendor or '')|lower }}"
+                data-label="{{ (device.label or '')|lower }}"
+                data-zone="{{ (device.zone or '')|lower }}"
+                data-risk="{{ device.risk_level or 'none' }}"
+                data-trusted="{{ 'true' if device.is_trusted else 'false' }}"
+                data-ports="{% for port in device.ports %}{{ port.port_number }}{% if not loop.last %},{% endif %}{% endfor %}"
+                data-port-count="{{ device.ports|length }}">
+                <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white">
                     <div class="flex items-center">
                         {% if device.risk_level in ['high', 'critical'] %}
                         <svg class="h-4 w-4 text-red-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -75,67 +198,67 @@
                         {{ device.ip_address }}
                     </div>
                 </td>
-                <td class="px-3 py-4 text-sm text-gray-500">
-                    <div class="font-medium text-gray-900">{{ device.hostname or '-' }}</div>
+                <td class="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+                    <div class="font-medium text-gray-900 dark:text-white">{{ device.hostname or '-' }}</div>
                     {% if device.device_type %}
-                    <div class="text-xs text-indigo-600">{{ device.device_type }}</div>
+                    <div class="text-xs text-indigo-600 dark:text-indigo-400">{{ device.device_type }}</div>
                     {% endif %}
                     {% if device.os_name %}
-                    <div class="text-xs text-gray-400 truncate max-w-[150px]" title="{{ device.os_name }}">{{ device.os_name }}</div>
+                    <div class="text-xs text-gray-400 dark:text-gray-500 truncate max-w-[150px]" title="{{ device.os_name }}">{{ device.os_name }}</div>
                     {% endif %}
                 </td>
-                <td class="px-3 py-4 text-sm text-gray-500">
+                <td class="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                     <div class="font-mono text-xs">{{ device.mac_address or '-' }}</div>
                     {% if device.vendor %}
-                    <div class="text-xs text-gray-400 truncate max-w-[150px]" title="{{ device.vendor }}">{{ device.vendor }}</div>
+                    <div class="text-xs text-gray-400 dark:text-gray-500 truncate max-w-[150px]" title="{{ device.vendor }}">{{ device.vendor }}</div>
                     {% endif %}
                 </td>
                 <td class="whitespace-nowrap px-3 py-4 text-sm">
                     {% if device.risk_level == 'critical' %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
                         Critical
                     </span>
                     {% elif device.risk_level == 'high' %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200">
                         High
                     </span>
                     {% elif device.risk_level == 'medium' %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
                         Medium
                     </span>
                     {% elif device.risk_level == 'low' %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
                         Low
                     </span>
                     {% else %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
                         Safe
                     </span>
                     {% endif %}
                     {% if device.risk_score and device.risk_score > 0 %}
-                    <span class="ml-1 text-xs text-gray-400">({{ device.risk_score }})</span>
+                    <span class="ml-1 text-xs text-gray-400 dark:text-gray-500">({{ device.risk_score }})</span>
                     {% endif %}
                 </td>
-                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                     {% if device.ports|length > 0 %}
                     <div class="flex flex-wrap gap-1">
                         {% for port in device.ports[:5] %}
                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                            {% if port.port_number in [23, 512, 513, 514, 31337, 12345, 4444, 5554, 9996] %}bg-red-100 text-red-800
-                            {% elif port.port_number in [21, 25, 135, 137, 138, 139, 445, 1433, 1434, 3306, 3389, 5900, 5901, 6379, 27017] %}bg-orange-100 text-orange-800
-                            {% elif port.port_number in [22, 53, 80, 110, 143, 161, 1900, 5000, 8080] %}bg-yellow-100 text-yellow-800
-                            {% else %}bg-blue-100 text-blue-800{% endif %}">
+                            {% if port.port_number in [23, 512, 513, 514, 31337, 12345, 4444, 5554, 9996] %}bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200
+                            {% elif port.port_number in [21, 25, 135, 137, 138, 139, 445, 1433, 1434, 3306, 3389, 5900, 5901, 6379, 27017] %}bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200
+                            {% elif port.port_number in [22, 53, 80, 110, 143, 161, 1900, 5000, 8080] %}bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200
+                            {% else %}bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200{% endif %}">
                             {{ port.port_number }}
                         </span>
                         {% endfor %}
                         {% if device.ports|length > 5 %}
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                             +{{ device.ports|length - 5 }}
                         </span>
                         {% endif %}
                     </div>
                     {% else %}
-                    <span class="text-gray-400">None</span>
+                    <span class="text-gray-400 dark:text-gray-500">None</span>
                     {% endif %}
                 </td>
                 <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium">
@@ -145,7 +268,7 @@
                         {% if https_ports %}
                         <a href="https://{{ device.ip_address }}{% if https_ports[0].port_number != 443 %}:{{ https_ports[0].port_number }}{% endif %}"
                            target="_blank"
-                           class="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-700 hover:bg-green-200"
+                           class="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800"
                            title="Open HTTPS interface">
                             <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
@@ -155,7 +278,7 @@
                         {% elif http_ports %}
                         <a href="http://{{ device.ip_address }}{% if http_ports[0].port_number != 80 %}:{{ http_ports[0].port_number }}{% endif %}"
                            target="_blank"
-                           class="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-700 hover:bg-blue-200"
+                           class="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800"
                            title="Open HTTP interface">
                             <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
@@ -163,7 +286,7 @@
                             HTTP
                         </a>
                         {% endif %}
-                        <a href="/devices/{{ device.id }}" class="text-indigo-600 hover:text-indigo-900">View</a>
+                        <a href="/devices/{{ device.id }}" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300">View</a>
                     </div>
                 </td>
             </tr>
@@ -172,12 +295,260 @@
     </table>
 </div>
 {% else %}
-<div class="text-center py-12 bg-white rounded-lg shadow">
-    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+<div class="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-700">
+    <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
     </svg>
-    <h3 class="mt-2 text-sm font-medium text-gray-900">No devices found</h3>
-    <p class="mt-1 text-sm text-gray-500">Run a scan to discover devices on your network.</p>
+    <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No devices found</h3>
+    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Run a scan to discover devices on your network.</p>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Filter elements
+    const searchInput = document.getElementById('search-input');
+    const riskFilter = document.getElementById('risk-filter');
+    const trustedFilter = document.getElementById('trusted-filter');
+    const portFilter = document.getElementById('port-filter');
+    const vendorFilter = document.getElementById('vendor-filter');
+    const zoneFilter = document.getElementById('zone-filter');
+    const portsFilter = document.getElementById('ports-filter');
+    const clearButton = document.getElementById('clear-filters');
+    const visibleCount = document.getElementById('visible-count');
+    const activeFiltersDiv = document.getElementById('active-filters');
+    const filterTagsDiv = document.getElementById('filter-tags');
+
+    // Get all device rows
+    const deviceRows = document.querySelectorAll('.device-row');
+    const totalDevices = deviceRows.length;
+
+    // Debounce function for search input
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // Main filter function
+    function applyFilters() {
+        const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        const riskValue = riskFilter ? riskFilter.value : 'all';
+        const trustedValue = trustedFilter ? trustedFilter.value : 'all';
+        const portValue = portFilter ? portFilter.value.trim() : '';
+        const vendorValue = vendorFilter ? vendorFilter.value : 'all';
+        const zoneValue = zoneFilter ? zoneFilter.value : 'all';
+        const portsValue = portsFilter ? portsFilter.value : 'all';
+
+        let visibleDevices = 0;
+
+        deviceRows.forEach(row => {
+            let visible = true;
+
+            // Text search filter (IP, hostname, MAC, vendor, label)
+            if (searchTerm && visible) {
+                const ip = row.dataset.ip || '';
+                const hostname = row.dataset.hostname || '';
+                const mac = row.dataset.mac || '';
+                const vendor = row.dataset.vendor || '';
+                const label = row.dataset.label || '';
+
+                const searchableText = `${ip} ${hostname} ${mac} ${vendor} ${label}`;
+                visible = searchableText.includes(searchTerm);
+            }
+
+            // Risk level filter
+            if (riskValue !== 'all' && visible) {
+                visible = row.dataset.risk === riskValue;
+            }
+
+            // Trusted status filter
+            if (trustedValue !== 'all' && visible) {
+                if (trustedValue === 'trusted') {
+                    visible = row.dataset.trusted === 'true';
+                } else if (trustedValue === 'untrusted') {
+                    visible = row.dataset.trusted === 'false';
+                }
+            }
+
+            // Port filter (specific port number)
+            if (portValue && visible) {
+                const ports = row.dataset.ports.split(',').filter(p => p);
+                const searchPorts = portValue.split(',').map(p => p.trim()).filter(p => p);
+                visible = searchPorts.some(sp => ports.includes(sp));
+            }
+
+            // Vendor filter
+            if (vendorValue !== 'all' && visible) {
+                visible = row.dataset.vendor === vendorValue.toLowerCase();
+            }
+
+            // Zone filter
+            if (zoneValue !== 'all' && visible) {
+                visible = row.dataset.zone === zoneValue.toLowerCase();
+            }
+
+            // Open ports filter
+            if (portsValue !== 'all' && visible) {
+                const portCount = parseInt(row.dataset.portCount) || 0;
+                if (portsValue === 'has-ports') {
+                    visible = portCount > 0;
+                } else if (portsValue === 'no-ports') {
+                    visible = portCount === 0;
+                }
+            }
+
+            // Show/hide row
+            row.style.display = visible ? '' : 'none';
+            if (visible) visibleDevices++;
+        });
+
+        // Update visible count
+        if (visibleCount) {
+            visibleCount.textContent = visibleDevices;
+        }
+
+        // Update active filters display
+        updateActiveFilters();
+
+        // Save filter state to sessionStorage
+        saveFilterState();
+    }
+
+    // Update active filters tags
+    function updateActiveFilters() {
+        if (!activeFiltersDiv || !filterTagsDiv) return;
+
+        const filters = [];
+
+        if (searchInput && searchInput.value.trim()) {
+            filters.push({ type: 'Search', value: searchInput.value.trim(), clear: () => { searchInput.value = ''; } });
+        }
+        if (riskFilter && riskFilter.value !== 'all') {
+            filters.push({ type: 'Risk', value: riskFilter.value, clear: () => { riskFilter.value = 'all'; } });
+        }
+        if (trustedFilter && trustedFilter.value !== 'all') {
+            filters.push({ type: 'Trusted', value: trustedFilter.value, clear: () => { trustedFilter.value = 'all'; } });
+        }
+        if (portFilter && portFilter.value.trim()) {
+            filters.push({ type: 'Port', value: portFilter.value.trim(), clear: () => { portFilter.value = ''; } });
+        }
+        if (vendorFilter && vendorFilter.value !== 'all') {
+            filters.push({ type: 'Vendor', value: vendorFilter.options[vendorFilter.selectedIndex].text, clear: () => { vendorFilter.value = 'all'; } });
+        }
+        if (zoneFilter && zoneFilter.value !== 'all') {
+            filters.push({ type: 'Zone', value: zoneFilter.options[zoneFilter.selectedIndex].text, clear: () => { zoneFilter.value = 'all'; } });
+        }
+        if (portsFilter && portsFilter.value !== 'all') {
+            filters.push({ type: 'Ports', value: portsFilter.value === 'has-ports' ? 'Has Ports' : 'No Ports', clear: () => { portsFilter.value = 'all'; } });
+        }
+
+        if (filters.length > 0) {
+            activeFiltersDiv.classList.remove('hidden');
+            filterTagsDiv.innerHTML = filters.map((f, i) => `
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200">
+                    ${f.type}: ${f.value}
+                    <button type="button" data-filter-index="${i}" class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800">
+                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                    </button>
+                </span>
+            `).join('');
+
+            // Add click handlers for individual filter removal
+            filterTagsDiv.querySelectorAll('button').forEach((btn, index) => {
+                btn.addEventListener('click', () => {
+                    filters[index].clear();
+                    applyFilters();
+                });
+            });
+        } else {
+            activeFiltersDiv.classList.add('hidden');
+            filterTagsDiv.innerHTML = '';
+        }
+    }
+
+    // Clear all filters
+    function clearFilters() {
+        if (searchInput) searchInput.value = '';
+        if (riskFilter) riskFilter.value = 'all';
+        if (trustedFilter) trustedFilter.value = 'all';
+        if (portFilter) portFilter.value = '';
+        if (vendorFilter) vendorFilter.value = 'all';
+        if (zoneFilter) zoneFilter.value = 'all';
+        if (portsFilter) portsFilter.value = 'all';
+        applyFilters();
+    }
+
+    // Save filter state to sessionStorage
+    function saveFilterState() {
+        const state = {
+            search: searchInput ? searchInput.value : '',
+            risk: riskFilter ? riskFilter.value : 'all',
+            trusted: trustedFilter ? trustedFilter.value : 'all',
+            port: portFilter ? portFilter.value : '',
+            vendor: vendorFilter ? vendorFilter.value : 'all',
+            zone: zoneFilter ? zoneFilter.value : 'all',
+            ports: portsFilter ? portsFilter.value : 'all'
+        };
+        sessionStorage.setItem('deviceFilters', JSON.stringify(state));
+    }
+
+    // Restore filter state from sessionStorage
+    function restoreFilterState() {
+        const saved = sessionStorage.getItem('deviceFilters');
+        if (saved) {
+            try {
+                const state = JSON.parse(saved);
+                if (searchInput && state.search) searchInput.value = state.search;
+                if (riskFilter && state.risk) riskFilter.value = state.risk;
+                if (trustedFilter && state.trusted) trustedFilter.value = state.trusted;
+                if (portFilter && state.port) portFilter.value = state.port;
+                if (vendorFilter && state.vendor) vendorFilter.value = state.vendor;
+                if (zoneFilter && state.zone) zoneFilter.value = state.zone;
+                if (portsFilter && state.ports) portsFilter.value = state.ports;
+                applyFilters();
+            } catch (e) {
+                console.error('Error restoring filter state:', e);
+            }
+        }
+    }
+
+    // Attach event listeners
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(applyFilters, 200));
+    }
+    if (riskFilter) {
+        riskFilter.addEventListener('change', applyFilters);
+    }
+    if (trustedFilter) {
+        trustedFilter.addEventListener('change', applyFilters);
+    }
+    if (portFilter) {
+        portFilter.addEventListener('input', debounce(applyFilters, 300));
+    }
+    if (vendorFilter) {
+        vendorFilter.addEventListener('change', applyFilters);
+    }
+    if (zoneFilter) {
+        zoneFilter.addEventListener('change', applyFilters);
+    }
+    if (portsFilter) {
+        portsFilter.addEventListener('change', applyFilters);
+    }
+    if (clearButton) {
+        clearButton.addEventListener('click', clearFilters);
+    }
+
+    // Restore filters on page load
+    restoreFilterState();
+});
+</script>
 {% endblock %}

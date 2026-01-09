@@ -25,6 +25,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for version detection
+
+      - name: Get version info
+        id: version
+        run: |
+          # Get version from tag or generate from commit
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="dev-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "commit=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          echo "build_date=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+          echo "Version: ${VERSION}"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -61,5 +78,10 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            ARGUS_VERSION=${{ steps.version.outputs.version }}
+            ARGUS_COMMIT=${{ steps.version.outputs.commit }}
+            ARGUS_BRANCH=${{ steps.version.outputs.branch }}
+            ARGUS_BUILD_DATE=${{ steps.version.outputs.build_date }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -1,6 +1,12 @@
 # Argus Dockerfile - Optimized for Raspberry Pi
 FROM python:3.11-slim
 
+# Build arguments for version info
+ARG ARGUS_VERSION=dev
+ARG ARGUS_COMMIT=
+ARG ARGUS_BRANCH=
+ARG ARGUS_BUILD_DATE=
+
 # Set working directory
 WORKDIR /app
 
@@ -32,6 +38,12 @@ RUN chmod +x scan_cli.py
 # Environment variables
 ENV PYTHONUNBUFFERED=1
 ENV DATABASE_URL=sqlite:///./data/argus.db
+
+# Version info (from build args)
+ENV ARGUS_VERSION=${ARGUS_VERSION}
+ENV ARGUS_COMMIT=${ARGUS_COMMIT}
+ENV ARGUS_BRANCH=${ARGUS_BRANCH}
+ENV ARGUS_BUILD_DATE=${ARGUS_BUILD_DATE}
 
 # Expose web UI port
 EXPOSE 8080

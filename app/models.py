@@ -49,6 +49,7 @@ class Device(Base):
     label = Column(String(255), nullable=True)  # User-friendly label
     is_trusted = Column(Boolean, default=False)  # Whitelisted device
     notes = Column(Text, nullable=True)
+    zone = Column(String(100), nullable=True)  # Network zone (e.g., "IoT", "Servers", "Guest")
 
     # Threat detection fields
     risk_level = Column(String(20), default="none")  # none, low, medium, high, critical
@@ -146,6 +147,21 @@ class DeviceHistory(Base):
     label = Column(String(255), nullable=True)
     is_trusted = Column(Boolean, default=False)
     notes = Column(Text, nullable=True)
+    zone = Column(String(100), nullable=True)  # Network zone
 
     def __repr__(self):
         return f"<DeviceHistory {self.mac_address} - {self.last_ip}>"
+
+
+class User(Base):
+    """Represents an admin user for authentication"""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(100), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_login = Column(DateTime, nullable=True)
+
+    def __repr__(self):
+        return f"<User {self.username}>"

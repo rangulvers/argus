@@ -324,10 +324,12 @@ class NetworkScanner:
                 label = prev_device.label
                 is_trusted = prev_device.is_trusted
                 notes = prev_device.notes
+                zone = prev_device.zone
             else:
                 label = None
                 is_trusted = False
                 notes = None
+                zone = None
 
             # Create device record
             device = Device(
@@ -345,6 +347,7 @@ class NetworkScanner:
                 label=label,
                 is_trusted=is_trusted,
                 notes=notes,
+                zone=zone,
             )
 
             self.db.add(device)
@@ -371,13 +374,25 @@ class NetworkScanner:
                     for port_num, port_data in host_data["tcp"].items():
                         self._process_port(device.id, port_num, "tcp", port_data)
                         if port_data.get("state") == "open":
-                            ports_list.append((port_num, "tcp", port_data.get("name", "")))
+                            ports_list.append((
+                                port_num,
+                                "tcp",
+                                port_data.get("name", ""),
+                                port_data.get("product", ""),
+                                port_data.get("version", "")
+                            ))
 
                 if "udp" in host_data:
                     for port_num, port_data in host_data["udp"].items():
                         self._process_port(device.id, port_num, "udp", port_data)
                         if port_data.get("state") == "open":
-                            ports_list.append((port_num, "udp", port_data.get("name", "")))
+                            ports_list.append((
+                                port_num,
+                                "udp",
+                                port_data.get("name", ""),
+                                port_data.get("product", ""),
+                                port_data.get("version", "")
+                            ))
 
                 # Perform threat assessment on new data
                 if ports_list:
@@ -393,9 +408,29 @@ class NetworkScanner:
                                 "risk_level": t.risk_level.value,
                                 "service_name": t.service_name,
                                 "description": t.threat_description,
-                                "recommendation": t.recommendation
+                                "recommendation": t.recommendation,
+                                "cves": [
+                                    {
+                                        "id": cve.cve_id,
+                                        "description": cve.description,
+                                        "severity": cve.severity,
+                                        "cvss_score": cve.cvss_score
+                                    }
+                                    for cve in (t.cves or [])
+                                ]
                             }
                             for t in assessment.threats
+                        ],
+                        "cves": [
+                            {
+                                "id": cve.cve_id,
+                                "description": cve.description,
+                                "severity": cve.severity,
+                                "cvss_score": cve.cvss_score,
+                                "remediation": cve.remediation,
+                                "references": cve.references
+                            }
+                            for cve in assessment.cves
                         ],
                         "top_recommendation": assessment.top_recommendation
                     }

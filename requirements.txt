@@ -29,3 +29,7 @@ httpx>=0.28.0
 # Validation
 pydantic>=2.10.0
 pydantic-settings>=2.6.0
+
+# Authentication
+passlib>=1.7.4
+itsdangerous>=2.1.2

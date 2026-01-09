@@ -1,9 +1,9 @@
 """Argus FastAPI Application"""
 
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import List, Optional
@@ -11,7 +11,7 @@ from datetime import datetime
 import logging
 
 from app.database import get_db, init_db
-from app.models import Scan, Device, Port, Change, DeviceHistory
+from app.models import Scan, Device, Port, Change, DeviceHistory, User
 from app.scanner import NetworkScanner
 from app.utils.change_detector import ChangeDetector
 from app.config import get_config, save_config, reload_config
@@ -19,6 +19,11 @@ from app.scheduler import (
     init_scheduler, get_all_schedules, add_schedule_job,
     update_schedule_job, delete_schedule_job
 )
+from app.auth import (
+    hash_password, verify_password, set_session_cookie,
+    clear_session_cookie, get_current_user, requires_auth
+)
+from app.version import get_version, get_build_info
 from pydantic import BaseModel
 
 # Setup logging
@@ -29,12 +34,15 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="Argus",
     description="The All-Seeing Network Monitor",
-    version="0.1.0"
+    version=get_version()
 )
 
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+# Add version to template globals
+templates.env.globals["app_version"] = get_version()
 
 # Initialize database and scheduler on startup
 @app.on_event("startup")
@@ -44,6 +52,41 @@ async def startup_event():
     logger.info("Database initialized")
     init_scheduler()
     logger.info("Scheduler initialized")
+
+
+# Authentication middleware
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    """Check authentication for protected routes"""
+    path = request.url.path
+
+    # Skip auth check for public paths
+    if not requires_auth(path):
+        return await call_next(request)
+
+    # Get database session to check for users
+    from app.database import SessionLocal
+    db = SessionLocal()
+    try:
+        # Check if any users exist
+        user_count = db.query(User).count()
+
+        if user_count == 0:
+            # No users - redirect to setup (except for setup page itself)
+            if path != "/setup":
+                return RedirectResponse(url="/setup", status_code=302)
+            return await call_next(request)
+
+        # Check if user is authenticated
+        current_user = get_current_user(request)
+        if not current_user:
+            # Not logged in - redirect to login
+            return RedirectResponse(url="/login", status_code=302)
+
+        # User is authenticated - continue
+        return await call_next(request)
+    finally:
+        db.close()
 
 
 # Pydantic models for API
@@ -81,6 +124,13 @@ class ScanningConfigUpdate(BaseModel):
 class ConfigUpdate(BaseModel):
     network: NetworkConfigUpdate
     scanning: ScanningConfigUpdate
+
+
+class DeviceUpdate(BaseModel):
+    label: Optional[str] = None
+    notes: Optional[str] = None
+    is_trusted: Optional[bool] = None
+    zone: Optional[str] = None
 
 
 class ScanResponse(BaseModel):
@@ -141,6 +191,139 @@ class ChangeResponse(BaseModel):
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "timestamp": datetime.utcnow()}
+
+
+# Version endpoint
+@app.get("/api/version")
+async def get_app_version():
+    """Get application version and build information"""
+    return get_build_info()
+
+
+# Authentication Endpoints
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request, db: Session = Depends(get_db)):
+    """Login page"""
+    # If no users exist, redirect to setup
+    user_count = db.query(User).count()
+    if user_count == 0:
+        return RedirectResponse(url="/setup", status_code=302)
+
+    # If already logged in, redirect to dashboard
+    current_user = get_current_user(request)
+    if current_user:
+        return RedirectResponse(url="/", status_code=302)
+
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "error": None,
+        "username": None
+    })
+
+
+@app.post("/login", response_class=HTMLResponse)
+async def login_submit(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    remember: bool = Form(False),
+    db: Session = Depends(get_db)
+):
+    """Process login form"""
+    # Find user
+    user = db.query(User).filter(User.username == username).first()
+
+    if not user or not verify_password(password, user.password_hash):
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "Invalid username or password",
+            "username": username
+        })
+
+    # Update last login
+    user.last_login = datetime.utcnow()
+    db.commit()
+
+    # Create response with session cookie
+    response = RedirectResponse(url="/", status_code=302)
+    set_session_cookie(response, user.id, user.username, remember)
+    return response
+
+
+@app.get("/logout")
+async def logout():
+    """Logout and clear session"""
+    response = RedirectResponse(url="/login", status_code=302)
+    clear_session_cookie(response)
+    return response
+
+
+@app.get("/setup", response_class=HTMLResponse)
+async def setup_page(request: Request, db: Session = Depends(get_db)):
+    """Initial setup page - create admin user"""
+    # If users already exist, redirect to login
+    user_count = db.query(User).count()
+    if user_count > 0:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return templates.TemplateResponse("setup.html", {
+        "request": request,
+        "error": None,
+        "username": None
+    })
+
+
+@app.post("/setup", response_class=HTMLResponse)
+async def setup_submit(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Process setup form"""
+    # If users already exist, redirect to login
+    user_count = db.query(User).count()
+    if user_count > 0:
+        return RedirectResponse(url="/login", status_code=302)
+
+    # Validate input
+    if len(username) < 3:
+        return templates.TemplateResponse("setup.html", {
+            "request": request,
+            "error": "Username must be at least 3 characters",
+            "username": username
+        })
+
+    if len(password) < 8:
+        return templates.TemplateResponse("setup.html", {
+            "request": request,
+            "error": "Password must be at least 8 characters",
+            "username": username
+        })
+
+    if password != confirm_password:
+        return templates.TemplateResponse("setup.html", {
+            "request": request,
+            "error": "Passwords do not match",
+            "username": username
+        })
+
+    # Create user
+    user = User(
+        username=username,
+        password_hash=hash_password(password)
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    logger.info(f"Created admin user: {username}")
+
+    # Create response with session cookie (auto-login)
+    response = RedirectResponse(url="/", status_code=302)
+    set_session_cookie(response, user.id, user.username, remember=True)
+    return response
 
 
 # API Endpoints
@@ -271,6 +454,77 @@ async def list_device_ports(device_id: int, db: Session = Depends(get_db)):
         )
         for port in device.ports
     ]
+
+
+@app.put("/api/devices/{device_id}")
+async def update_device(device_id: int, update: DeviceUpdate, db: Session = Depends(get_db)):
+    """Update device properties (label, notes, is_trusted, zone)"""
+    device = db.query(Device).filter(Device.id == device_id).first()
+
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # Update device fields
+    if update.label is not None:
+        device.label = update.label if update.label else None
+    if update.notes is not None:
+        device.notes = update.notes if update.notes else None
+    if update.is_trusted is not None:
+        device.is_trusted = update.is_trusted
+    if update.zone is not None:
+        device.zone = update.zone if update.zone else None
+
+    # Also update DeviceHistory if MAC address exists
+    if device.mac_address:
+        history = db.query(DeviceHistory).filter(
+            DeviceHistory.mac_address == device.mac_address
+        ).first()
+        if history:
+            if update.label is not None:
+                history.label = device.label
+            if update.notes is not None:
+                history.notes = device.notes
+            if update.is_trusted is not None:
+                history.is_trusted = device.is_trusted
+            if update.zone is not None:
+                history.zone = device.zone
+
+    db.commit()
+    db.refresh(device)
+
+    return {
+        "id": device.id,
+        "ip_address": device.ip_address,
+        "mac_address": device.mac_address,
+        "label": device.label,
+        "notes": device.notes,
+        "is_trusted": device.is_trusted,
+        "zone": device.zone
+    }
+
+
+@app.get("/api/zones")
+async def list_zones(db: Session = Depends(get_db)):
+    """List all unique zones used across devices"""
+    # Get unique zones from DeviceHistory (persistent) and current devices
+    history_zones = db.query(DeviceHistory.zone).filter(
+        DeviceHistory.zone.isnot(None),
+        DeviceHistory.zone != ""
+    ).distinct().all()
+
+    device_zones = db.query(Device.zone).filter(
+        Device.zone.isnot(None),
+        Device.zone != ""
+    ).distinct().all()
+
+    # Combine and deduplicate
+    all_zones = set()
+    for (zone,) in history_zones:
+        all_zones.add(zone)
+    for (zone,) in device_zones:
+        all_zones.add(zone)
+
+    return {"zones": sorted(list(all_zones))}
 
 
 @app.get("/api/changes", response_model=List[ChangeResponse])
@@ -415,7 +669,8 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         "stats": stats,
         "latest_scan": latest_scan,
         "devices": devices,
-        "recent_changes": recent_changes
+        "recent_changes": recent_changes,
+        "current_user": get_current_user(request)
     })
 
 
@@ -443,7 +698,8 @@ async def devices_page(request: Request, scan_id: Optional[int] = None, db: Sess
         "scans": scans,
         "current_scan": current_scan,
         "devices": devices,
-        "selected_scan_id": selected_scan_id
+        "selected_scan_id": selected_scan_id,
+        "current_user": get_current_user(request)
     })
 
 
@@ -458,7 +714,8 @@ async def device_detail_page(request: Request, device_id: int, db: Session = Dep
     return templates.TemplateResponse("device_detail.html", {
         "request": request,
         "active_page": "devices",
-        "device": device
+        "device": device,
+        "current_user": get_current_user(request)
     })
 
 
@@ -470,7 +727,8 @@ async def scans_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("scans.html", {
         "request": request,
         "active_page": "scans",
-        "scans": scans
+        "scans": scans,
+        "current_user": get_current_user(request)
     })
 
 
@@ -490,7 +748,8 @@ async def changes_page(request: Request, scan_id: Optional[int] = None, db: Sess
         "active_page": "changes",
         "scans": scans,
         "changes": changes,
-        "selected_scan_id": scan_id
+        "selected_scan_id": scan_id,
+        "current_user": get_current_user(request)
     })
 
 
@@ -550,7 +809,8 @@ async def compare_page(
         "scans": scans,
         "scan1_id": scan1,
         "scan2_id": scan2,
-        "comparison": comparison
+        "comparison": comparison,
+        "current_user": get_current_user(request)
     })
 
 
@@ -736,6 +996,7 @@ async def settings_page(request: Request):
         "active_page": "settings",
         "config": config,
         "schedules": schedules,
+        "current_user": get_current_user(request)
     })
 
 

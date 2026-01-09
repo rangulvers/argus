@@ -1,8 +1,10 @@
 """Threat detection for network devices based on open ports"""
 
 from typing import Dict, List, Tuple, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
+
+from app.utils.cve_database import find_cves_for_service, CVEEntry, severity_to_score
 
 
 class RiskLevel(Enum):
@@ -24,10 +26,13 @@ class PortThreat:
     threat_description: str
     recommendation: str
     cve_references: List[str] = None
+    cves: List[CVEEntry] = None
 
     def __post_init__(self):
         if self.cve_references is None:
             self.cve_references = []
+        if self.cves is None:
+            self.cves = []
 
 
 # Database of known risky ports
@@ -325,6 +330,7 @@ class DeviceThreatAssessment:
     threats: List[PortThreat]
     summary: str
     top_recommendation: str
+    cves: List[CVEEntry] = field(default_factory=list)  # All CVEs found across all ports
 
 
 class ThreatDetector:
@@ -346,24 +352,56 @@ class ThreatDetector:
         """
         return self.threat_db.get(port_number)
 
-    def assess_device(self, ports: List[Tuple[int, str, str]]) -> DeviceThreatAssessment:
+    def assess_device(self, ports: List[Tuple[int, str, str, Optional[str], Optional[str]]]) -> DeviceThreatAssessment:
         """
         Assess overall threat level for a device based on open ports
 
         Args:
-            ports: List of (port_number, protocol, service_name) tuples
+            ports: List of tuples: (port_number, protocol, service_name, service_product, service_version)
+                   service_product and service_version are optional
 
         Returns:
             DeviceThreatAssessment with overall risk analysis
         """
         threats = []
+        all_cves = []
         risk_score = 0
 
-        # Check each port against threat database
-        for port_num, protocol, service in ports:
+        # Check each port against threat database and CVE database
+        for port_info in ports:
+            # Handle both 3-tuple and 5-tuple formats for backward compatibility
+            if len(port_info) >= 5:
+                port_num, protocol, service, service_product, service_version = port_info[:5]
+            elif len(port_info) >= 3:
+                port_num, protocol, service = port_info[:3]
+                service_product = None
+                service_version = None
+            else:
+                continue
+
             threat = self.assess_port(port_num)
+
+            # Find CVEs for this service
+            port_cves = find_cves_for_service(
+                service_name=service,
+                service_product=service_product,
+                service_version=service_version,
+                port_number=port_num
+            )
+
             if threat:
-                threats.append(threat)
+                # Add CVEs to the threat
+                threat_copy = PortThreat(
+                    port=threat.port,
+                    protocol=threat.protocol,
+                    risk_level=threat.risk_level,
+                    service_name=threat.service_name,
+                    threat_description=threat.threat_description,
+                    recommendation=threat.recommendation,
+                    cve_references=threat.cve_references.copy() if threat.cve_references else [],
+                    cves=port_cves
+                )
+                threats.append(threat_copy)
 
                 # Add to risk score based on severity
                 if threat.risk_level == RiskLevel.CRITICAL:
@@ -374,14 +412,53 @@ class ThreatDetector:
                     risk_score += 10
                 elif threat.risk_level == RiskLevel.LOW:
                     risk_score += 5
+            elif port_cves:
+                # No threat in database, but CVEs found - create a threat entry
+                highest_cve = max(port_cves, key=lambda c: c.cvss_score)
+                cve_risk = self._cvss_to_risk_level(highest_cve.cvss_score)
+
+                threat_copy = PortThreat(
+                    port=port_num,
+                    protocol=protocol or "tcp",
+                    risk_level=cve_risk,
+                    service_name=service or "unknown",
+                    threat_description=f"Known vulnerabilities detected: {highest_cve.description}",
+                    recommendation=highest_cve.remediation,
+                    cve_references=[c.cve_id for c in port_cves],
+                    cves=port_cves
+                )
+                threats.append(threat_copy)
+
+                # Add CVE-based risk score
+                if cve_risk == RiskLevel.CRITICAL:
+                    risk_score += 40
+                elif cve_risk == RiskLevel.HIGH:
+                    risk_score += 25
+                elif cve_risk == RiskLevel.MEDIUM:
+                    risk_score += 10
+                elif cve_risk == RiskLevel.LOW:
+                    risk_score += 5
+
+            # Collect all CVEs
+            all_cves.extend(port_cves)
+
+        # Additional CVE-based scoring (for multiple CVEs on same port)
+        for cve in all_cves:
+            if cve.cvss_score >= 9.0:
+                risk_score += 5  # Bonus for critical CVEs
+            elif cve.cvss_score >= 7.0:
+                risk_score += 2
 
         # Cap score at 100
         risk_score = min(risk_score, 100)
 
         # Determine overall risk level
-        if any(t.risk_level == RiskLevel.CRITICAL for t in threats):
+        has_critical_cve = any(c.severity == "critical" for c in all_cves)
+        has_high_cve = any(c.severity == "high" for c in all_cves)
+
+        if any(t.risk_level == RiskLevel.CRITICAL for t in threats) or has_critical_cve:
             overall_risk = RiskLevel.CRITICAL
-        elif risk_score >= 50 or any(t.risk_level == RiskLevel.HIGH for t in threats):
+        elif risk_score >= 50 or any(t.risk_level == RiskLevel.HIGH for t in threats) or has_high_cve:
             overall_risk = RiskLevel.HIGH
         elif risk_score >= 20:
             overall_risk = RiskLevel.MEDIUM
@@ -391,7 +468,7 @@ class ThreatDetector:
             overall_risk = RiskLevel.NONE
 
         # Generate summary
-        if not threats:
+        if not threats and not all_cves:
             summary = "No known risky ports detected."
             top_recommendation = "Continue monitoring with regular scans."
         else:
@@ -407,7 +484,8 @@ class ThreatDetector:
             if medium_count:
                 parts.append(f"{medium_count} medium")
 
-            summary = f"Found {len(threats)} risky ports: {', '.join(parts)} risk."
+            cve_info = f" ({len(all_cves)} CVEs)" if all_cves else ""
+            summary = f"Found {len(threats)} risky ports: {', '.join(parts)} risk{cve_info}."
 
             # Get top recommendation from highest severity threat
             sorted_threats = sorted(threats, key=lambda t: (
@@ -417,13 +495,37 @@ class ThreatDetector:
             ), reverse=True)
             top_recommendation = sorted_threats[0].recommendation if sorted_threats else ""
 
+        # Deduplicate CVEs
+        seen_cves = set()
+        unique_cves = []
+        for cve in all_cves:
+            if cve.cve_id not in seen_cves:
+                seen_cves.add(cve.cve_id)
+                unique_cves.append(cve)
+
+        # Sort CVEs by severity
+        unique_cves.sort(key=lambda c: severity_to_score(c.severity), reverse=True)
+
         return DeviceThreatAssessment(
             risk_level=overall_risk,
             risk_score=risk_score,
             threats=threats,
             summary=summary,
-            top_recommendation=top_recommendation
+            top_recommendation=top_recommendation,
+            cves=unique_cves
         )
+
+    def _cvss_to_risk_level(self, cvss_score: float) -> RiskLevel:
+        """Convert CVSS score to risk level"""
+        if cvss_score >= 9.0:
+            return RiskLevel.CRITICAL
+        elif cvss_score >= 7.0:
+            return RiskLevel.HIGH
+        elif cvss_score >= 4.0:
+            return RiskLevel.MEDIUM
+        elif cvss_score > 0:
+            return RiskLevel.LOW
+        return RiskLevel.NONE
 
     def get_risk_color(self, risk_level: RiskLevel) -> str:
         """Get color class for risk level (for UI)"""
