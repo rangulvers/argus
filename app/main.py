@@ -11,7 +11,8 @@ from datetime import datetime
 import logging
 
 from app.database import get_db, init_db
-from app.models import Scan, Device, Port, Change, DeviceHistory, User, APIKey
+from app.models import Scan, Device, Port, Change, DeviceHistory, User, APIKey, AuditLog
+from app.audit import log_action, log_from_request, AuditAction, ResourceType
 from app.scanner import NetworkScanner
 from app.utils.change_detector import ChangeDetector
 from app.config import get_config, save_config, reload_config
@@ -274,6 +275,21 @@ class APIKeyCreatedResponse(BaseModel):
     message: str = "Save this key now. It will not be shown again."
 
 
+class AuditLogResponse(BaseModel):
+    id: int
+    timestamp: datetime
+    username: Optional[str]
+    action: str
+    resource_type: Optional[str]
+    resource_id: Optional[str]
+    details: Optional[dict]
+    ip_address: Optional[str]
+    success: bool
+
+    class Config:
+        from_attributes = True
+
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
@@ -365,6 +381,16 @@ async def login_submit(
     user = db.query(User).filter(User.username == username).first()
 
     if not user or not verify_password(password, user.password_hash):
+        # Log failed login attempt
+        log_action(
+            db=db,
+            action=AuditAction.LOGIN_FAILED,
+            username=username,
+            resource_type=ResourceType.USER,
+            details={"reason": "Invalid credentials"},
+            request=request,
+            success=False
+        )
         return templates.TemplateResponse("login.html", {
             "request": request,
             "error": "Invalid username or password",
@@ -375,6 +401,17 @@ async def login_submit(
     user.last_login = datetime.utcnow()
     db.commit()
 
+    # Log successful login
+    log_action(
+        db=db,
+        action=AuditAction.LOGIN_SUCCESS,
+        user_id=user.id,
+        username=user.username,
+        resource_type=ResourceType.USER,
+        resource_id=user.id,
+        request=request
+    )
+
     # Create response with session cookie
     response = RedirectResponse(url="/", status_code=302)
     set_session_cookie(response, user.id, user.username, remember)
@@ -382,8 +419,20 @@ async def login_submit(
 
 
 @app.get("/logout")
-async def logout():
+async def logout(request: Request, db: Session = Depends(get_db)):
     """Logout and clear session"""
+    # Log logout
+    current_user = get_current_user(request)
+    if current_user:
+        log_action(
+            db=db,
+            action=AuditAction.LOGOUT,
+            user_id=current_user.get("user_id"),
+            username=current_user.get("username"),
+            resource_type=ResourceType.USER,
+            request=request
+        )
+
     response = RedirectResponse(url="/login", status_code=302)
     clear_session_cookie(response)
     return response
@@ -451,6 +500,18 @@ async def setup_submit(
 
     logger.info(f"Created admin user: {username}")
 
+    # Log setup completion
+    log_action(
+        db=db,
+        action=AuditAction.SETUP_COMPLETE,
+        user_id=user.id,
+        username=user.username,
+        resource_type=ResourceType.USER,
+        resource_id=user.id,
+        details={"first_user": True},
+        request=request
+    )
+
     # Create response with session cookie (auto-login)
     response = RedirectResponse(url="/", status_code=302)
     set_session_cookie(response, user.id, user.username, remember=True)
@@ -462,6 +523,7 @@ async def setup_submit(
 async def create_scan(
     scan_request: ScanRequest,
     background_tasks: BackgroundTasks,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """Trigger a new network scan"""
@@ -472,6 +534,15 @@ async def create_scan(
     port_range = scan_request.port_range or config.scanning.port_range
 
     logger.info(f"Starting scan: {subnet}, profile: {scan_profile}")
+
+    # Log scan started
+    log_from_request(
+        db=db,
+        request=request,
+        action=AuditAction.SCAN_STARTED,
+        resource_type=ResourceType.SCAN,
+        details={"subnet": subnet, "profile": scan_profile}
+    )
 
     # Run scan in background
     def run_scan():
@@ -588,12 +659,26 @@ async def list_device_ports(device_id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/api/devices/{device_id}")
-async def update_device(device_id: int, update: DeviceUpdate, db: Session = Depends(get_db)):
+async def update_device(
+    device_id: int,
+    update: DeviceUpdate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
     """Update device properties (label, notes, is_trusted, zone)"""
     device = db.query(Device).filter(Device.id == device_id).first()
 
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
+
+    # Track changes for audit log
+    changes = {}
+    if update.label is not None and device.label != update.label:
+        changes["label"] = {"old": device.label, "new": update.label}
+    if update.is_trusted is not None and device.is_trusted != update.is_trusted:
+        changes["is_trusted"] = {"old": device.is_trusted, "new": update.is_trusted}
+    if update.zone is not None and device.zone != update.zone:
+        changes["zone"] = {"old": device.zone, "new": update.zone}
 
     # Update device fields
     if update.label is not None:
@@ -622,6 +707,20 @@ async def update_device(device_id: int, update: DeviceUpdate, db: Session = Depe
 
     db.commit()
     db.refresh(device)
+
+    # Log device update
+    log_from_request(
+        db=db,
+        request=request,
+        action=AuditAction.DEVICE_UPDATED,
+        resource_type=ResourceType.DEVICE,
+        resource_id=device_id,
+        details={
+            "ip_address": device.ip_address,
+            "mac_address": device.mac_address,
+            "changes": changes
+        }
+    )
 
     return {
         "id": device.id,
@@ -1374,11 +1473,19 @@ async def delete_schedule(job_id: str):
 
 
 @app.put("/api/config")
-async def update_config(config_update: ConfigUpdate):
+async def update_config(config_update: ConfigUpdate, request: Request, db: Session = Depends(get_db)):
     """Update configuration and save to config.yaml"""
     try:
         # Get current config
         config = get_config()
+
+        # Track changes for audit
+        old_config = {
+            "subnet": config.network.subnet,
+            "scan_profile": config.network.scan_profile,
+            "port_range": config.scanning.port_range,
+            "enable_os_detection": config.scanning.enable_os_detection
+        }
 
         # Update network settings
         config.network.subnet = config_update.network.subnet
@@ -1393,6 +1500,23 @@ async def update_config(config_update: ConfigUpdate):
 
         # Reload config to ensure consistency
         reload_config()
+
+        # Log config update
+        log_from_request(
+            db=db,
+            request=request,
+            action=AuditAction.CONFIG_UPDATED,
+            resource_type=ResourceType.CONFIG,
+            details={
+                "old": old_config,
+                "new": {
+                    "subnet": config.network.subnet,
+                    "scan_profile": config.network.scan_profile,
+                    "port_range": config.scanning.port_range,
+                    "enable_os_detection": config.scanning.enable_os_detection
+                }
+            }
+        )
 
         return {
             "status": "success",
@@ -1426,6 +1550,49 @@ async def get_config_endpoint():
             "port_range": config.scanning.port_range,
             "enable_os_detection": config.scanning.enable_os_detection
         }
+    }
+
+
+# Audit Log Endpoints
+@app.get("/api/audit-logs", response_model=List[AuditLogResponse])
+async def list_audit_logs(
+    limit: int = 50,
+    offset: int = 0,
+    action: Optional[str] = None,
+    username: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """List audit logs with optional filtering"""
+    query = db.query(AuditLog)
+
+    # Apply filters
+    if action:
+        query = query.filter(AuditLog.action == action)
+    if username:
+        query = query.filter(AuditLog.username == username)
+
+    # Order by most recent first
+    logs = query.order_by(desc(AuditLog.timestamp)).offset(offset).limit(limit).all()
+
+    return logs
+
+
+@app.get("/api/audit-logs/actions")
+async def list_audit_actions():
+    """List all available audit action types"""
+    return {
+        "actions": [
+            {"value": AuditAction.LOGIN_SUCCESS, "label": "Login Success"},
+            {"value": AuditAction.LOGIN_FAILED, "label": "Login Failed"},
+            {"value": AuditAction.LOGOUT, "label": "Logout"},
+            {"value": AuditAction.SETUP_COMPLETE, "label": "Setup Complete"},
+            {"value": AuditAction.API_KEY_CREATED, "label": "API Key Created"},
+            {"value": AuditAction.API_KEY_REVOKED, "label": "API Key Revoked"},
+            {"value": AuditAction.SCAN_STARTED, "label": "Scan Started"},
+            {"value": AuditAction.SCAN_COMPLETED, "label": "Scan Completed"},
+            {"value": AuditAction.DEVICE_UPDATED, "label": "Device Updated"},
+            {"value": AuditAction.CONFIG_UPDATED, "label": "Config Updated"},
+        ]
     }
 
 
@@ -1485,6 +1652,18 @@ async def create_api_key(
 
     logger.info(f"API key '{key_data.name}' created for user {user.username}")
 
+    # Log API key creation
+    log_action(
+        db=db,
+        action=AuditAction.API_KEY_CREATED,
+        user_id=user.id,
+        username=user.username,
+        resource_type=ResourceType.API_KEY,
+        resource_id=api_key.id,
+        details={"name": key_data.name, "expires_at": expires_at.isoformat() if expires_at else None},
+        request=request
+    )
+
     return APIKeyCreatedResponse(
         id=api_key.id,
         name=api_key.name,
@@ -1518,6 +1697,18 @@ async def revoke_api_key(
     db.commit()
 
     logger.info(f"API key '{api_key.name}' revoked")
+
+    # Log API key revocation
+    log_action(
+        db=db,
+        action=AuditAction.API_KEY_REVOKED,
+        user_id=current_user["user_id"],
+        username=current_user["username"],
+        resource_type=ResourceType.API_KEY,
+        resource_id=key_id,
+        details={"name": api_key.name},
+        request=request
+    )
 
     return {"status": "revoked", "id": key_id, "name": api_key.name}
 

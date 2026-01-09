@@ -189,3 +189,26 @@ class APIKey(Base):
 
     def __repr__(self):
         return f"<APIKey {self.key_prefix}... - {self.name}>"
+
+
+class AuditLog(Base):
+    """Audit log for tracking user actions"""
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # Null for system actions
+    username = Column(String(100), nullable=True)  # Denormalized for quick access
+    action = Column(String(50), nullable=False, index=True)  # login, logout, scan_started, device_updated, etc.
+    resource_type = Column(String(50), nullable=True)  # device, scan, api_key, config, etc.
+    resource_id = Column(String(100), nullable=True)  # ID of affected resource
+    details = Column(JSON, nullable=True)  # Additional context as JSON
+    ip_address = Column(String(45), nullable=True)  # Client IP address
+    user_agent = Column(String(255), nullable=True)  # Client user agent
+    success = Column(Boolean, default=True)  # Whether action succeeded
+
+    # Relationships
+    user = relationship("User", backref="audit_logs")
+
+    def __repr__(self):
+        return f"<AuditLog {self.action} by {self.username} at {self.timestamp}>"

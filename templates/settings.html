@@ -457,9 +457,217 @@
             </div>
         </div>
     </div>
+
+    <!-- Audit Log -->
+    <div class="bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-hidden" x-data="auditLogViewer()">
+        <div class="px-4 py-5 sm:px-6 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center">
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Audit Log</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Recent security and activity events</p>
+            </div>
+            <button @click="loadLogs()" :disabled="loading"
+                    class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600">
+                <svg class="h-4 w-4 mr-1.5" :class="loading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                Refresh
+            </button>
+        </div>
+        <div class="px-4 py-5 sm:p-6">
+            <!-- Filter -->
+            <div class="mb-4 flex items-center space-x-4">
+                <select x-model="filter.action" @change="loadLogs()"
+                        class="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                    <option value="">All Actions</option>
+                    <option value="login_success">Login Success</option>
+                    <option value="login_failed">Login Failed</option>
+                    <option value="logout">Logout</option>
+                    <option value="scan_started">Scan Started</option>
+                    <option value="device_updated">Device Updated</option>
+                    <option value="api_key_created">API Key Created</option>
+                    <option value="api_key_revoked">API Key Revoked</option>
+                    <option value="config_updated">Config Updated</option>
+                </select>
+                <span class="text-sm text-gray-500 dark:text-gray-400" x-text="logs.length + ' entries'"></span>
+            </div>
+
+            <!-- Logs Table -->
+            <template x-if="logs.length === 0 && !loading">
+                <div class="text-center py-8">
+                    <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No audit logs</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Activity will be logged here.</p>
+                </div>
+            </template>
+
+            <template x-if="loading">
+                <div class="text-center py-8">
+                    <svg class="animate-spin mx-auto h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading audit logs...</p>
+                </div>
+            </template>
+
+            <template x-if="logs.length > 0 && !loading">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Time</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">User</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Action</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Details</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">IP</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            <template x-for="log in logs" :key="log.id">
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                    <td class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap" x-text="formatDate(log.timestamp)"></td>
+                                    <td class="px-3 py-2 text-sm text-gray-900 dark:text-white" x-text="log.username || 'System'"></td>
+                                    <td class="px-3 py-2">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                                              :class="getActionClass(log.action, log.success)">
+                                            <span x-text="formatAction(log.action)"></span>
+                                        </span>
+                                    </td>
+                                    <td class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate" x-text="formatDetails(log)"></td>
+                                    <td class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 font-mono text-xs" x-text="log.ip_address || '-'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+
+            <!-- Load More -->
+            <template x-if="logs.length >= 50">
+                <div class="mt-4 text-center">
+                    <button @click="loadMore()" :disabled="loadingMore"
+                            class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300">
+                        <span x-text="loadingMore ? 'Loading...' : 'Load more'"></span>
+                    </button>
+                </div>
+            </template>
+        </div>
+    </div>
 </div>
 
 <script>
+function auditLogViewer() {
+    return {
+        logs: [],
+        loading: true,
+        loadingMore: false,
+        filter: {
+            action: ''
+        },
+        offset: 0,
+
+        init() {
+            this.loadLogs();
+        },
+
+        async loadLogs() {
+            this.loading = true;
+            this.offset = 0;
+            let url = '/api/audit-logs?limit=50';
+            if (this.filter.action) {
+                url += '&action=' + this.filter.action;
+            }
+
+            try {
+                const response = await fetch(url);
+                this.logs = await response.json();
+            } catch (error) {
+                console.error('Failed to load audit logs:', error);
+            }
+
+            this.loading = false;
+        },
+
+        async loadMore() {
+            this.loadingMore = true;
+            this.offset += 50;
+            let url = '/api/audit-logs?limit=50&offset=' + this.offset;
+            if (this.filter.action) {
+                url += '&action=' + this.filter.action;
+            }
+
+            try {
+                const response = await fetch(url);
+                const moreLogs = await response.json();
+                this.logs = [...this.logs, ...moreLogs];
+            } catch (error) {
+                console.error('Failed to load more audit logs:', error);
+            }
+
+            this.loadingMore = false;
+        },
+
+        formatDate(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+        },
+
+        formatAction(action) {
+            const labels = {
+                'login_success': 'Login',
+                'login_failed': 'Login Failed',
+                'logout': 'Logout',
+                'setup_complete': 'Setup',
+                'api_key_created': 'Key Created',
+                'api_key_revoked': 'Key Revoked',
+                'scan_started': 'Scan Started',
+                'scan_completed': 'Scan Done',
+                'scan_failed': 'Scan Failed',
+                'device_updated': 'Device Updated',
+                'config_updated': 'Config Updated'
+            };
+            return labels[action] || action;
+        },
+
+        getActionClass(action, success) {
+            if (!success) return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
+
+            const classes = {
+                'login_success': 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
+                'login_failed': 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200',
+                'logout': 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200',
+                'scan_started': 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200',
+                'scan_completed': 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
+                'device_updated': 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200',
+                'api_key_created': 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200',
+                'api_key_revoked': 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200',
+                'config_updated': 'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200',
+            };
+            return classes[action] || 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200';
+        },
+
+        formatDetails(log) {
+            if (!log.details) return '-';
+            if (log.resource_type === 'scan') {
+                return `${log.details.subnet || ''} (${log.details.profile || ''})`;
+            }
+            if (log.resource_type === 'device') {
+                return log.details.ip_address || '';
+            }
+            if (log.resource_type === 'api_key') {
+                return log.details.name || '';
+            }
+            if (log.action === 'login_failed') {
+                return log.details.reason || '';
+            }
+            return JSON.stringify(log.details).substring(0, 50);
+        }
+    }
+}
+
 function apiKeyManager() {
     return {
         keys: {{ api_keys | tojson if api_keys else '[]' | safe }},
