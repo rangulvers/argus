@@ -220,6 +220,50 @@ async def get_app_version():
     return get_build_info()
 
 
+@app.get("/api/stats")
+async def get_stats(db: Session = Depends(get_db)):
+    """Get network statistics for dashboard widget integration.
+
+    Returns key metrics suitable for homepage (gethomepage.dev) widgets:
+    - total_devices: Total number of discovered devices
+    - devices_at_risk: Devices with medium/high/critical risk level
+    - critical: Number of critical risk devices
+    - high: Number of high risk devices
+    - last_scan: Timestamp of the most recent scan (ISO format)
+    """
+    # Get the latest completed scan
+    latest_scan = db.query(Scan).filter(
+        Scan.status == "completed"
+    ).order_by(desc(Scan.completed_at)).first()
+
+    # Get devices from the latest scan
+    devices = []
+    if latest_scan:
+        devices = db.query(Device).filter(Device.scan_id == latest_scan.id).all()
+
+    # Calculate stats
+    total_devices = len(devices)
+    devices_at_risk = 0
+    critical_devices = 0
+    high_risk_devices = 0
+
+    for device in devices:
+        if device.risk_level in ("medium", "high", "critical"):
+            devices_at_risk += 1
+        if device.risk_level == "critical":
+            critical_devices += 1
+        elif device.risk_level == "high":
+            high_risk_devices += 1
+
+    return {
+        "total_devices": total_devices,
+        "devices_at_risk": devices_at_risk,
+        "critical": critical_devices,
+        "high": high_risk_devices,
+        "last_scan": latest_scan.completed_at.isoformat() if latest_scan and latest_scan.completed_at else None
+    }
+
+
 # Authentication Endpoints
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request, db: Session = Depends(get_db)):
