@@ -167,30 +167,36 @@
                 <p class="text-sm">Run some scans to see trends</p>
             </div>
         </template>
-        <template x-if="!loading && !noData">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Device Count Chart -->
-                <div>
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Device Count</h4>
-                    <canvas id="deviceCountChart" height="200"></canvas>
-                </div>
-                <!-- Risk Score Chart -->
-                <div>
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Average Risk Score</h4>
-                    <canvas id="riskScoreChart" height="200"></canvas>
-                </div>
-                <!-- Open Ports Chart -->
-                <div>
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Open Ports</h4>
-                    <canvas id="portCountChart" height="200"></canvas>
-                </div>
-                <!-- Changes Chart -->
-                <div>
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Network Changes</h4>
-                    <canvas id="changeCountChart" height="200"></canvas>
+        <div x-show="!loading && !noData" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Device Count Chart -->
+            <div>
+                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Device Count</h4>
+                <div style="position: relative; height: 200px;">
+                    <canvas id="deviceCountChart"></canvas>
                 </div>
             </div>
-        </template>
+            <!-- Risk Score Chart -->
+            <div>
+                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Average Risk Score</h4>
+                <div style="position: relative; height: 200px;">
+                    <canvas id="riskScoreChart"></canvas>
+                </div>
+            </div>
+            <!-- Open Ports Chart -->
+            <div>
+                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Open Ports</h4>
+                <div style="position: relative; height: 200px;">
+                    <canvas id="portCountChart"></canvas>
+                </div>
+            </div>
+            <!-- Changes Chart -->
+            <div>
+                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Network Changes</h4>
+                <div style="position: relative; height: 200px;">
+                    <canvas id="changeCountChart"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -410,6 +416,7 @@ function trendCharts() {
         async loadTrends() {
             this.loading = true;
             this.noData = false;
+            this.destroyCharts();
 
             try {
                 const response = await fetch(`/api/trends?days=${this.selectedDays}`);
@@ -422,8 +429,9 @@ function trendCharts() {
                 }
 
                 this.loading = false;
-                await this.$nextTick();
-                this.renderCharts(data.trends);
+                this.noData = false;
+                // Small delay to ensure DOM is ready
+                setTimeout(() => this.renderCharts(data.trends), 50);
             } catch (error) {
                 console.error('Error loading trends:', error);
                 this.noData = true;
