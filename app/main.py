@@ -527,6 +527,292 @@ async def list_zones(db: Session = Depends(get_db)):
     return {"zones": sorted(list(all_zones))}
 
 
+# ==================== Visualization API Endpoints ====================
+
+@app.get("/api/visualization/topology")
+async def get_topology_data(
+    scan_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """Get network topology data for visualization"""
+    # Get the scan to use
+    if scan_id:
+        scan = db.query(Scan).filter(Scan.id == scan_id).first()
+        if not scan:
+            raise HTTPException(status_code=404, detail="Scan not found")
+    else:
+        scan = db.query(Scan).filter(Scan.status == "completed").order_by(desc(Scan.completed_at)).first()
+
+    if not scan:
+        return {"nodes": [], "edges": [], "groups": {}}
+
+    devices = db.query(Device).filter(Device.scan_id == scan.id).all()
+
+    # Build nodes and group by zone/subnet
+    nodes = []
+    groups = {}
+
+    for device in devices:
+        zone = device.zone or "Unknown"
+        if zone not in groups:
+            groups[zone] = {"color": _get_zone_color(zone), "count": 0}
+        groups[zone]["count"] += 1
+
+        # Determine node color based on risk
+        node_color = _get_risk_color(device.risk_level)
+
+        nodes.append({
+            "id": device.id,
+            "label": device.label or device.hostname or device.ip_address,
+            "ip": device.ip_address,
+            "mac": device.mac_address,
+            "vendor": device.vendor,
+            "hostname": device.hostname,
+            "zone": zone,
+            "risk_level": device.risk_level or "none",
+            "risk_score": device.risk_score or 0,
+            "ports_count": len(device.ports),
+            "is_trusted": device.is_trusted,
+            "color": node_color,
+            "size": 20 + (device.risk_score or 0) * 2,  # Larger nodes = higher risk
+        })
+
+    # Create edges based on same subnet (simplified - all devices in same scan are connected to a central router node)
+    edges = []
+    # Add router/gateway as central node
+    if nodes:
+        # Detect gateway (usually .1 or .254)
+        gateway_node = next(
+            (n for n in nodes if n["ip"].endswith(".1") or n["ip"].endswith(".254")),
+            None
+        )
+        gateway_id = gateway_node["id"] if gateway_node else "gateway"
+
+        if not gateway_node:
+            nodes.insert(0, {
+                "id": "gateway",
+                "label": "Gateway",
+                "ip": scan.subnet.replace("/24", ".1") if scan.subnet else "Gateway",
+                "zone": "Infrastructure",
+                "risk_level": "none",
+                "color": "#6b7280",
+                "size": 30,
+                "is_gateway": True
+            })
+
+        # Connect all devices to gateway
+        for node in nodes:
+            if node["id"] != gateway_id:
+                edges.append({
+                    "from": gateway_id,
+                    "to": node["id"],
+                    "color": "#4b5563"
+                })
+
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "groups": groups,
+        "scan_id": scan.id,
+        "scan_date": scan.completed_at.isoformat() if scan.completed_at else None
+    }
+
+
+@app.get("/api/visualization/heatmap")
+async def get_heatmap_data(
+    scan_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """Get risk heatmap data for visualization"""
+    if scan_id:
+        scan = db.query(Scan).filter(Scan.id == scan_id).first()
+        if not scan:
+            raise HTTPException(status_code=404, detail="Scan not found")
+    else:
+        scan = db.query(Scan).filter(Scan.status == "completed").order_by(desc(Scan.completed_at)).first()
+
+    if not scan:
+        return {"devices": [], "summary": {}}
+
+    devices = db.query(Device).filter(Device.scan_id == scan.id).all()
+
+    # Group by risk level
+    risk_summary = {"critical": 0, "high": 0, "medium": 0, "low": 0, "none": 0}
+
+    heatmap_data = []
+    for device in devices:
+        risk = device.risk_level or "none"
+        risk_summary[risk] = risk_summary.get(risk, 0) + 1
+
+        heatmap_data.append({
+            "id": device.id,
+            "ip": device.ip_address,
+            "label": device.label or device.hostname or device.ip_address,
+            "zone": device.zone or "Unknown",
+            "risk_level": risk,
+            "risk_score": device.risk_score or 0,
+            "ports_count": len(device.ports),
+            "is_trusted": device.is_trusted,
+            "threat_summary": device.threat_summary
+        })
+
+    # Sort by risk score descending
+    heatmap_data.sort(key=lambda x: x["risk_score"], reverse=True)
+
+    return {
+        "devices": heatmap_data,
+        "summary": risk_summary,
+        "scan_id": scan.id
+    }
+
+
+@app.get("/api/visualization/port-matrix")
+async def get_port_matrix_data(
+    scan_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """Get port/service matrix data for visualization"""
+    if scan_id:
+        scan = db.query(Scan).filter(Scan.id == scan_id).first()
+        if not scan:
+            raise HTTPException(status_code=404, detail="Scan not found")
+    else:
+        scan = db.query(Scan).filter(Scan.status == "completed").order_by(desc(Scan.completed_at)).first()
+
+    if not scan:
+        return {"devices": [], "ports": [], "matrix": []}
+
+    devices = db.query(Device).filter(Device.scan_id == scan.id).all()
+
+    # Collect all unique ports
+    all_ports = set()
+    device_ports = {}
+
+    for device in devices:
+        device_ports[device.id] = {
+            "id": device.id,
+            "ip": device.ip_address,
+            "label": device.label or device.hostname or device.ip_address,
+            "ports": {}
+        }
+        for port in device.ports:
+            all_ports.add(port.port_number)
+            device_ports[device.id]["ports"][port.port_number] = {
+                "service": port.service_name,
+                "state": port.state,
+                "product": port.service_product
+            }
+
+    # Sort ports
+    sorted_ports = sorted(list(all_ports))
+
+    # Build matrix
+    matrix = []
+    for device_id, device_data in device_ports.items():
+        row = {
+            "device_id": device_data["id"],
+            "device_ip": device_data["ip"],
+            "device_label": device_data["label"],
+            "ports": []
+        }
+        for port in sorted_ports:
+            if port in device_data["ports"]:
+                row["ports"].append({
+                    "port": port,
+                    "open": True,
+                    "service": device_data["ports"][port]["service"],
+                    "product": device_data["ports"][port]["product"]
+                })
+            else:
+                row["ports"].append({"port": port, "open": False})
+        matrix.append(row)
+
+    return {
+        "ports": sorted_ports,
+        "matrix": matrix,
+        "scan_id": scan.id
+    }
+
+
+@app.get("/api/visualization/timeline")
+async def get_timeline_data(
+    device_id: Optional[int] = None,
+    days: int = 30,
+    db: Session = Depends(get_db)
+):
+    """Get device timeline data for visualization"""
+    from datetime import timedelta
+
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
+
+    # Get changes within the time range
+    query = db.query(Change).filter(Change.detected_at >= cutoff_date)
+
+    if device_id:
+        device = db.query(Device).filter(Device.id == device_id).first()
+        if device:
+            query = query.filter(
+                (Change.device_ip == device.ip_address) |
+                (Change.device_mac == device.mac_address)
+            )
+
+    changes = query.order_by(Change.detected_at).all()
+
+    timeline_events = []
+    for change in changes:
+        timeline_events.append({
+            "id": change.id,
+            "type": change.change_type,
+            "severity": change.severity,
+            "device_ip": change.device_ip,
+            "device_mac": change.device_mac,
+            "port": change.port_number,
+            "description": change.description,
+            "timestamp": change.detected_at.isoformat(),
+            "scan_id": change.scan_id
+        })
+
+    # Also get scan history for context
+    scans = db.query(Scan).filter(
+        Scan.started_at >= cutoff_date,
+        Scan.status == "completed"
+    ).order_by(Scan.started_at).all()
+
+    scan_events = [
+        {
+            "id": f"scan-{scan.id}",
+            "type": "scan",
+            "timestamp": scan.completed_at.isoformat() if scan.completed_at else scan.started_at.isoformat(),
+            "devices_found": scan.devices_found,
+            "profile": scan.scan_profile
+        }
+        for scan in scans
+    ]
+
+    return {
+        "changes": timeline_events,
+        "scans": scan_events,
+        "days": days
+    }
+
+
+def _get_risk_color(risk_level: str) -> str:
+    """Get color for risk level"""
+    return {
+        "critical": "#dc2626",  # red-600
+        "high": "#ea580c",      # orange-600
+        "medium": "#ca8a04",    # yellow-600
+        "low": "#16a34a",       # green-600
+        "none": "#6b7280",      # gray-500
+    }.get(risk_level or "none", "#6b7280")
+
+
+def _get_zone_color(zone: str) -> str:
+    """Get color for zone"""
+    colors = ["#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316", "#84cc16"]
+    return colors[hash(zone) % len(colors)]
+
+
 @app.get("/api/changes", response_model=List[ChangeResponse])
 async def list_changes(
     scan_id: Optional[int] = None,
@@ -727,6 +1013,19 @@ async def scans_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("scans.html", {
         "request": request,
         "active_page": "scans",
+        "scans": scans,
+        "current_user": get_current_user(request)
+    })
+
+
+@app.get("/visualization", response_class=HTMLResponse)
+async def visualization_page(request: Request, db: Session = Depends(get_db)):
+    """Network visualization page"""
+    scans = db.query(Scan).filter(Scan.status == "completed").order_by(desc(Scan.completed_at)).limit(20).all()
+
+    return templates.TemplateResponse("visualization.html", {
+        "request": request,
+        "active_page": "visualization",
         "scans": scans,
         "current_user": get_current_user(request)
     })
