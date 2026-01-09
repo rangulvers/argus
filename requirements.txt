@@ -33,3 +33,9 @@ pydantic-settings>=2.6.0
 # Authentication
 passlib>=1.7.4
 itsdangerous>=2.1.2
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+pytest-cov>=6.0.0
+httpx>=0.28.0
