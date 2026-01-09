@@ -1,26 +1,26 @@
-# Argus - Home Network Security Monitor
+# Argus
 
-<p align="center">
-  <img src="assets/logo.png" alt="Argus Logo" width="200">
-</p>
-
-<p align="center">
-  <strong>Keep your home network safe.</strong>
-</p>
-
-<p align="center">
-  <a href="https://github.com/rangulvers/argus"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python"></a>
-  <a href="https://github.com/rangulvers/argus/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
-  <a href="https://ghcr.io/rangulvers/argus"><img src="https://img.shields.io/badge/docker-ready-blue.svg" alt="Docker"></a>
-</p>
+<div class="hero-section">
+<div class="hero-content">
+  <img src="assets/logo.png" alt="Argus" class="hero-logo">
+  <h1>Argus</h1>
+  <p class="hero-tagline">Home Network Security Monitor</p>
+  <p class="hero-description">Automatically discover devices, detect changes, and identify security threats on your network.</p>
+  <div class="hero-buttons">
+    <a href="getting-started/installation/" class="hero-btn hero-btn-primary">Get Started</a>
+    <a href="https://github.com/rangulvers/argus" class="hero-btn hero-btn-secondary">View on GitHub</a>
+  </div>
+  <div class="hero-badges">
+    <a href="https://github.com/rangulvers/argus"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python"></a>
+    <a href="https://github.com/rangulvers/argus/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
+    <a href="https://ghcr.io/rangulvers/argus"><img src="https://img.shields.io/badge/docker-ready-blue.svg" alt="Docker"></a>
+  </div>
+</div>
+</div>
 
 ---
 
-Argus automatically discovers all devices on your network, monitors for changes, and alerts you to potential security threats.
-
-## Why Argus?
-
-Your home network is growing. Smart TVs, IoT devices, phones, computers - it's hard to keep track of what's connected. Argus gives you visibility and control:
+Your home network is growing. Smart TVs, IoT devices, phones, computers - it's hard to keep track of what's connected. Argus gives you visibility and control.
 
 <div class="grid cards" markdown>
 
