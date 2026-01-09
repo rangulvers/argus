@@ -24,6 +24,7 @@ from app.auth import (
     clear_session_cookie, get_current_user, requires_auth
 )
 from app.version import get_version, get_build_info
+from app.utils.device_icons import detect_device_type, get_device_icon_info
 from pydantic import BaseModel
 
 # Setup logging
@@ -43,6 +44,25 @@ templates = Jinja2Templates(directory="templates")
 
 # Add version to template globals
 templates.env.globals["app_version"] = get_version()
+
+
+# Add device icon helper to templates
+def get_device_icon_type(device):
+    """Template helper to get device icon type from a device object."""
+    ports = [p.port_number for p in device.ports] if hasattr(device, 'ports') and device.ports else []
+    return detect_device_type(
+        vendor=device.vendor if hasattr(device, 'vendor') else None,
+        hostname=device.hostname if hasattr(device, 'hostname') else None,
+        os_name=device.os_name if hasattr(device, 'os_name') else None,
+        device_type=device.device_type if hasattr(device, 'device_type') else None,
+        ports=ports,
+        mac_address=device.mac_address if hasattr(device, 'mac_address') else None,
+        ip_address=device.ip_address if hasattr(device, 'ip_address') else None,
+    )
+
+
+templates.env.globals["get_device_icon_type"] = get_device_icon_type
+templates.env.globals["get_device_icon_info"] = get_device_icon_info
 
 # Initialize database and scheduler on startup
 @app.on_event("startup")
@@ -644,6 +664,19 @@ async def get_heatmap_data(
         risk = device.risk_level or "none"
         risk_summary[risk] = risk_summary.get(risk, 0) + 1
 
+        # Get device icon type
+        ports = [p.port_number for p in device.ports] if device.ports else []
+        icon_type = detect_device_type(
+            vendor=device.vendor,
+            hostname=device.hostname,
+            os_name=device.os_name,
+            device_type=device.device_type,
+            ports=ports,
+            mac_address=device.mac_address,
+            ip_address=device.ip_address,
+        )
+        icon_info = get_device_icon_info(icon_type)
+
         heatmap_data.append({
             "id": device.id,
             "ip": device.ip_address,
@@ -653,7 +686,9 @@ async def get_heatmap_data(
             "risk_score": device.risk_score or 0,
             "ports_count": len(device.ports),
             "is_trusted": device.is_trusted,
-            "threat_summary": device.threat_summary
+            "threat_summary": device.threat_summary,
+            "icon_type": icon_type,
+            "device_type_label": icon_info["label"],
         })
 
     # Sort by risk score descending
