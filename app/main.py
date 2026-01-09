@@ -28,6 +28,7 @@ from app.auth import (
 )
 from app.version import get_version, get_build_info
 from app.utils.device_icons import detect_device_type, get_device_icon_info
+from app.update_checker import get_update_checker
 from pydantic import BaseModel
 
 # Setup logging
@@ -345,6 +346,95 @@ async def get_stats(db: Session = Depends(get_db)):
         "high": high_risk_devices,
         "last_scan": latest_scan.started_at.isoformat() if latest_scan and latest_scan.started_at else None
     }
+
+
+@app.get("/api/trends")
+async def get_trend_data(
+    days: int = 30,
+    db: Session = Depends(get_db)
+):
+    """Get historical trend data for charts.
+
+    Returns aggregated data per scan for:
+    - Device count over time
+    - Risk score trends
+    - Open port counts
+    - Changes per scan
+    """
+    from datetime import timedelta
+    from sqlalchemy import func
+
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
+
+    # Get completed network scans within the time range
+    scans = db.query(Scan).filter(
+        Scan.status == "completed",
+        Scan.scan_type == "network",
+        Scan.started_at >= cutoff_date
+    ).order_by(Scan.started_at).all()
+
+    # Build trend data
+    trend_data = {
+        "labels": [],  # Timestamps for x-axis
+        "device_counts": [],
+        "risk_scores": [],  # Average risk score per scan
+        "port_counts": [],
+        "change_counts": [],
+        "at_risk_counts": []  # Devices with medium/high/critical risk
+    }
+
+    for scan in scans:
+        # Format timestamp for label
+        trend_data["labels"].append(
+            scan.started_at.strftime("%Y-%m-%d %H:%M")
+        )
+        trend_data["device_counts"].append(scan.devices_found)
+
+        # Calculate risk metrics
+        total_risk_score = 0
+        at_risk = 0
+        total_ports = 0
+
+        for device in scan.devices:
+            total_risk_score += device.risk_score or 0
+            total_ports += len(device.ports)
+            if device.risk_level in ("medium", "high", "critical"):
+                at_risk += 1
+
+        avg_risk = total_risk_score / scan.devices_found if scan.devices_found > 0 else 0
+        trend_data["risk_scores"].append(round(avg_risk, 1))
+        trend_data["port_counts"].append(total_ports)
+        trend_data["at_risk_counts"].append(at_risk)
+
+        # Count changes for this scan
+        change_count = db.query(Change).filter(Change.scan_id == scan.id).count()
+        trend_data["change_counts"].append(change_count)
+
+    # Also get summary stats
+    summary = {
+        "total_scans": len(scans),
+        "days": days,
+        "avg_devices": round(sum(trend_data["device_counts"]) / len(scans), 1) if scans else 0,
+        "avg_risk_score": round(sum(trend_data["risk_scores"]) / len(scans), 1) if scans else 0,
+        "total_changes": sum(trend_data["change_counts"])
+    }
+
+    return {
+        "trends": trend_data,
+        "summary": summary
+    }
+
+
+@app.get("/api/updates/check")
+async def check_for_updates(force: bool = False):
+    """Check for available updates from GitHub releases.
+
+    Args:
+        force: Force refresh even if cached result exists
+    """
+    checker = get_update_checker()
+    result = await checker.check_for_updates(force=force)
+    return result
 
 
 # Authentication Endpoints

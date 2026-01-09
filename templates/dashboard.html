@@ -131,6 +131,69 @@
     </div>
 </div>
 
+<!-- Historical Trend Charts -->
+<div class="mt-8 bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg" x-data="trendCharts()">
+    <div class="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <div>
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Historical Trends</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Network metrics over time</p>
+        </div>
+        <div class="flex items-center space-x-2">
+            <label for="trend-days" class="text-sm text-gray-500 dark:text-gray-400">Time Range:</label>
+            <select id="trend-days" x-model="selectedDays" @change="loadTrends()"
+                    class="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm py-1 pl-2 pr-8 focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="7">7 days</option>
+                <option value="30" selected>30 days</option>
+                <option value="90">90 days</option>
+                <option value="365">1 year</option>
+            </select>
+        </div>
+    </div>
+    <div class="p-4">
+        <template x-if="loading">
+            <div class="flex justify-center items-center h-64">
+                <svg class="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+        </template>
+        <template x-if="!loading && noData">
+            <div class="flex flex-col justify-center items-center h-64 text-gray-500 dark:text-gray-400">
+                <svg class="h-12 w-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                <p>No scan data available yet</p>
+                <p class="text-sm">Run some scans to see trends</p>
+            </div>
+        </template>
+        <template x-if="!loading && !noData">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Device Count Chart -->
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Device Count</h4>
+                    <canvas id="deviceCountChart" height="200"></canvas>
+                </div>
+                <!-- Risk Score Chart -->
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Average Risk Score</h4>
+                    <canvas id="riskScoreChart" height="200"></canvas>
+                </div>
+                <!-- Open Ports Chart -->
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Open Ports</h4>
+                    <canvas id="portCountChart" height="200"></canvas>
+                </div>
+                <!-- Changes Chart -->
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Network Changes</h4>
+                    <canvas id="changeCountChart" height="200"></canvas>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>
+
 <!-- Latest Scan Info -->
 {% if latest_scan %}
 <div class="mt-8 bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg">
@@ -327,4 +390,157 @@
     </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+function trendCharts() {
+    return {
+        selectedDays: 30,
+        loading: true,
+        noData: false,
+        charts: {},
+
+        init() {
+            this.loadTrends();
+        },
+
+        async loadTrends() {
+            this.loading = true;
+            this.noData = false;
+
+            try {
+                const response = await fetch(`/api/trends?days=${this.selectedDays}`);
+                const data = await response.json();
+
+                if (!data.trends || data.trends.labels.length === 0) {
+                    this.noData = true;
+                    this.loading = false;
+                    return;
+                }
+
+                this.loading = false;
+                await this.$nextTick();
+                this.renderCharts(data.trends);
+            } catch (error) {
+                console.error('Error loading trends:', error);
+                this.noData = true;
+                this.loading = false;
+            }
+        },
+
+        destroyCharts() {
+            Object.values(this.charts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            this.charts = {};
+        },
+
+        renderCharts(trends) {
+            this.destroyCharts();
+
+            const isDark = document.documentElement.classList.contains('dark');
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            const textColor = isDark ? '#9ca3af' : '#6b7280';
+
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { color: gridColor },
+                        ticks: { color: textColor, maxTicksLimit: 8 }
+                    },
+                    y: {
+                        grid: { color: gridColor },
+                        ticks: { color: textColor },
+                        beginAtZero: true
+                    }
+                }
+            };
+
+            // Device Count Chart
+            const deviceCtx = document.getElementById('deviceCountChart');
+            if (deviceCtx) {
+                this.charts.devices = new Chart(deviceCtx, {
+                    type: 'line',
+                    data: {
+                        labels: trends.labels,
+                        datasets: [{
+                            label: 'Devices',
+                            data: trends.device_counts,
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: commonOptions
+                });
+            }
+
+            // Risk Score Chart
+            const riskCtx = document.getElementById('riskScoreChart');
+            if (riskCtx) {
+                this.charts.risk = new Chart(riskCtx, {
+                    type: 'line',
+                    data: {
+                        labels: trends.labels,
+                        datasets: [{
+                            label: 'Avg Risk Score',
+                            data: trends.risk_scores,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: commonOptions
+                });
+            }
+
+            // Port Count Chart
+            const portCtx = document.getElementById('portCountChart');
+            if (portCtx) {
+                this.charts.ports = new Chart(portCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: trends.labels,
+                        datasets: [{
+                            label: 'Open Ports',
+                            data: trends.port_counts,
+                            backgroundColor: '#10b981',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: commonOptions
+                });
+            }
+
+            // Change Count Chart
+            const changeCtx = document.getElementById('changeCountChart');
+            if (changeCtx) {
+                this.charts.changes = new Chart(changeCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: trends.labels,
+                        datasets: [{
+                            label: 'Changes',
+                            data: trends.change_counts,
+                            backgroundColor: '#f59e0b',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: commonOptions
+                });
+            }
+        }
+    };
+}
+</script>
 {% endblock %}

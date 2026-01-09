@@ -218,6 +218,43 @@
                 </div>
             </div>
 
+            <!-- Update Notification Banner -->
+            <div x-data="updateChecker()" x-init="checkForUpdates()" x-show="updateAvailable" x-cloak
+                 class="bg-indigo-600 dark:bg-indigo-700">
+                <div class="mx-auto max-w-7xl py-2 px-4 sm:px-6 lg:px-8">
+                    <div class="flex items-center justify-between flex-wrap">
+                        <div class="flex w-0 flex-1 items-center">
+                            <span class="flex rounded-lg bg-indigo-800 p-2">
+                                <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+                                </svg>
+                            </span>
+                            <p class="ml-3 truncate text-sm font-medium text-white">
+                                <span class="md:hidden">Update available!</span>
+                                <span class="hidden md:inline">
+                                    Argus <span x-text="latestVersion"></span> is available! You're running <span x-text="currentVersion"></span>.
+                                </span>
+                            </p>
+                        </div>
+                        <div class="order-3 mt-2 flex-shrink-0 w-full sm:order-2 sm:mt-0 sm:w-auto">
+                            <a :href="releaseUrl" target="_blank"
+                               class="flex items-center justify-center rounded-md border border-transparent bg-white px-4 py-2 text-sm font-medium text-indigo-600 shadow-sm hover:bg-indigo-50">
+                                View Release
+                            </a>
+                        </div>
+                        <div class="order-2 flex-shrink-0 sm:order-3 sm:ml-3">
+                            <button @click="dismissUpdate()" type="button"
+                                    class="-mr-1 flex rounded-md p-2 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-white sm:-mr-2">
+                                <span class="sr-only">Dismiss</span>
+                                <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Page content -->
             <main class="py-6 bg-gray-100 dark:bg-gray-900 min-h-screen">
                 <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -278,6 +315,44 @@
         async function triggerScan(url) {
             await fetch(url, { method: 'POST' });
             window.dispatchEvent(new Event('scan-started'));
+        }
+
+        // Update checker for new versions
+        function updateChecker() {
+            return {
+                updateAvailable: false,
+                currentVersion: '',
+                latestVersion: '',
+                releaseUrl: '',
+                dismissedVersion: localStorage.getItem('dismissedUpdateVersion'),
+
+                async checkForUpdates() {
+                    try {
+                        const response = await fetch('/api/updates/check');
+                        const data = await response.json();
+
+                        if (data.update_available) {
+                            // Check if user dismissed this version
+                            if (this.dismissedVersion === data.latest_version) {
+                                return;
+                            }
+
+                            this.updateAvailable = true;
+                            this.currentVersion = data.current_version;
+                            this.latestVersion = data.latest_version;
+                            this.releaseUrl = data.release_url || 'https://github.com/rangulvers/argus/releases';
+                        }
+                    } catch (error) {
+                        console.error('Error checking for updates:', error);
+                    }
+                },
+
+                dismissUpdate() {
+                    this.updateAvailable = false;
+                    // Remember this dismissal for this version
+                    localStorage.setItem('dismissedUpdateVersion', this.latestVersion);
+                }
+            };
         }
     </script>
 
