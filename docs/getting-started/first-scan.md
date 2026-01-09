@@ -1,179 +1,108 @@
-# Running Your First Scan
+# First Scan
 
-This guide walks you through running your first network scan with Argus.
+## Running a Scan
 
-## Before You Begin
+### Web UI
 
-Make sure you have:
+1. Open `http://localhost:8080`
+2. Create admin account on first visit
+3. Click **Run Scan** → select profile
 
-1. [Installed Argus](installation.md)
-2. [Configured your network subnet](configuration.md)
-3. Created an admin account (prompted on first visit)
-
-## Starting a Scan
-
-### From the Web UI
-
-1. **Log in** to Argus at [http://localhost:8080](http://localhost:8080)
-
-2. **Click "Run Scan"** in the top-right corner of any page
-
-3. **Choose a scan profile**:
-
-    | Profile | When to Use |
-    |---------|-------------|
-    | **Quick Scan** | First scan, or regular check-ins |
-    | **Normal Scan** | Daily/weekly security audits |
-    | **Intensive Scan** | Deep analysis, use sparingly |
-
-4. **Monitor progress** - The scan status appears in the top bar
-
-!!! tip "First Scan Recommendation"
-    Start with a **Quick Scan** to verify everything works. This only takes about 30 seconds and will discover all active devices.
-
-### From the Command Line
+### CLI
 
 ```bash
-# Quick scan
+# Quick (ping only)
 python scan_cli.py scan --profile quick
 
-# Normal scan with change detection
+# Normal (ports 1-1000 + services)
 python scan_cli.py scan --profile normal --detect-changes
 
-# Scan a specific subnet
-python scan_cli.py scan --subnet 192.168.1.0/24
+# Specific subnet
+python scan_cli.py scan --subnet 10.0.0.0/24
 ```
 
-### Via the API
+### API
 
 ```bash
-# Trigger a quick scan
+# Trigger scan
 curl -X POST "http://localhost:8080/api/scan/trigger?profile=quick"
 
-# Trigger a normal scan
-curl -X POST "http://localhost:8080/api/scan/trigger?profile=normal"
+# Check status
+curl http://localhost:8080/api/scan/status
 ```
 
-## Understanding Scan Results
+## Scan Profiles
 
-After the scan completes, you'll see:
+| Profile | Use Case | Time (50 hosts) |
+|---------|----------|-----------------|
+| `quick` | Device presence check | ~30s |
+| `normal` | Security audit | 3-5 min |
+| `intensive` | Deep analysis | 15-30 min |
 
-### Dashboard Overview
+Start with `quick` to verify connectivity, then run `normal` for baseline.
 
-- **Total Devices**: Number of devices found
-- **At Risk**: Devices with security concerns
-- **Recent Changes**: New devices or port changes
-
-### Device List
-
-Each device shows:
-
-- **IP Address**: Network address
-- **Hostname**: Device name (if available)
-- **Vendor**: Manufacturer based on MAC address
-- **Risk Level**: Security assessment
-- **Open Ports**: Number of accessible ports
+## Understanding Results
 
 ### Risk Levels
 
-| Level | Color | Meaning |
-|-------|-------|---------|
-| **Critical** | Red | Immediate attention required |
-| **High** | Orange | Significant security risk |
-| **Medium** | Yellow | Moderate concern |
-| **Low** | Blue | Minor issue |
-| **None** | Green | No detected issues |
+| Level | Meaning |
+|-------|---------|
+| Critical | Immediate action needed (e.g., telnet exposed) |
+| High | Significant risk (e.g., SMB, RDP open) |
+| Medium | Moderate concern |
+| Low | Minor issue |
+| None | No detected issues |
 
-## What to Look For
-
-### New Devices
-
-After your first scan, review all discovered devices:
-
-1. Go to **Devices** page
-2. Check each device - do you recognize it?
-3. **Label** known devices (e.g., "Living Room TV", "Dad's Laptop")
-4. **Mark trusted** devices you own
-5. Investigate any unknown devices
-
-### Open Ports
-
-Common ports and their implications:
+### Risky Ports
 
 | Port | Service | Risk |
 |------|---------|------|
-| 22 | SSH | Medium - ensure strong passwords |
-| 23 | Telnet | High - unencrypted, disable if possible |
-| 80/443 | HTTP/HTTPS | Low - web interfaces |
-| 445 | SMB | High - file sharing, often targeted |
-| 3389 | RDP | High - remote desktop, secure carefully |
+| 21 | FTP | High - cleartext auth |
+| 23 | Telnet | Critical - cleartext |
+| 445 | SMB | High - common target |
+| 3389 | RDP | High - brute force target |
+| 5900 | VNC | High - often weak auth |
 
-### Risky Devices
+## Device Organization
 
-Pay attention to devices with:
+### Zones
 
-- High risk scores
-- Many open ports
-- Telnet or other insecure services
-- Unknown vendors
+Group devices by function:
 
-## Organizing Your Network
+- `Servers` - NAS, Docker hosts, VMs
+- `Network` - Routers, switches, APs
+- `Workstations` - Desktops, laptops
+- `IoT` - Smart devices, cameras
+- `DMZ` - Exposed services
 
-### Create Zones
+### Labels
 
-Organize devices into logical groups:
+Add descriptive names: `proxmox-01`, `unifi-ap-garage`, `synology-nas`
 
-1. Click on a device
-2. Edit the **Zone** field
-3. Common zones:
-    - `Workstations` - Computers and laptops
-    - `IoT` - Smart home devices
-    - `Servers` - NAS, home servers
-    - `Mobile` - Phones and tablets
-    - `Network` - Routers, switches, APs
+### Trusted
 
-### Mark Trusted Devices
+Mark known devices as trusted to reduce noise.
 
-For devices you own and trust:
+## Scheduled Scans
 
-1. Click on the device
-2. Toggle **Trusted** to on
-3. Trusted devices are excluded from some alerts
+### Cron
 
-### Add Labels
+```bash
+# Quick every 6 hours
+0 */6 * * * cd /path/to/argus && python scan_cli.py scan --profile quick --detect-changes
 
-Give devices friendly names:
+# Normal nightly
+0 2 * * * cd /path/to/argus && python scan_cli.py scan --profile normal --detect-changes
+```
 
-1. Click on the device
-2. Edit the **Label** field
-3. Example: "Kitchen Sonos Speaker"
-
-## Setting Up Regular Scans
-
-### Scheduled Scans (Docker)
-
-The Docker image includes a cron job for automatic scans. Edit `docker-compose.yml`:
+### Docker Environment
 
 ```yaml
 environment:
-  - SCAN_SCHEDULE=0 2 * * 0  # Sunday at 2 AM
-```
-
-### Manual Scheduling (Crontab)
-
-```bash
-# Edit crontab
-crontab -e
-
-# Add weekly scan
-0 2 * * 0 cd /path/to/argus && /path/to/venv/bin/python scan_cli.py scan --detect-changes
+  - SCAN_SCHEDULE=0 2 * * *
 ```
 
 ## Next Steps
 
-Now that you've run your first scan:
-
-- [Learn about the dashboard](../guide/dashboard.md)
-- [Understand device management](../guide/devices.md)
-- [Set up scheduled scans](../guide/scans.md)
-- [Explore the API](../api/overview.md)
+- [Dashboard Guide](../guide/dashboard.md)
+- [API Reference](../api/endpoints.md)

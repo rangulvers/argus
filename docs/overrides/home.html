@@ -1,0 +1,156 @@
+{% extends "main.html" %}
+
+{% block tabs %}
+  {{ super() }}
+{% endblock %}
+
+{% block content %}{% endblock %}
+
+{% block site_nav %}{% endblock %}
+
+{% block extrahead %}
+<style>
+  /* Home page specific styles */
+  .md-main__inner {
+    margin-top: 0;
+  }
+
+  .md-content__inner {
+    margin: 0;
+    padding: 0;
+  }
+
+  .md-typeset h1 {
+    display: none;
+  }
+</style>
+{% endblock %}
+
+{% block hero %}
+<div class="argus-hero">
+  <div class="argus-hero-content">
+    <img src="assets/logo.png" alt="Argus" class="argus-hero-logo">
+    <p class="argus-hero-tagline">Network Security Scanner for Homelabs</p>
+    <p class="argus-hero-description">
+      nmap-powered network discovery with change detection, risk assessment, and a clean REST API.
+      Runs in Docker with multi-arch support.
+    </p>
+    <div class="argus-hero-buttons">
+      <a href="getting-started/installation/" class="argus-btn argus-btn-primary">
+        Get Started
+      </a>
+      <a href="https://github.com/rangulvers/argus" class="argus-btn argus-btn-secondary">
+        View on GitHub
+      </a>
+    </div>
+    <div class="argus-hero-badges">
+      <img src="https://img.shields.io/badge/python-3.11+-3776ab.svg" alt="Python">
+      <img src="https://img.shields.io/badge/license-MIT-22c55e.svg" alt="License">
+      <img src="https://img.shields.io/badge/docker-ready-2496ed.svg" alt="Docker">
+    </div>
+  </div>
+</div>
+
+<div class="argus-features">
+  <div class="argus-features-container">
+    <h2>Features</h2>
+    <div class="argus-features-grid">
+      <div class="argus-feature-card">
+        <div class="argus-feature-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+          </svg>
+        </div>
+        <h3>Device Discovery</h3>
+        <p>nmap-based scanning with configurable profiles. Captures IP, MAC, hostname, vendor (via OUI), OS fingerprint, and service versions.</p>
+      </div>
+
+      <div class="argus-feature-card">
+        <div class="argus-feature-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h3>Risk Assessment</h3>
+        <p>Built-in threat database scores devices based on open ports (telnet, SMB, RDP, etc.) and service versions. CVE lookup for common services.</p>
+      </div>
+
+      <div class="argus-feature-card">
+        <div class="argus-feature-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+        </div>
+        <h3>Change Detection</h3>
+        <p>Tracks device additions/removals, port state changes, and service updates between scans. Full diff history in the database.</p>
+      </div>
+
+      <div class="argus-feature-card">
+        <div class="argus-feature-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        </div>
+        <h3>Historical Data</h3>
+        <p>SQLite-backed storage with full scan history. Dashboard charts for device count, risk scores, and change frequency over time.</p>
+      </div>
+
+      <div class="argus-feature-card">
+        <div class="argus-feature-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+          </svg>
+        </div>
+        <h3>REST API</h3>
+        <p>Full JSON API with OpenAPI docs at /docs. API key auth for scripts and integrations. Works with Home Assistant, Grafana, etc.</p>
+      </div>
+
+      <div class="argus-feature-card">
+        <div class="argus-feature-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+          </svg>
+        </div>
+        <h3>Docker Native</h3>
+        <p>Multi-arch images (amd64, arm64, armv7) on GHCR. Requires NET_ADMIN/NET_RAW caps and host networking for nmap.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="argus-quickstart">
+  <div class="argus-quickstart-container">
+    <h2>Quick Start</h2>
+    <p class="argus-quickstart-subtitle">Docker Compose or single container</p>
+    <div class="argus-code-block">
+      <pre><code><span class="comment"># docker-compose.yml</span>
+services:
+  argus:
+    image: ghcr.io/rangulvers/argus:latest
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ./data:/app/data
+      - ./config.yaml:/app/config.yaml:ro
+
+<span class="comment"># Web UI: http://localhost:8080</span>
+<span class="comment"># API docs: http://localhost:8080/docs</span></code></pre>
+    </div>
+  </div>
+</div>
+
+<div class="argus-cta">
+  <h2>Documentation</h2>
+  <p>Installation guides, configuration reference, and full API documentation.</p>
+  <div class="argus-hero-buttons">
+    <a href="getting-started/installation/" class="argus-btn argus-btn-primary">
+      Installation
+    </a>
+    <a href="api/endpoints/" class="argus-btn argus-btn-secondary">
+      API Reference
+    </a>
+  </div>
+</div>
+{% endblock %}

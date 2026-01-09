@@ -1,82 +1,98 @@
 /* Custom styles for Argus documentation */
+/* Clean design with blue/teal accents */
 
-/* CSS Variables */
-:root {
-  --gradient-start: #667eea;
-  --gradient-end: #764ba2;
-  --accent-color: #00d4ff;
+/* ============================================
+   HEADER & FOOTER - Dark Slate Theme
+   ============================================ */
+
+.md-header {
+  background: #0f172a !important;
 }
 
-/* Hero Section */
-.hero-section {
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-  border-radius: 1.5rem;
-  padding: 4rem 2rem;
-  margin: -0.5rem -0.5rem 2rem -0.5rem;
+.md-tabs {
+  background: #1e293b !important;
+}
+
+.md-footer {
+  background: #0f172a !important;
+}
+
+.md-footer-meta {
+  background: #0f172a !important;
+}
+
+/* ============================================
+   HOME PAGE - HERO SECTION
+   ============================================ */
+
+.argus-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  padding: 5rem 2rem;
   text-align: center;
-  color: white;
   position: relative;
   overflow: hidden;
 }
 
-.hero-section::before {
+.argus-hero::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-image: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 0%, transparent 50%),
-                    radial-gradient(circle at 75% 75%, rgba(255,255,255,0.08) 0%, transparent 50%);
+  background-image:
+    radial-gradient(circle at 20% 50%, rgba(56, 189, 248, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 50%, rgba(34, 197, 94, 0.08) 0%, transparent 50%);
   pointer-events: none;
 }
 
-.hero-content {
+.argus-hero-content {
   position: relative;
   z-index: 1;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
-.hero-logo {
-  width: 120px;
-  height: 120px;
-  margin-bottom: 1.5rem;
-  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+.argus-hero-logo {
+  width: 300px;
+  height: 300px;
+  margin-bottom: 2rem;
 }
 
-.hero-section h1 {
+.argus-hero h1 {
   font-size: 3.5rem;
   font-weight: 800;
-  margin: 0 0 0.5rem 0;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-  letter-spacing: -0.02em;
-  color: white;
-}
-
-.hero-tagline {
-  font-size: 1.5rem;
-  font-weight: 500;
-  opacity: 0.95;
+  color: #f8fafc;
   margin: 0 0 1rem 0;
+  letter-spacing: -0.02em;
 }
 
-.hero-description {
+.argus-hero-tagline {
+  font-size: 1.5rem;
+  color: #94a3b8;
+  margin: 0 0 1rem 0;
+  font-weight: 400;
+}
+
+.argus-hero-description {
   font-size: 1.125rem;
-  opacity: 0.85;
+  color: #64748b;
   max-width: 600px;
   margin: 0 auto 2rem;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
-.hero-buttons {
+.argus-hero-buttons {
   display: flex;
   gap: 1rem;
   justify-content: center;
   flex-wrap: wrap;
+  margin-bottom: 2rem;
 }
 
-.hero-btn {
-  padding: 0.875rem 2rem;
-  border-radius: 0.75rem;
+.argus-btn {
+  padding: 0.875rem 1.75rem;
+  border-radius: 8px;
   font-weight: 600;
   font-size: 1rem;
   text-decoration: none;
@@ -86,134 +102,239 @@
   gap: 0.5rem;
 }
 
-.hero-btn-primary {
-  background: white;
-  color: var(--gradient-start);
-  box-shadow: 0 4px 14px rgba(0,0,0,0.15);
-}
-
-.hero-btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-  color: var(--gradient-end);
-}
-
-.hero-btn-secondary {
-  background: rgba(255,255,255,0.15);
-  color: white;
-  border: 1px solid rgba(255,255,255,0.3);
-  backdrop-filter: blur(4px);
-}
-
-.hero-btn-secondary:hover {
-  background: rgba(255,255,255,0.25);
-  transform: translateY(-2px);
+.argus-btn-primary {
+  background: #3b82f6;
   color: white;
 }
 
-/* Hero badges */
-.hero-badges {
+.argus-btn-primary:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  color: white;
+}
+
+.argus-btn-secondary {
+  background: transparent;
+  color: #e2e8f0;
+  border: 1px solid #475569;
+}
+
+.argus-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: #64748b;
+  color: #f8fafc;
+}
+
+.argus-hero-badges {
   display: flex;
   gap: 0.5rem;
   justify-content: center;
   flex-wrap: wrap;
-  margin-top: 1.5rem;
 }
 
-.hero-badges img {
+.argus-hero-badges img {
   height: 22px;
 }
 
-/* Glass Morphism Feature Cards */
+/* ============================================
+   HOME PAGE - FEATURES SECTION
+   ============================================ */
+
+.argus-features {
+  padding: 5rem 2rem;
+  background: var(--md-default-bg-color);
+}
+
+.argus-features-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.argus-features h2 {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 3rem 0;
+  color: var(--md-default-fg-color);
+}
+
+.argus-features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.argus-feature-card {
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  transition: all 0.2s ease;
+  background: var(--md-default-bg-color);
+}
+
+.argus-feature-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.1);
+}
+
+.argus-feature-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.argus-feature-icon svg {
+  width: 24px;
+  height: 24px;
+  color: white;
+  stroke: white;
+}
+
+.argus-feature-card h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  color: var(--md-default-fg-color);
+}
+
+.argus-feature-card p {
+  font-size: 0.95rem;
+  color: var(--md-default-fg-color--light);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ============================================
+   HOME PAGE - QUICK START SECTION
+   ============================================ */
+
+.argus-quickstart {
+  padding: 5rem 2rem;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+.argus-quickstart-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.argus-quickstart h2 {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  color: #f8fafc;
+}
+
+.argus-quickstart-subtitle {
+  text-align: center;
+  color: #94a3b8;
+  margin: 0 0 2rem 0;
+  font-size: 1.1rem;
+}
+
+.argus-code-block {
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #334155;
+  overflow-x: auto;
+}
+
+.argus-code-block pre {
+  margin: 0;
+  background: transparent;
+}
+
+.argus-code-block code {
+  color: #e2e8f0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.argus-code-block .comment {
+  color: #64748b;
+}
+
+/* ============================================
+   HOME PAGE - CTA SECTION
+   ============================================ */
+
+.argus-cta {
+  padding: 5rem 2rem;
+  background: var(--md-default-bg-color);
+  text-align: center;
+}
+
+.argus-cta h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  color: var(--md-default-fg-color);
+}
+
+.argus-cta > p {
+  color: var(--md-default-fg-color--light);
+  margin: 0 0 2rem 0;
+  font-size: 1.1rem;
+}
+
+/* ============================================
+   FEATURE CARDS (for other pages)
+   ============================================ */
+
 .grid.cards > ul {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
   padding: 0;
   list-style: none;
 }
 
 .grid.cards > ul > li {
-  background: rgba(102, 126, 234, 0.08);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(102, 126, 234, 0.2);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  transition: all 0.3s ease;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 8px;
+  padding: 1.25rem;
+  transition: all 0.2s ease;
 }
 
 .grid.cards > ul > li:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(102, 126, 234, 0.15);
-  border-color: var(--gradient-start);
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
 }
 
-/* Dark mode adjustments */
-[data-md-color-scheme="slate"] .hero-section {
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
-}
+/* ============================================
+   CODE BLOCKS
+   ============================================ */
 
-[data-md-color-scheme="slate"] .grid.cards > ul > li {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.08);
-}
-
-[data-md-color-scheme="slate"] .grid.cards > ul > li:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(102, 126, 234, 0.5);
-}
-
-/* Navigation tabs with gradient */
-.md-tabs {
-  background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
-}
-
-/* Better code blocks */
 .highlight {
-  border-radius: 0.75rem;
+  border-radius: 8px;
   overflow: hidden;
 }
 
 .md-typeset pre > code {
-  border-radius: 0.75rem;
+  border-radius: 8px;
 }
 
-/* Admonition styling */
+/* ============================================
+   ADMONITIONS
+   ============================================ */
+
 .md-typeset .admonition {
-  border-radius: 0.75rem;
-  border-left-width: 4px;
+  border-radius: 8px;
 }
 
-/* Risk level colors */
-.risk-critical {
-  color: #dc2626;
-  font-weight: 600;
-}
+/* ============================================
+   TABLES
+   ============================================ */
 
-.risk-high {
-  color: #ea580c;
-  font-weight: 600;
-}
-
-.risk-medium {
-  color: #ca8a04;
-  font-weight: 600;
-}
-
-.risk-low {
-  color: #2563eb;
-}
-
-.risk-none {
-  color: #16a34a;
-}
-
-/* Code block improvements */
-.highlight code {
-  font-size: 0.85em;
-}
-
-/* Table improvements */
 .md-typeset table:not([class]) {
   font-size: 0.85rem;
 }
@@ -222,45 +343,69 @@
   background-color: var(--md-default-fg-color--lightest);
 }
 
-/* Admonition icons */
-.md-typeset .admonition.tip,
-.md-typeset details.tip {
-  border-color: #10b981;
+/* ============================================
+   RISK LEVEL COLORS
+   ============================================ */
+
+.risk-critical {
+  color: #ef4444;
+  font-weight: 600;
 }
 
-.md-typeset .tip > .admonition-title,
-.md-typeset .tip > summary {
-  background-color: rgba(16, 185, 129, 0.1);
+.risk-high {
+  color: #f97316;
+  font-weight: 600;
 }
 
-/* Footer styling */
-.md-footer-meta {
-  background-color: var(--md-default-bg-color);
+.risk-medium {
+  color: #eab308;
+  font-weight: 600;
 }
 
-/* Version badge in nav */
-.md-version {
-  font-size: 0.7rem;
+.risk-low {
+  color: #3b82f6;
 }
 
-/* Hide default page title on home */
-.md-content__inner > h1:first-child {
-  display: none;
+.risk-none {
+  color: #22c55e;
 }
 
-/* Responsive adjustments */
-@media screen and (max-width: 76.1875em) {
-  .hero-section {
-    padding: 2.5rem 1.5rem;
-    margin: -0.5rem -0.5rem 1.5rem -0.5rem;
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media screen and (max-width: 960px) {
+  .argus-features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .argus-hero {
+    padding: 3rem 1.5rem;
   }
 
-  .hero-section h1 {
+  .argus-hero h1 {
     font-size: 2.5rem;
   }
 
-  .hero-tagline {
+  .argus-hero-tagline {
     font-size: 1.25rem;
+  }
+
+  .argus-hero-logo {
+    width: 200px;
+    height: 200px;
+  }
+
+  .argus-features,
+  .argus-quickstart,
+  .argus-cta {
+    padding: 3rem 1.5rem;
+  }
+
+  .argus-features-grid {
+    grid-template-columns: 1fr;
   }
 
   .grid.cards > ul {

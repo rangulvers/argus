@@ -9,22 +9,23 @@ edit_uri: edit/main/docs/
 
 theme:
   name: material
+  custom_dir: docs/overrides
   logo: assets/logo.png
   favicon: assets/favicon.png
   palette:
     # Light mode
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: deep purple
-      accent: cyan
+      primary: indigo
+      accent: teal
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     # Dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: deep purple
-      accent: cyan
+      primary: indigo
+      accent: teal
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
