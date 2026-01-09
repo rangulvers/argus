@@ -234,10 +234,11 @@ async def get_stats(db: Session = Depends(get_db)):
     # Get total unique devices from DeviceHistory (persists across all scans)
     total_devices = db.query(DeviceHistory).count()
 
-    # Get the latest completed scan for risk assessment and timestamp
+    # Get the latest completed network scan (not single-device scans) - matches dashboard logic
     latest_scan = db.query(Scan).filter(
-        Scan.status == "completed"
-    ).order_by(desc(Scan.completed_at)).first()
+        Scan.status == "completed",
+        Scan.scan_type == "network"
+    ).order_by(desc(Scan.started_at)).first()
 
     # Calculate risk stats from the latest scan's devices
     devices_at_risk = 0
@@ -245,8 +246,7 @@ async def get_stats(db: Session = Depends(get_db)):
     high_risk_devices = 0
 
     if latest_scan:
-        devices = db.query(Device).filter(Device.scan_id == latest_scan.id).all()
-        for device in devices:
+        for device in latest_scan.devices:
             if device.risk_level in ("medium", "high", "critical"):
                 devices_at_risk += 1
             if device.risk_level == "critical":
@@ -259,7 +259,7 @@ async def get_stats(db: Session = Depends(get_db)):
         "devices_at_risk": devices_at_risk,
         "critical": critical_devices,
         "high": high_risk_devices,
-        "last_scan": latest_scan.completed_at.isoformat() if latest_scan and latest_scan.completed_at else None
+        "last_scan": latest_scan.started_at.isoformat() if latest_scan and latest_scan.started_at else None
     }
 
 
