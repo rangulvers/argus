@@ -1,0 +1,540 @@
+{% extends "base.html" %}
+
+{% block title %}Network Visualization - Argus{% endblock %}
+
+{% block extra_head %}
+<!-- vis.js for network topology -->
+<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<style>
+    #topology-container {
+        width: 100%;
+        height: 500px;
+        border: 1px solid #374151;
+        border-radius: 0.5rem;
+    }
+    .dark #topology-container {
+        background-color: #1f2937;
+    }
+    .heatmap-cell {
+        transition: transform 0.2s ease;
+    }
+    .heatmap-cell:hover {
+        transform: scale(1.05);
+        z-index: 10;
+    }
+</style>
+{% endblock %}
+
+{% block page_title %}Network Visualization{% endblock %}
+
+{% block content %}
+<div x-data="visualizationApp()" x-init="init()">
+    <!-- Tab Navigation -->
+    <div class="mb-6">
+        <div class="sm:hidden">
+            <select x-model="activeTab" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                <option value="heatmap">Risk Heat Map</option>
+                <option value="matrix">Port Matrix</option>
+                <option value="timeline">Timeline</option>
+            </select>
+        </div>
+        <div class="hidden sm:block">
+            <nav class="flex space-x-4" aria-label="Tabs">
+                <button @click="activeTab = 'heatmap'"
+                        :class="activeTab === 'heatmap' ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'"
+                        class="px-3 py-2 font-medium text-sm rounded-md transition-colors">
+                    <svg class="inline-block w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    Risk Heat Map
+                </button>
+                <button @click="activeTab = 'matrix'"
+                        :class="activeTab === 'matrix' ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'"
+                        class="px-3 py-2 font-medium text-sm rounded-md transition-colors">
+                    <svg class="inline-block w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                    Port Matrix
+                </button>
+                <button @click="activeTab = 'timeline'"
+                        :class="activeTab === 'timeline' ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'"
+                        class="px-3 py-2 font-medium text-sm rounded-md transition-colors">
+                    <svg class="inline-block w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Timeline
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Scan Selector -->
+    <div class="mb-4 flex items-center space-x-4">
+        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Data from:</label>
+        <select x-model="selectedScanId" @change="loadData()"
+                class="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
+            <option value="">Latest Scan</option>
+            {% for scan in scans %}
+            <option value="{{ scan.id }}">
+                {{ scan.completed_at.strftime('%Y-%m-%d %H:%M') if scan.completed_at else scan.started_at.strftime('%Y-%m-%d %H:%M') }}
+                - {{ scan.devices_found }} devices
+            </option>
+            {% endfor %}
+        </select>
+        <span x-show="loading" class="text-sm text-gray-500 dark:text-gray-400">
+            <svg class="animate-spin h-4 w-4 inline" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading...
+        </span>
+    </div>
+
+    <!-- Network Topology Tab (hidden - needs more work) -->
+    <div x-show="false" x-cloak>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white">Network Topology</h2>
+                <div class="flex items-center space-x-4">
+                    <!-- Legend -->
+                    <div class="flex items-center space-x-3 text-xs">
+                        <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-red-600 mr-1"></span> Critical</span>
+                        <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-orange-500 mr-1"></span> High</span>
+                        <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-yellow-500 mr-1"></span> Medium</span>
+                        <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-green-500 mr-1"></span> Low</span>
+                        <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-gray-500 mr-1"></span> None</span>
+                    </div>
+                    <button @click="resetTopology()" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+                        Reset View
+                    </button>
+                </div>
+            </div>
+            <div id="topology-container"></div>
+            <!-- Selected Node Details -->
+            <div x-show="selectedNode" x-cloak class="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <h3 class="font-medium text-gray-900 dark:text-white mb-2" x-text="selectedNode?.label"></h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400">IP:</span>
+                        <span class="ml-1 text-gray-900 dark:text-white" x-text="selectedNode?.ip"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400">MAC:</span>
+                        <span class="ml-1 text-gray-900 dark:text-white" x-text="selectedNode?.mac || 'N/A'"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400">Vendor:</span>
+                        <span class="ml-1 text-gray-900 dark:text-white" x-text="selectedNode?.vendor || 'Unknown'"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400">Risk:</span>
+                        <span class="ml-1 px-2 py-0.5 rounded text-xs font-medium"
+                              :class="getRiskBadgeClass(selectedNode?.risk_level)"
+                              x-text="selectedNode?.risk_level || 'none'"></span>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <a :href="'/devices/' + selectedNode?.id"
+                       class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+                        View Device Details &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Risk Heat Map Tab -->
+    <div x-show="activeTab === 'heatmap'" x-cloak>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white">Risk Heat Map</h2>
+                <!-- Summary Stats -->
+                <div class="flex items-center space-x-4 text-sm">
+                    <span class="px-2 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded">
+                        Critical: <span x-text="heatmapData.summary?.critical || 0"></span>
+                    </span>
+                    <span class="px-2 py-1 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded">
+                        High: <span x-text="heatmapData.summary?.high || 0"></span>
+                    </span>
+                    <span class="px-2 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded">
+                        Medium: <span x-text="heatmapData.summary?.medium || 0"></span>
+                    </span>
+                    <span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">
+                        Low: <span x-text="heatmapData.summary?.low || 0"></span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Heat Map Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                <template x-for="device in heatmapData.devices" :key="device.id">
+                    <a :href="'/devices/' + device.id"
+                       class="heatmap-cell p-3 rounded-lg border-2 relative"
+                       :class="getHeatmapCellClass(device.risk_level)">
+                        <div class="text-sm font-medium truncate" x-text="device.label"></div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 truncate" x-text="device.ip"></div>
+                        <div class="mt-2 flex items-center justify-between">
+                            <span class="text-xs" x-text="device.zone"></span>
+                            <span class="text-xs font-bold" x-text="device.risk_score"></span>
+                        </div>
+                        <!-- Trusted badge -->
+                        <div x-show="device.is_trusted" class="absolute top-1 right-1">
+                            <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                    </a>
+                </template>
+            </div>
+
+            <div x-show="!heatmapData.devices || heatmapData.devices.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
+                No devices found. Run a scan to populate this view.
+            </div>
+        </div>
+    </div>
+
+    <!-- Port Matrix Tab -->
+    <div x-show="activeTab === 'matrix'" x-cloak>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white">Port/Service Matrix</h2>
+                <span class="text-sm text-gray-500 dark:text-gray-400" x-text="`${matrixData.ports?.length || 0} unique ports across ${matrixData.matrix?.length || 0} devices`"></span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700" x-show="matrixData.matrix && matrixData.matrix.length > 0">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky left-0 bg-gray-50 dark:bg-gray-700">
+                                Device
+                            </th>
+                            <template x-for="port in matrixData.ports" :key="port">
+                                <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" x-text="port"></th>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        <template x-for="row in matrixData.matrix" :key="row.device_id">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <td class="px-4 py-3 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-800">
+                                    <a :href="'/devices/' + row.device_id" class="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline" x-text="row.device_label"></a>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400" x-text="row.device_ip"></div>
+                                </td>
+                                <template x-for="(portInfo, idx) in row.ports" :key="idx">
+                                    <td class="px-2 py-3 text-center">
+                                        <div x-show="portInfo.open"
+                                             class="w-6 h-6 mx-auto rounded bg-green-500 flex items-center justify-center cursor-help"
+                                             :title="portInfo.service + (portInfo.product ? ' (' + portInfo.product + ')' : '')">
+                                            <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                        </div>
+                                        <div x-show="!portInfo.open" class="w-6 h-6 mx-auto rounded bg-gray-200 dark:bg-gray-600"></div>
+                                    </td>
+                                </template>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <div x-show="!matrixData.matrix || matrixData.matrix.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
+                No port data found. Run a normal or intensive scan to detect open ports.
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline Tab -->
+    <div x-show="activeTab === 'timeline'" x-cloak>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white">Network Timeline</h2>
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm text-gray-500 dark:text-gray-400">Days:</label>
+                    <select x-model="timelineDays" @change="loadTimeline()"
+                            class="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
+                        <option value="7">7 days</option>
+                        <option value="14">14 days</option>
+                        <option value="30">30 days</option>
+                        <option value="90">90 days</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="relative">
+                <!-- Vertical line -->
+                <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
+
+                <div class="space-y-6">
+                    <!-- Scan events -->
+                    <template x-for="event in timelineEvents" :key="event.id">
+                        <div class="relative pl-10">
+                            <!-- Event dot -->
+                            <div class="absolute left-2 w-5 h-5 rounded-full flex items-center justify-center"
+                                 :class="getTimelineEventClass(event)">
+                                <template x-if="event.type === 'scan'">
+                                    <svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                    </svg>
+                                </template>
+                                <template x-if="event.type === 'new_device'">
+                                    <svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                    </svg>
+                                </template>
+                                <template x-if="event.type === 'device_offline' || event.type === 'removed_device'">
+                                    <svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                                    </svg>
+                                </template>
+                                <template x-if="event.type === 'new_port' || event.type === 'port_opened'">
+                                    <svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                    </svg>
+                                </template>
+                                <template x-if="event.type === 'port_closed'">
+                                    <svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                    </svg>
+                                </template>
+                            </div>
+
+                            <!-- Event card -->
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <span class="text-sm font-medium text-gray-900 dark:text-white" x-text="getEventTitle(event)"></span>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1" x-text="event.description || getEventDescription(event)"></p>
+                                        <div x-show="event.device_ip" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                            <span x-text="event.device_ip"></span>
+                                            <span x-show="event.port"> - Port <span x-text="event.port"></span></span>
+                                        </div>
+                                    </div>
+                                    <span class="text-xs text-gray-400 dark:text-gray-500" x-text="formatTimestamp(event.timestamp)"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div x-show="timelineEvents.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
+                    No events in the selected time range. Run scans to start tracking network changes.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function visualizationApp() {
+    return {
+        activeTab: 'heatmap',
+        selectedScanId: '',
+        loading: false,
+        selectedNode: null,
+        network: null,
+        topologyData: { nodes: [], edges: [], groups: {} },
+        heatmapData: { devices: [], summary: {} },
+        matrixData: { ports: [], matrix: [] },
+        timelineData: { changes: [], scans: [] },
+        timelineEvents: [],
+        timelineDays: 30,
+
+        async init() {
+            await this.loadData();
+            this.$watch('activeTab', (tab) => {
+                if (tab === 'topology' && this.network) {
+                    this.$nextTick(() => this.network.fit());
+                }
+            });
+        },
+
+        async loadData() {
+            this.loading = true;
+            const scanParam = this.selectedScanId ? `?scan_id=${this.selectedScanId}` : '';
+
+            try {
+                const [topology, heatmap, matrix] = await Promise.all([
+                    fetch(`/api/visualization/topology${scanParam}`).then(r => r.json()),
+                    fetch(`/api/visualization/heatmap${scanParam}`).then(r => r.json()),
+                    fetch(`/api/visualization/port-matrix${scanParam}`).then(r => r.json())
+                ]);
+
+                this.topologyData = topology;
+                this.heatmapData = heatmap;
+                this.matrixData = matrix;
+
+                await this.loadTimeline();
+                this.renderTopology();
+            } catch (e) {
+                console.error('Failed to load visualization data:', e);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async loadTimeline() {
+            try {
+                const response = await fetch(`/api/visualization/timeline?days=${this.timelineDays}`);
+                this.timelineData = await response.json();
+                this.buildTimelineEvents();
+            } catch (e) {
+                console.error('Failed to load timeline:', e);
+            }
+        },
+
+        buildTimelineEvents() {
+            // Combine changes and scans into a single timeline
+            const events = [
+                ...this.timelineData.changes.map(c => ({...c, source: 'change'})),
+                ...this.timelineData.scans.map(s => ({...s, source: 'scan'}))
+            ];
+            // Sort by timestamp descending
+            events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            this.timelineEvents = events;
+        },
+
+        renderTopology() {
+            const container = document.getElementById('topology-container');
+            if (!container) return;
+
+            const nodes = new vis.DataSet(this.topologyData.nodes.map(n => ({
+                id: n.id,
+                label: n.label,
+                color: { background: n.color, border: n.color },
+                size: n.size || 20,
+                title: `${n.label}\n${n.ip}\nRisk: ${n.risk_level || 'none'}`,
+                font: { color: '#ffffff' },
+                data: n
+            })));
+
+            const edges = new vis.DataSet(this.topologyData.edges.map(e => ({
+                from: e.from,
+                to: e.to,
+                color: { color: e.color || '#4b5563' }
+            })));
+
+            const options = {
+                nodes: {
+                    shape: 'dot',
+                    borderWidth: 2,
+                    shadow: true
+                },
+                edges: {
+                    width: 1,
+                    smooth: {
+                        type: 'continuous'
+                    }
+                },
+                physics: {
+                    stabilization: {
+                        iterations: 100
+                    },
+                    barnesHut: {
+                        gravitationalConstant: -3000,
+                        springLength: 150
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200
+                }
+            };
+
+            this.network = new vis.Network(container, { nodes, edges }, options);
+
+            this.network.on('click', (params) => {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    const node = this.topologyData.nodes.find(n => n.id === nodeId);
+                    this.selectedNode = node;
+                } else {
+                    this.selectedNode = null;
+                }
+            });
+        },
+
+        resetTopology() {
+            if (this.network) {
+                this.network.fit();
+            }
+        },
+
+        getRiskBadgeClass(risk) {
+            const classes = {
+                'critical': 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200',
+                'high': 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200',
+                'medium': 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200',
+                'low': 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
+                'none': 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+            };
+            return classes[risk] || classes['none'];
+        },
+
+        getHeatmapCellClass(risk) {
+            const classes = {
+                'critical': 'bg-red-50 dark:bg-red-900/30 border-red-500 hover:bg-red-100 dark:hover:bg-red-900/50',
+                'high': 'bg-orange-50 dark:bg-orange-900/30 border-orange-500 hover:bg-orange-100 dark:hover:bg-orange-900/50',
+                'medium': 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900/50',
+                'low': 'bg-green-50 dark:bg-green-900/30 border-green-500 hover:bg-green-100 dark:hover:bg-green-900/50',
+                'none': 'bg-gray-50 dark:bg-gray-700/30 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50'
+            };
+            return classes[risk] || classes['none'];
+        },
+
+        getTimelineEventClass(event) {
+            if (event.type === 'scan') return 'bg-indigo-500';
+            if (event.type === 'new_device') return 'bg-green-500';
+            if (event.type === 'device_offline' || event.type === 'removed_device') return 'bg-red-500';
+            if (event.type === 'new_port' || event.type === 'port_opened') return 'bg-yellow-500';
+            if (event.type === 'port_closed') return 'bg-blue-500';
+            if (event.severity === 'critical' || event.severity === 'high') return 'bg-red-500';
+            if (event.severity === 'medium') return 'bg-yellow-500';
+            return 'bg-gray-500';
+        },
+
+        getEventTitle(event) {
+            if (event.type === 'scan') return 'Network Scan Completed';
+            if (event.type === 'new_device') return 'New Device Detected';
+            if (event.type === 'device_offline' || event.type === 'removed_device') return 'Device Went Offline';
+            if (event.type === 'new_port' || event.type === 'port_opened') return 'Port Opened';
+            if (event.type === 'port_closed') return 'Port Closed';
+            if (event.type === 'service_change') return 'Service Changed';
+            return event.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        },
+
+        getEventDescription(event) {
+            if (event.type === 'scan') {
+                return `Found ${event.devices_found} devices (${event.profile} scan)`;
+            }
+            return event.description || '';
+        },
+
+        formatTimestamp(ts) {
+            if (!ts) return '';
+            const date = new Date(ts);
+            const now = new Date();
+            const diff = now - date;
+
+            if (diff < 3600000) {
+                const mins = Math.floor(diff / 60000);
+                return `${mins} min ago`;
+            }
+            if (diff < 86400000) {
+                const hours = Math.floor(diff / 3600000);
+                return `${hours} hours ago`;
+            }
+            if (diff < 604800000) {
+                const days = Math.floor(diff / 86400000);
+                return `${days} days ago`;
+            }
+            return date.toLocaleDateString();
+        }
+    };
+}
+</script>
+{% endblock %}
