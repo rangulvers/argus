@@ -1,5 +1,4 @@
-# Git
-.git/
+# Git (keep .git for version detection during build)
 .gitignore
 
 # Python virtual environments

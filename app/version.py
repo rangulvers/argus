@@ -10,23 +10,46 @@ from datetime import datetime
 DEFAULT_VERSION = "dev"
 
 
+def _read_version_file(filepath: str) -> dict:
+    """Read version info from a .version file"""
+    info = {}
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, "r") as f:
+                for line in f:
+                    if "=" in line:
+                        key, value = line.strip().split("=", 1)
+                        if value:
+                            info[key] = value
+        except Exception:
+            pass
+    return info
+
+
 @lru_cache(maxsize=1)
 def get_version() -> str:
     """
     Get the application version.
 
     Priority:
-    1. ARGUS_VERSION environment variable (set by Docker build)
-    2. VERSION file in project root
-    3. Git tag (for development)
-    4. Default to "dev"
+    1. ARGUS_VERSION environment variable (set by Docker/CI)
+    2. .version file (generated during Docker build)
+    3. VERSION file in project root
+    4. Git tag (for local development)
+    5. Default to "dev"
     """
     # Check environment variable first (set by Docker/CI)
     version = os.environ.get("ARGUS_VERSION")
-    if version:
+    if version and version.strip():
         return version.strip()
 
-    # Check VERSION file
+    # Check .version file (generated during Docker build)
+    version_file = os.path.join(os.path.dirname(__file__), "..", ".version")
+    version_info = _read_version_file(version_file)
+    if version_info.get("ARGUS_VERSION"):
+        return version_info["ARGUS_VERSION"]
+
+    # Check VERSION file in project root
     version_file = os.path.join(os.path.dirname(__file__), "..", "VERSION")
     if os.path.exists(version_file):
         try:
@@ -39,7 +62,6 @@ def get_version() -> str:
 
     # Try to get version from git
     try:
-        # Get the latest tag
         result = subprocess.run(
             ["git", "describe", "--tags", "--always"],
             capture_output=True,
@@ -68,12 +90,23 @@ def get_build_info() -> dict:
     - commit: Git commit SHA (if available)
     - branch: Git branch (if available)
     """
+    # Start with environment variables
     info = {
         "version": get_version(),
         "build_date": os.environ.get("ARGUS_BUILD_DATE"),
         "commit": os.environ.get("ARGUS_COMMIT"),
         "branch": os.environ.get("ARGUS_BRANCH"),
     }
+
+    # Try to read from .version file (generated during Docker build)
+    version_file = os.path.join(os.path.dirname(__file__), "..", ".version")
+    file_info = _read_version_file(version_file)
+    if not info["build_date"] and file_info.get("ARGUS_BUILD_DATE"):
+        info["build_date"] = file_info["ARGUS_BUILD_DATE"]
+    if not info["commit"] and file_info.get("ARGUS_COMMIT"):
+        info["commit"] = file_info["ARGUS_COMMIT"]
+    if not info["branch"] and file_info.get("ARGUS_BRANCH"):
+        info["branch"] = file_info["ARGUS_BRANCH"]
 
     # Try to get git info for development builds
     if not info["commit"]:

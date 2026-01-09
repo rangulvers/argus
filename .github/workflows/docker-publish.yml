@@ -26,22 +26,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history for version detection
+          fetch-depth: 0
 
-      - name: Get version info
+      - name: Generate version
         id: version
         run: |
-          # Get version from tag or generate from commit
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          BUILD_DATE=$(date -u +'%Y.%m.%d')
+
+          # Check if this is a tagged release
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            # Use the tag as version (e.g., v1.0.0)
             VERSION="${{ github.ref_name }}"
           else
-            VERSION="dev-$(git rev-parse --short HEAD)"
+            # Auto-generate CalVer: YYYY.MM.DD-commit
+            VERSION="${BUILD_DATE}-${COMMIT_SHA}"
           fi
+
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "commit=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "commit=${COMMIT_SHA}" >> $GITHUB_OUTPUT
           echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          echo "build_date=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-          echo "Version: ${VERSION}"
+          echo "build_date=${BUILD_DATE}" >> $GITHUB_OUTPUT
+
+          echo "Generated version: ${VERSION}"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -57,18 +64,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
+      - name: Generate Docker tags
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            # Always tag with the generated version
+            type=raw,value=${{ steps.version.outputs.version }}
+            # Tag as 'latest' on main branch
             type=raw,value=latest,enable={{is_default_branch}}
+            # For manual version tags (v1.0.0), also create v1.0 and v1
+            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern={{major}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            # PR builds
+            type=ref,event=pr
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
