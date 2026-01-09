@@ -20,6 +20,12 @@ on:
       - '*.md'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
+    inputs:
+      no_cache:
+        description: 'Build without cache'
+        required: false
+        default: false
+        type: boolean
 
 env:
   REGISTRY: ghcr.io
@@ -104,7 +110,8 @@ jobs:
             ARGUS_COMMIT=${{ steps.version.outputs.commit }}
             ARGUS_BRANCH=${{ steps.version.outputs.branch }}
             ARGUS_BUILD_DATE=${{ steps.version.outputs.build_date }}
-          cache-from: type=gha
+          no-cache: ${{ inputs.no_cache == true }}
+          cache-from: ${{ inputs.no_cache == true && '' || 'type=gha' }}
           cache-to: type=gha,mode=max
 
   # Create GitHub Release when a version tag is pushed
