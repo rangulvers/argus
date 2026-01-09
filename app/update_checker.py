@@ -27,19 +27,33 @@ class UpdateChecker:
         self._cached_result: Optional[Dict[str, Any]] = None
 
     def _parse_version(self, version_str: str) -> tuple:
-        """Parse version string into comparable tuple"""
+        """Parse version string into comparable tuple.
+
+        Handles various formats:
+        - v1.2.3 or 1.2.3 -> (1, 2, 3)
+        - v0.0.4-18-g59de3fa (git describe) -> (0, 0, 4)
+        - 2026.01.09-abc1234 (CalVer from CI) -> (0, 0, 0) treated as dev
+        - dev -> (0, 0, 0)
+        """
+        import re
+
         # Remove 'v' prefix if present
         version_str = version_str.lstrip('v')
 
-        # Handle dev versions
-        if version_str == 'dev' or '-' in version_str:
+        # Handle plain dev
+        if version_str == 'dev':
             return (0, 0, 0)
 
-        try:
-            parts = version_str.split('.')
-            return tuple(int(p) for p in parts[:3])
-        except (ValueError, AttributeError):
-            return (0, 0, 0)
+        # Try to extract semver pattern (handles v1.2.3-extra)
+        # This captures the base version from git describe like "0.0.4-18-g59de3fa"
+        semver_match = re.match(r'^(\d+)\.(\d+)\.(\d+)', version_str)
+        if semver_match:
+            return (int(semver_match.group(1)),
+                    int(semver_match.group(2)),
+                    int(semver_match.group(3)))
+
+        # CalVer or other formats - treat as dev build
+        return (0, 0, 0)
 
     def _is_newer_version(self, remote: str, local: str) -> bool:
         """Check if remote version is newer than local"""
