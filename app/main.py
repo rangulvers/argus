@@ -11,7 +11,7 @@ from datetime import datetime
 import logging
 
 from app.database import get_db, init_db
-from app.models import Scan, Device, Port, Change, DeviceHistory, User
+from app.models import Scan, Device, Port, Change, DeviceHistory, User, APIKey
 from app.scanner import NetworkScanner
 from app.utils.change_detector import ChangeDetector
 from app.config import get_config, save_config, reload_config
@@ -21,7 +21,9 @@ from app.scheduler import (
 )
 from app.auth import (
     hash_password, verify_password, set_session_cookie,
-    clear_session_cookie, get_current_user, requires_auth
+    clear_session_cookie, get_current_user, requires_auth,
+    generate_api_key, hash_api_key, verify_api_key,
+    get_api_key_prefix, get_api_key_from_request
 )
 from app.version import get_version, get_build_info
 from app.utils.device_icons import detect_device_type, get_device_icon_info
@@ -78,7 +80,9 @@ async def startup_event():
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     """Check authentication for protected routes"""
+    from fastapi.responses import JSONResponse
     path = request.url.path
+    is_api_route = path.startswith("/api/")
 
     # Skip auth check for public paths
     if not requires_auth(path):
@@ -94,13 +98,49 @@ async def auth_middleware(request: Request, call_next):
         if user_count == 0:
             # No users - redirect to setup (except for setup page itself)
             if path != "/setup":
+                if is_api_route:
+                    return JSONResponse(
+                        status_code=401,
+                        content={"detail": "No users configured. Please complete setup."}
+                    )
                 return RedirectResponse(url="/setup", status_code=302)
             return await call_next(request)
 
-        # Check if user is authenticated
+        # For API routes, also check for API key authentication
+        if is_api_route:
+            api_key = get_api_key_from_request(request)
+            if api_key:
+                # Find matching API key in database
+                key_hash = hash_api_key(api_key)
+                api_key_record = db.query(APIKey).filter(
+                    APIKey.key_hash == key_hash,
+                    APIKey.is_revoked == False
+                ).first()
+
+                if api_key_record:
+                    # Check expiration
+                    if api_key_record.expires_at and api_key_record.expires_at < datetime.utcnow():
+                        return JSONResponse(
+                            status_code=401,
+                            content={"detail": "API key has expired"}
+                        )
+
+                    # Update last used timestamp
+                    api_key_record.last_used_at = datetime.utcnow()
+                    db.commit()
+
+                    # API key is valid - continue
+                    return await call_next(request)
+
+        # Check if user is authenticated via session
         current_user = get_current_user(request)
         if not current_user:
-            # Not logged in - redirect to login
+            # Not logged in
+            if is_api_route:
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Authentication required. Use session cookie or API key."}
+                )
             return RedirectResponse(url="/login", status_code=302)
 
         # User is authenticated - continue
@@ -204,6 +244,34 @@ class ChangeResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class APIKeyCreate(BaseModel):
+    name: str
+    expires_in_days: Optional[int] = None  # None = never expires
+
+
+class APIKeyResponse(BaseModel):
+    id: int
+    name: str
+    key_prefix: str
+    created_at: datetime
+    last_used_at: Optional[datetime]
+    expires_at: Optional[datetime]
+    is_revoked: bool
+
+    class Config:
+        from_attributes = True
+
+
+class APIKeyCreatedResponse(BaseModel):
+    id: int
+    name: str
+    key: str  # Full key - only shown once!
+    key_prefix: str
+    created_at: datetime
+    expires_at: Optional[datetime]
+    message: str = "Save this key now. It will not be shown again."
 
 
 # Health check endpoint
@@ -1361,19 +1429,121 @@ async def get_config_endpoint():
     }
 
 
+# API Key Management Endpoints
+@app.get("/api/keys", response_model=List[APIKeyResponse])
+async def list_api_keys(request: Request, db: Session = Depends(get_db)):
+    """List all API keys for the current user"""
+    current_user = get_current_user(request)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    user = db.query(User).filter(User.id == current_user["user_id"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    keys = db.query(APIKey).filter(APIKey.user_id == user.id).order_by(APIKey.created_at.desc()).all()
+    return keys
+
+
+@app.post("/api/keys", response_model=APIKeyCreatedResponse)
+async def create_api_key(
+    key_data: APIKeyCreate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Create a new API key. The full key is only shown once!"""
+    current_user = get_current_user(request)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    user = db.query(User).filter(User.id == current_user["user_id"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Generate the API key
+    plain_key = generate_api_key()
+    key_hash = hash_api_key(plain_key)
+    key_prefix = get_api_key_prefix(plain_key)
+
+    # Calculate expiration if specified
+    expires_at = None
+    if key_data.expires_in_days:
+        from datetime import timedelta
+        expires_at = datetime.utcnow() + timedelta(days=key_data.expires_in_days)
+
+    # Create the API key record
+    api_key = APIKey(
+        user_id=user.id,
+        name=key_data.name,
+        key_hash=key_hash,
+        key_prefix=key_prefix,
+        expires_at=expires_at
+    )
+    db.add(api_key)
+    db.commit()
+    db.refresh(api_key)
+
+    logger.info(f"API key '{key_data.name}' created for user {user.username}")
+
+    return APIKeyCreatedResponse(
+        id=api_key.id,
+        name=api_key.name,
+        key=plain_key,
+        key_prefix=key_prefix,
+        created_at=api_key.created_at,
+        expires_at=api_key.expires_at
+    )
+
+
+@app.delete("/api/keys/{key_id}")
+async def revoke_api_key(
+    key_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Revoke an API key"""
+    current_user = get_current_user(request)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    api_key = db.query(APIKey).filter(
+        APIKey.id == key_id,
+        APIKey.user_id == current_user["user_id"]
+    ).first()
+
+    if not api_key:
+        raise HTTPException(status_code=404, detail="API key not found")
+
+    api_key.is_revoked = True
+    db.commit()
+
+    logger.info(f"API key '{api_key.name}' revoked")
+
+    return {"status": "revoked", "id": key_id, "name": api_key.name}
+
+
 # Settings UI Page
 @app.get("/settings", response_class=HTMLResponse)
-async def settings_page(request: Request):
+async def settings_page(request: Request, db: Session = Depends(get_db)):
     """Settings page"""
     config = get_config()
     schedules = get_all_schedules()
+    current_user = get_current_user(request)
+
+    # Get API keys for current user
+    api_keys = []
+    if current_user:
+        api_keys = db.query(APIKey).filter(
+            APIKey.user_id == current_user["user_id"]
+        ).order_by(APIKey.created_at.desc()).all()
 
     return templates.TemplateResponse("settings.html", {
         "request": request,
         "active_page": "settings",
         "config": config,
         "schedules": schedules,
-        "current_user": get_current_user(request)
+        "current_user": current_user,
+        "api_keys": api_keys
     })
 
 

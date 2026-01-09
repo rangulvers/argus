@@ -163,5 +163,29 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
 
+    # Relationships
+    api_keys = relationship("APIKey", back_populates="user", cascade="all, delete-orphan")
+
     def __repr__(self):
         return f"<User {self.username}>"
+
+
+class APIKey(Base):
+    """Represents an API key for programmatic access"""
+    __tablename__ = "api_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)  # User-friendly name for the key
+    key_hash = Column(String(255), nullable=False)  # Hashed API key
+    key_prefix = Column(String(8), nullable=False)  # First 8 chars for identification
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_used_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True)  # Optional expiration
+    is_revoked = Column(Boolean, default=False)
+
+    # Relationships
+    user = relationship("User", back_populates="api_keys")
+
+    def __repr__(self):
+        return f"<APIKey {self.key_prefix}... - {self.name}>"

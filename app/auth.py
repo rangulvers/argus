@@ -120,3 +120,50 @@ def requires_auth(path: str) -> bool:
         if path.startswith(public_path):
             return False
     return True
+
+
+# API Key Authentication
+API_KEY_PREFIX = "argus_"
+API_KEY_LENGTH = 32  # Length of the random part
+
+
+def generate_api_key() -> str:
+    """Generate a new API key. Returns the full key (shown once to user)."""
+    random_part = secrets.token_urlsafe(API_KEY_LENGTH)
+    return f"{API_KEY_PREFIX}{random_part}"
+
+
+def get_api_key_prefix(key: str) -> str:
+    """Get the prefix of an API key for identification."""
+    return key[:8] if len(key) >= 8 else key
+
+
+def hash_api_key(key: str) -> str:
+    """Hash an API key for storage. Uses SHA-256 for fast lookups."""
+    import hashlib
+    return hashlib.sha256(key.encode()).hexdigest()
+
+
+def verify_api_key(plain_key: str, hashed_key: str) -> bool:
+    """Verify an API key against its hash."""
+    return hash_api_key(plain_key) == hashed_key
+
+
+def get_api_key_from_request(request: Request) -> Optional[str]:
+    """Extract API key from request headers.
+
+    Supports:
+    - X-API-Key header
+    - Authorization: Bearer <key>
+    """
+    # Check X-API-Key header
+    api_key = request.headers.get("X-API-Key")
+    if api_key:
+        return api_key
+
+    # Check Authorization header
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header[7:]  # Remove "Bearer " prefix
+
+    return None
