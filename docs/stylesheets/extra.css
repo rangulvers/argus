@@ -1,0 +1,93 @@
+/* Custom styles for Argus documentation */
+
+/* Card grid for features */
+.grid.cards > ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.grid.cards > ul > li {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.grid.cards > ul > li:hover {
+  border-color: var(--md-primary-fg-color);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Hero section styling */
+.md-content__inner > p:first-of-type {
+  text-align: center;
+}
+
+/* Risk level colors */
+.risk-critical {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.risk-high {
+  color: #ea580c;
+  font-weight: 600;
+}
+
+.risk-medium {
+  color: #ca8a04;
+  font-weight: 600;
+}
+
+.risk-low {
+  color: #2563eb;
+}
+
+.risk-none {
+  color: #16a34a;
+}
+
+/* Code block improvements */
+.highlight code {
+  font-size: 0.85em;
+}
+
+/* Table improvements */
+.md-typeset table:not([class]) {
+  font-size: 0.85rem;
+}
+
+.md-typeset table:not([class]) th {
+  background-color: var(--md-default-fg-color--lightest);
+}
+
+/* Admonition icons */
+.md-typeset .admonition.tip,
+.md-typeset details.tip {
+  border-color: #10b981;
+}
+
+.md-typeset .tip > .admonition-title,
+.md-typeset .tip > summary {
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+/* Footer styling */
+.md-footer-meta {
+  background-color: var(--md-default-bg-color);
+}
+
+/* Version badge in nav */
+.md-version {
+  font-size: 0.7rem;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 76.1875em) {
+  .grid.cards > ul {
+    grid-template-columns: 1fr;
+  }
+}
