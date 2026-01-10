@@ -76,6 +76,12 @@ class ScheduleConfig(BaseSettings):
     jobs: List[Any] = []
 
 
+class SecurityConfig(BaseSettings):
+    """Security configuration"""
+    secure_cookies: bool = False  # Set True for HTTPS deployments
+    rate_limit_login: str = "5/minute"  # Login attempts rate limit
+
+
 class Config(BaseSettings):
     """Main application configuration"""
     network: NetworkConfig = NetworkConfig()
@@ -85,6 +91,7 @@ class Config(BaseSettings):
     database: DatabaseConfig = DatabaseConfig()
     web: WebConfig = WebConfig()
     schedule: ScheduleConfig = ScheduleConfig()
+    security: SecurityConfig = SecurityConfig()
 
     class Config:
         env_file = ".env"

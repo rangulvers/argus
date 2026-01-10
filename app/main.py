@@ -3,12 +3,16 @@
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import List, Optional
 from datetime import datetime
 import logging
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from app.database import get_db, init_db
 from app.models import Scan, Device, Port, Change, DeviceHistory, User, APIKey, AuditLog
@@ -41,6 +45,20 @@ app = FastAPI(
     description="The All-Seeing Network Monitor",
     version=get_version()
 )
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    """Handle rate limit exceeded errors"""
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests. Please try again later."}
+    )
+
 
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -149,6 +167,32 @@ async def auth_middleware(request: Request, call_next):
         return await call_next(request)
     finally:
         db.close()
+
+
+# Security headers middleware
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    """Add security headers to all responses"""
+    response = await call_next(request)
+
+    # Prevent MIME type sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+
+    # Prevent clickjacking
+    response.headers["X-Frame-Options"] = "DENY"
+
+    # XSS protection (legacy, but still useful)
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+
+    # Control referrer information
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # Add HSTS header if secure cookies are enabled (indicates HTTPS deployment)
+    config = get_config()
+    if config.security.secure_cookies:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
+    return response
 
 
 # Pydantic models for API
@@ -459,6 +503,7 @@ async def login_page(request: Request, db: Session = Depends(get_db)):
 
 
 @app.post("/login", response_class=HTMLResponse)
+@limiter.limit("5/minute")
 async def login_submit(
     request: Request,
     username: str = Form(...),
@@ -466,7 +511,7 @@ async def login_submit(
     remember: bool = Form(False),
     db: Session = Depends(get_db)
 ):
-    """Process login form"""
+    """Process login form - rate limited to 5 attempts per minute"""
     # Find user
     user = db.query(User).filter(User.username == username).first()
 

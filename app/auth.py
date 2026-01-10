@@ -1,6 +1,8 @@
 """Authentication helpers for Argus"""
 
 import secrets
+import stat
+import os
 from datetime import datetime, timedelta
 from typing import Optional
 from passlib.context import CryptContext
@@ -11,6 +13,9 @@ from fastapi import Request, Response
 # Using pbkdf2_sha256 instead of bcrypt to avoid version compatibility issues
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
+# API key hashing - use same secure hashing as passwords
+api_key_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+
 # Session configuration
 SESSION_COOKIE_NAME = "argus_session"
 SESSION_MAX_AGE = 60 * 60 * 24 * 7  # 7 days in seconds
@@ -18,7 +23,6 @@ SESSION_MAX_AGE = 60 * 60 * 24 * 7  # 7 days in seconds
 
 def get_secret_key() -> str:
     """Get or generate a secret key for session signing"""
-    import os
     secret_file = "./data/.session_secret"
 
     # Create data directory if it doesn't exist
@@ -32,6 +36,9 @@ def get_secret_key() -> str:
     secret = secrets.token_urlsafe(32)
     with open(secret_file, "w") as f:
         f.write(secret)
+
+    # Set restrictive permissions (owner read/write only - 600)
+    os.chmod(secret_file, stat.S_IRUSR | stat.S_IWUSR)
 
     return secret
 
@@ -77,15 +84,22 @@ def verify_session_token(token: str) -> Optional[dict]:
 
 def set_session_cookie(response: Response, user_id: int, username: str, remember: bool = False):
     """Set the session cookie on a response"""
+    from app.config import get_config
+
     token = create_session_token(user_id, username)
     max_age = SESSION_MAX_AGE if remember else None  # None = session cookie
+
+    # Get secure cookie setting from config
+    config = get_config()
+    secure = config.security.secure_cookies
+
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,
         httponly=True,
         samesite="lax",
         max_age=max_age,
-        secure=False  # Set to True in production with HTTPS
+        secure=secure
     )
 
 
@@ -139,14 +153,19 @@ def get_api_key_prefix(key: str) -> str:
 
 
 def hash_api_key(key: str) -> str:
-    """Hash an API key for storage. Uses SHA-256 for fast lookups."""
-    import hashlib
-    return hashlib.sha256(key.encode()).hexdigest()
+    """Hash an API key for storage using PBKDF2 (secure, slow hashing)."""
+    return api_key_context.hash(key)
 
 
 def verify_api_key(plain_key: str, hashed_key: str) -> bool:
     """Verify an API key against its hash."""
-    return hash_api_key(plain_key) == hashed_key
+    try:
+        return api_key_context.verify(plain_key, hashed_key)
+    except Exception:
+        # Handle legacy SHA-256 hashes during migration
+        import hashlib
+        legacy_hash = hashlib.sha256(plain_key.encode()).hexdigest()
+        return legacy_hash == hashed_key
 
 
 def get_api_key_from_request(request: Request) -> Optional[str]:
