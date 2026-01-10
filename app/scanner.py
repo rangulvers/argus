@@ -2,6 +2,7 @@
 
 import nmap
 import logging
+import asyncio
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
@@ -9,6 +10,7 @@ from sqlalchemy import desc
 from app.models import Scan, Device, Port, DeviceHistory
 from app.utils.threat_detector import ThreatDetector
 from app.utils.mac_vendor import get_vendor_lookup
+from app.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +107,9 @@ class NetworkScanner:
                     device = self._process_host(scan.id, host, scan_profile)
                     if device:
                         devices_found += 1
+
+            # Enrich devices with integration data (UniFi, etc.)
+            self._enrich_with_integrations(scan.id)
 
             # Update scan status
             scan.status = "completed"
@@ -508,3 +513,93 @@ class NetworkScanner:
         except Exception as e:
             logger.error(f"Ping scan failed: {str(e)}")
             return []
+
+    def _enrich_with_integrations(self, scan_id: int) -> None:
+        """Enrich devices with data from enabled integrations"""
+        config = get_config()
+
+        # Check if UniFi integration is enabled and sync_on_scan is True
+        if (config.integrations.unifi.enabled and
+                config.integrations.unifi.sync_on_scan):
+            try:
+                print("\nEnriching devices with UniFi data...")
+                asyncio.run(self._enrich_with_unifi(scan_id))
+            except Exception as e:
+                logger.warning(f"UniFi enrichment failed: {e}")
+                print(f"  Warning: UniFi enrichment failed: {e}")
+
+    async def _enrich_with_unifi(self, scan_id: int) -> None:
+        """Enrich devices with UniFi controller data"""
+        from app.integrations.unifi import UniFiEnricher
+        config = get_config()
+
+        # Create enricher from config
+        enricher = UniFiEnricher(
+            enabled=config.integrations.unifi.enabled,
+            controller_url=config.integrations.unifi.controller_url,
+            username=config.integrations.unifi.username,
+            password=config.integrations.unifi.password,
+            api_key=config.integrations.unifi.api_key,
+            site_id=config.integrations.unifi.site_id,
+            controller_type=config.integrations.unifi.controller_type,
+            verify_ssl=config.integrations.unifi.verify_ssl,
+            cache_seconds=config.integrations.unifi.cache_seconds,
+            sync_on_scan=config.integrations.unifi.sync_on_scan,
+            include_offline_clients=config.integrations.unifi.include_offline_clients,
+        )
+
+        try:
+            # Get all devices from this scan
+            devices = self.db.query(Device).filter(Device.scan_id == scan_id).all()
+            if not devices:
+                return
+
+            # Build device list for batch enrichment
+            device_list = [
+                {"mac": d.mac_address, "ip": d.ip_address}
+                for d in devices
+                if d.mac_address
+            ]
+
+            if not device_list:
+                logger.info("No devices with MAC addresses to enrich")
+                return
+
+            # Batch enrich
+            enrichment_data = await enricher.enrich_devices_batch(device_list)
+
+            if not enrichment_data:
+                logger.info("No UniFi enrichment data returned")
+                return
+
+            # Apply enrichment data to devices
+            enriched_count = 0
+            for device in devices:
+                if not device.mac_address:
+                    continue
+
+                mac = device.mac_address.upper().replace("-", ":")
+                if mac in enrichment_data:
+                    # Merge UniFi data into threat_details
+                    unifi_data = enrichment_data[mac]
+                    if device.threat_details:
+                        device.threat_details = {
+                            **device.threat_details,
+                            "integrations": {
+                                **device.threat_details.get("integrations", {}),
+                                **unifi_data
+                            }
+                        }
+                    else:
+                        device.threat_details = {"integrations": unifi_data}
+                    enriched_count += 1
+
+            self.db.commit()
+            logger.info(f"Enriched {enriched_count} devices with UniFi data")
+            print(f"  Enriched {enriched_count} devices with UniFi data")
+
+        except Exception as e:
+            logger.error(f"Failed to enrich devices with UniFi data: {e}")
+            raise
+        finally:
+            await enricher.disconnect()

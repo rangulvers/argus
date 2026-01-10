@@ -232,6 +232,26 @@ class ConfigUpdate(BaseModel):
     scanning: ScanningConfigUpdate
 
 
+class CVEIntegrationUpdate(BaseModel):
+    enabled: bool
+    api_key: Optional[str] = None
+    cache_hours: int = 24
+
+
+class UniFiIntegrationUpdate(BaseModel):
+    enabled: bool
+    controller_url: str = ""
+    controller_type: str = "udm"
+    username: Optional[str] = None
+    password: Optional[str] = None
+    api_key: Optional[str] = None
+    site_id: str = "default"
+    verify_ssl: bool = False
+    cache_seconds: int = 60
+    sync_on_scan: bool = True
+    include_offline_clients: bool = False
+
+
 class DeviceUpdate(BaseModel):
     label: Optional[str] = None
     notes: Optional[str] = None
@@ -1686,6 +1706,219 @@ async def get_config_endpoint():
             "enable_os_detection": config.scanning.enable_os_detection
         }
     }
+
+
+# Integration Endpoints
+@app.get("/api/integrations/cve")
+async def get_cve_integration():
+    """Get CVE integration settings"""
+    config = get_config()
+    return {
+        "enabled": config.integrations.cve.enabled,
+        "api_key": config.integrations.cve.api_key,
+        "api_url": config.integrations.cve.api_url,
+        "cache_hours": config.integrations.cve.cache_hours
+    }
+
+
+@app.put("/api/integrations/cve")
+async def update_cve_integration(
+    cve_update: CVEIntegrationUpdate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Update CVE integration settings"""
+    try:
+        config = get_config()
+
+        # Track changes for audit
+        old_settings = {
+            "enabled": config.integrations.cve.enabled,
+            "cache_hours": config.integrations.cve.cache_hours,
+            "has_api_key": bool(config.integrations.cve.api_key)
+        }
+
+        # Update settings
+        config.integrations.cve.enabled = cve_update.enabled
+        config.integrations.cve.api_key = cve_update.api_key
+        config.integrations.cve.cache_hours = cve_update.cache_hours
+
+        # Save to YAML file
+        save_config(config)
+
+        # Reload config to ensure consistency
+        reload_config()
+
+        # Log config update
+        log_from_request(
+            db=db,
+            request=request,
+            action=AuditAction.CONFIG_UPDATED,
+            resource_type=ResourceType.CONFIG,
+            details={
+                "integration": "cve",
+                "old": old_settings,
+                "new": {
+                    "enabled": cve_update.enabled,
+                    "cache_hours": cve_update.cache_hours,
+                    "has_api_key": bool(cve_update.api_key)
+                }
+            }
+        )
+
+        return {
+            "status": "success",
+            "message": "CVE integration settings updated",
+            "enabled": cve_update.enabled,
+            "cache_hours": cve_update.cache_hours
+        }
+    except Exception as e:
+        logger.error(f"Failed to update CVE integration: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")
+
+
+# UniFi Integration Endpoints
+@app.get("/api/integrations/unifi")
+async def get_unifi_integration():
+    """Get UniFi integration settings"""
+    config = get_config()
+    return {
+        "enabled": config.integrations.unifi.enabled,
+        "controller_url": config.integrations.unifi.controller_url,
+        "controller_type": config.integrations.unifi.controller_type,
+        "username": config.integrations.unifi.username,
+        "has_password": bool(config.integrations.unifi.password),
+        "has_api_key": bool(config.integrations.unifi.api_key),
+        "site_id": config.integrations.unifi.site_id,
+        "verify_ssl": config.integrations.unifi.verify_ssl,
+        "cache_seconds": config.integrations.unifi.cache_seconds,
+        "sync_on_scan": config.integrations.unifi.sync_on_scan,
+        "include_offline_clients": config.integrations.unifi.include_offline_clients,
+    }
+
+
+@app.put("/api/integrations/unifi")
+async def update_unifi_integration(
+    unifi_update: UniFiIntegrationUpdate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Update UniFi integration settings"""
+    try:
+        config = get_config()
+
+        # Track changes for audit
+        old_enabled = config.integrations.unifi.enabled
+
+        # Update settings
+        config.integrations.unifi.enabled = unifi_update.enabled
+        config.integrations.unifi.controller_url = unifi_update.controller_url
+        config.integrations.unifi.controller_type = unifi_update.controller_type
+        config.integrations.unifi.site_id = unifi_update.site_id
+        config.integrations.unifi.verify_ssl = unifi_update.verify_ssl
+        config.integrations.unifi.cache_seconds = unifi_update.cache_seconds
+        config.integrations.unifi.sync_on_scan = unifi_update.sync_on_scan
+        config.integrations.unifi.include_offline_clients = unifi_update.include_offline_clients
+
+        # Only update credentials if provided (not None)
+        if unifi_update.username is not None:
+            config.integrations.unifi.username = unifi_update.username
+        if unifi_update.password is not None:
+            config.integrations.unifi.password = unifi_update.password
+        if unifi_update.api_key is not None:
+            config.integrations.unifi.api_key = unifi_update.api_key
+
+        # Save to YAML
+        save_config(config)
+        reload_config()
+
+        # Log config update
+        log_from_request(
+            db=db,
+            request=request,
+            action=AuditAction.CONFIG_UPDATED,
+            resource_type=ResourceType.CONFIG,
+            details={
+                "integration": "unifi",
+                "enabled_changed": old_enabled != unifi_update.enabled,
+                "new_enabled": unifi_update.enabled,
+            }
+        )
+
+        return {
+            "status": "success",
+            "message": "UniFi integration settings updated",
+            "enabled": unifi_update.enabled
+        }
+    except Exception as e:
+        logger.error(f"Failed to update UniFi integration: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")
+
+
+@app.post("/api/integrations/unifi/test")
+async def test_unifi_connection():
+    """Test connection to UniFi controller"""
+    from app.integrations.unifi.enricher import UniFiEnricher
+
+    config = get_config()
+
+    if not config.integrations.unifi.controller_url:
+        return {
+            "status": "error",
+            "message": "No controller URL configured"
+        }
+
+    # Create enricher with current config
+    enricher = UniFiEnricher(
+        enabled=True,  # Force enabled for test
+        controller_url=config.integrations.unifi.controller_url,
+        controller_type=config.integrations.unifi.controller_type,
+        username=config.integrations.unifi.username,
+        password=config.integrations.unifi.password,
+        api_key=config.integrations.unifi.api_key,
+        site_id=config.integrations.unifi.site_id,
+        verify_ssl=config.integrations.unifi.verify_ssl,
+    )
+
+    health = await enricher.test_connection()
+
+    return {
+        "status": health.status.value,
+        "last_check": health.last_check.isoformat() if health.last_check else None,
+        "error_message": health.error_message,
+        "details": health.details
+    }
+
+
+@app.get("/api/integrations/unifi/clients")
+async def get_unifi_clients():
+    """Get all clients from UniFi controller"""
+    from app.integrations.unifi.enricher import UniFiEnricher
+
+    config = get_config()
+
+    if not config.integrations.unifi.enabled:
+        raise HTTPException(status_code=400, detail="UniFi integration is not enabled")
+
+    enricher = UniFiEnricher(
+        enabled=config.integrations.unifi.enabled,
+        controller_url=config.integrations.unifi.controller_url,
+        controller_type=config.integrations.unifi.controller_type,
+        username=config.integrations.unifi.username,
+        password=config.integrations.unifi.password,
+        api_key=config.integrations.unifi.api_key,
+        site_id=config.integrations.unifi.site_id,
+        verify_ssl=config.integrations.unifi.verify_ssl,
+        cache_seconds=config.integrations.unifi.cache_seconds,
+        include_offline_clients=config.integrations.unifi.include_offline_clients,
+    )
+
+    try:
+        data = await enricher.get_data()
+        return data
+    except Exception as e:
+        logger.error(f"Failed to get UniFi clients: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/network/detect")
