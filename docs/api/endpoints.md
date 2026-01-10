@@ -210,6 +210,26 @@ GET /api/updates/check?force=false
 
 ---
 
+## Network
+
+### Detect Network
+
+Auto-detect the local network for scan configuration.
+
+```http
+GET /api/network/detect
+```
+
+```json
+{
+  "local_ip": "192.168.1.50",
+  "suggested_subnet": "192.168.1.0/24",
+  "hostname": "argus-server"
+}
+```
+
+---
+
 ## Health
 
 ```http

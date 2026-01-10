@@ -1643,6 +1643,17 @@ async def get_config_endpoint():
     }
 
 
+@app.get("/api/network/detect")
+async def detect_network():
+    """Detect local network configuration.
+
+    Returns the host's IP address and suggested subnet for scanning.
+    Useful for initial setup to auto-populate the scan range.
+    """
+    from app.utils.network_utils import get_network_info
+    return get_network_info()
+
+
 # Audit Log Endpoints
 @app.get("/api/audit-logs", response_model=List[AuditLogResponse])
 async def list_audit_logs(
