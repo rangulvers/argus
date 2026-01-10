@@ -90,9 +90,25 @@ class CVEIntegrationConfig(BaseSettings):
     cache_hours: int = 24  # How long to cache CVE data
 
 
+class UniFiIntegrationConfig(BaseSettings):
+    """UniFi Network Controller integration configuration"""
+    enabled: bool = False
+    controller_url: str = ""  # e.g., https://192.168.1.1 or https://unifi.ui.com
+    controller_type: str = "udm"  # self_hosted, udm, cloud
+    username: Optional[str] = None
+    password: Optional[str] = None
+    api_key: Optional[str] = None  # Alternative auth (read-only)
+    site_id: str = "default"
+    verify_ssl: bool = False  # Self-signed certs are common
+    cache_seconds: int = 60  # How long to cache client data
+    sync_on_scan: bool = True  # Auto-enrich devices after scans
+    include_offline_clients: bool = False  # Include disconnected clients
+
+
 class IntegrationsConfig(BaseSettings):
     """External integrations configuration"""
     cve: CVEIntegrationConfig = CVEIntegrationConfig()
+    unifi: UniFiIntegrationConfig = UniFiIntegrationConfig()
 
 
 class Config(BaseSettings):
@@ -203,6 +219,19 @@ def save_config(config_obj: Config, yaml_path: str = "config.yaml"):
                 "api_url": config_obj.integrations.cve.api_url,
                 "api_key": config_obj.integrations.cve.api_key,
                 "cache_hours": config_obj.integrations.cve.cache_hours,
+            },
+            "unifi": {
+                "enabled": config_obj.integrations.unifi.enabled,
+                "controller_url": config_obj.integrations.unifi.controller_url,
+                "controller_type": config_obj.integrations.unifi.controller_type,
+                "username": config_obj.integrations.unifi.username,
+                "password": config_obj.integrations.unifi.password,
+                "api_key": config_obj.integrations.unifi.api_key,
+                "site_id": config_obj.integrations.unifi.site_id,
+                "verify_ssl": config_obj.integrations.unifi.verify_ssl,
+                "cache_seconds": config_obj.integrations.unifi.cache_seconds,
+                "sync_on_scan": config_obj.integrations.unifi.sync_on_scan,
+                "include_offline_clients": config_obj.integrations.unifi.include_offline_clients,
             },
         },
     }

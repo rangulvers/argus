@@ -348,6 +348,149 @@
                 </template>
             </div>
 
+            <!-- UniFi Network Integration -->
+            <div class="border dark:border-gray-600 rounded-lg p-4" x-data="unifiManager()">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex-shrink-0 p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                            <svg class="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-white">UniFi Network</h4>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Enrich devices with connection data from UniFi Controller
+                            </p>
+                        </div>
+                    </div>
+                    <button @click="toggleUnifi()"
+                            :class="unifiEnabled ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-600'"
+                            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        <span :class="unifiEnabled ? 'translate-x-5' : 'translate-x-0'"
+                              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                    </button>
+                </div>
+
+                <!-- UniFi Settings (shown when enabled) -->
+                <div x-show="unifiEnabled" x-collapse class="mt-4 pt-4 border-t dark:border-gray-600">
+                    <div class="space-y-4">
+                        <!-- Controller URL -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Controller URL</label>
+                            <input type="text" x-model="unifiForm.controller_url"
+                                   class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                   placeholder="https://192.168.1.1">
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Your UniFi controller address (UDM, Cloud Key, or self-hosted)</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <!-- Controller Type -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Controller Type</label>
+                                <select x-model="unifiForm.controller_type"
+                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                    <option value="udm">UDM / Dream Machine</option>
+                                    <option value="self_hosted">Self-Hosted</option>
+                                    <option value="cloud">UniFi Cloud</option>
+                                </select>
+                            </div>
+
+                            <!-- Site ID -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Site ID</label>
+                                <input type="text" x-model="unifiForm.site_id"
+                                       class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                       placeholder="default">
+                            </div>
+                        </div>
+
+                        <!-- Authentication Method Toggle -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Authentication Method</label>
+                            <div class="flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" x-model="unifiForm.auth_method" value="credentials"
+                                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600">
+                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Username & Password</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" x-model="unifiForm.auth_method" value="api_key"
+                                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600">
+                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">API Key</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Username/Password Auth -->
+                        <div x-show="unifiForm.auth_method === 'credentials'" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
+                                <input type="text" x-model="unifiForm.username"
+                                       class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                       placeholder="admin">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+                                <input type="password" x-model="unifiForm.password"
+                                       class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                       :placeholder="hasPassword ? '••••••••' : 'Enter password'">
+                            </div>
+                        </div>
+
+                        <!-- API Key Auth -->
+                        <div x-show="unifiForm.auth_method === 'api_key'">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Key</label>
+                            <input type="password" x-model="unifiForm.api_key"
+                                   class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                   :placeholder="hasApiKey ? '••••••••' : 'Enter API key'">
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Read-only API key from UniFi controller. Create one in UniFi Settings > Admins.</p>
+                        </div>
+
+                        <!-- Options -->
+                        <div class="flex flex-wrap gap-4">
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" x-model="unifiForm.verify_ssl"
+                                       class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded">
+                                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Verify SSL</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" x-model="unifiForm.sync_on_scan"
+                                       class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded">
+                                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Sync on scan</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" x-model="unifiForm.include_offline_clients"
+                                       class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded">
+                                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Include offline</span>
+                            </label>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex justify-between items-center">
+                            <button @click="testUnifi()" :disabled="unifiTesting"
+                                    class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">
+                                <svg class="h-4 w-4 mr-1.5" :class="unifiTesting ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                </svg>
+                                <span x-text="unifiTesting ? 'Testing...' : 'Test Connection'"></span>
+                            </button>
+                            <button @click="saveUnifi()" :disabled="unifiSaving"
+                                    class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
+                                <span x-text="unifiSaving ? 'Saving...' : 'Save Settings'"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- UniFi Message -->
+                <template x-if="unifiMessage">
+                    <div class="mt-4 p-3 rounded-md" :class="unifiMessageType === 'error' ? 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200' : 'bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200'">
+                        <p class="text-sm" x-text="unifiMessage"></p>
+                    </div>
+                </template>
+            </div>
+
             <!-- API Keys Integration -->
             <div class="border dark:border-gray-600 rounded-lg p-4" x-data="apiKeyManager()">
                 <div class="flex items-center justify-between">
@@ -652,6 +795,132 @@ function integrationsManager() {
             this.cveMessage = msg;
             this.cveMessageType = type;
             setTimeout(() => { this.cveMessage = ''; }, 5000);
+        }
+    }
+}
+
+function unifiManager() {
+    return {
+        unifiEnabled: {{ 'true' if config.integrations.unifi.enabled else 'false' }},
+        unifiForm: {
+            controller_url: '{{ config.integrations.unifi.controller_url or "" }}',
+            controller_type: '{{ config.integrations.unifi.controller_type or "udm" }}',
+            site_id: '{{ config.integrations.unifi.site_id or "default" }}',
+            auth_method: '{{ "api_key" if config.integrations.unifi.api_key else "credentials" }}',
+            username: '{{ config.integrations.unifi.username or "" }}',
+            password: '',
+            api_key: '',
+            verify_ssl: {{ 'true' if config.integrations.unifi.verify_ssl else 'false' }},
+            sync_on_scan: {{ 'true' if config.integrations.unifi.sync_on_scan else 'false' }},
+            include_offline_clients: {{ 'true' if config.integrations.unifi.include_offline_clients else 'false' }}
+        },
+        hasPassword: {{ 'true' if config.integrations.unifi.password else 'false' }},
+        hasApiKey: {{ 'true' if config.integrations.unifi.api_key else 'false' }},
+        unifiTesting: false,
+        unifiSaving: false,
+        unifiMessage: '',
+        unifiMessageType: '',
+
+        async toggleUnifi() {
+            this.unifiEnabled = !this.unifiEnabled;
+            await this.saveUnifi();
+        },
+
+        async saveUnifi() {
+            this.unifiSaving = true;
+            this.unifiMessage = '';
+
+            try {
+                const payload = {
+                    enabled: this.unifiEnabled,
+                    controller_url: this.unifiForm.controller_url,
+                    controller_type: this.unifiForm.controller_type,
+                    site_id: this.unifiForm.site_id,
+                    verify_ssl: this.unifiForm.verify_ssl,
+                    sync_on_scan: this.unifiForm.sync_on_scan,
+                    include_offline_clients: this.unifiForm.include_offline_clients
+                };
+
+                // Include credentials based on auth method
+                if (this.unifiForm.auth_method === 'credentials') {
+                    payload.username = this.unifiForm.username || null;
+                    if (this.unifiForm.password) {
+                        payload.password = this.unifiForm.password;
+                    }
+                    // Clear API key when using credentials
+                    payload.api_key = null;
+                } else {
+                    // API key auth
+                    if (this.unifiForm.api_key) {
+                        payload.api_key = this.unifiForm.api_key;
+                    }
+                    // Clear credentials when using API key
+                    payload.username = null;
+                    payload.password = null;
+                }
+
+                const response = await fetch('/api/integrations/unifi', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    this.showUnifiMessage('UniFi integration settings saved', 'success');
+                    if (this.unifiForm.password) {
+                        this.hasPassword = true;
+                        this.unifiForm.password = '';
+                    }
+                    if (this.unifiForm.api_key) {
+                        this.hasApiKey = true;
+                        this.unifiForm.api_key = '';
+                    }
+                } else {
+                    this.showUnifiMessage(data.detail || 'Failed to save settings', 'error');
+                    // Revert toggle if save failed during toggle
+                    this.unifiEnabled = !this.unifiEnabled;
+                }
+            } catch (error) {
+                this.showUnifiMessage('Failed to save settings: ' + error.message, 'error');
+                this.unifiEnabled = !this.unifiEnabled;
+            }
+
+            this.unifiSaving = false;
+        },
+
+        async testUnifi() {
+            this.unifiTesting = true;
+            this.unifiMessage = '';
+
+            try {
+                const response = await fetch('/api/integrations/unifi/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'connected') {
+                    const clients = data.details?.clients || 0;
+                    this.showUnifiMessage(`Connection successful! Found ${clients} clients.`, 'success');
+                } else if (data.status === 'disabled') {
+                    this.showUnifiMessage('UniFi integration is disabled. Enable it first.', 'error');
+                } else {
+                    this.showUnifiMessage(data.error_message || 'Connection failed', 'error');
+                }
+            } catch (error) {
+                this.showUnifiMessage('Test failed: ' + error.message, 'error');
+            }
+
+            this.unifiTesting = false;
+        },
+
+        showUnifiMessage(msg, type) {
+            this.unifiMessage = msg;
+            this.unifiMessageType = type;
+            setTimeout(() => { this.unifiMessage = ''; }, 5000);
         }
     }
 }
