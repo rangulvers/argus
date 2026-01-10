@@ -44,6 +44,12 @@ class UpdateChecker:
         if version_str == 'dev':
             return (0, 0, 0)
 
+        # Detect CalVer format: YYYY.MM.DD-hash (year > 2000 in first position)
+        calver_match = re.match(r'^(20\d{2})\.(\d{2})\.(\d{2})', version_str)
+        if calver_match:
+            # CalVer builds are dev builds - always show update available for releases
+            return (0, 0, 0)
+
         # Try to extract semver pattern (handles v1.2.3-extra)
         # This captures the base version from git describe like "0.0.4-18-g59de3fa"
         semver_match = re.match(r'^(\d+)\.(\d+)\.(\d+)', version_str)
@@ -52,7 +58,7 @@ class UpdateChecker:
                     int(semver_match.group(2)),
                     int(semver_match.group(3)))
 
-        # CalVer or other formats - treat as dev build
+        # Other formats - treat as dev build
         return (0, 0, 0)
 
     def _is_newer_version(self, remote: str, local: str) -> bool:
