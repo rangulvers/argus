@@ -1825,9 +1825,22 @@ async def settings_page(request: Request, db: Session = Depends(get_db)):
     # Get API keys for current user
     api_keys = []
     if current_user:
-        api_keys = db.query(APIKey).filter(
+        api_key_records = db.query(APIKey).filter(
             APIKey.user_id == current_user["user_id"]
         ).order_by(APIKey.created_at.desc()).all()
+        # Convert to serializable dicts
+        api_keys = [
+            {
+                "id": key.id,
+                "name": key.name,
+                "key_prefix": key.key_prefix,
+                "created_at": key.created_at.isoformat() if key.created_at else None,
+                "last_used_at": key.last_used_at.isoformat() if key.last_used_at else None,
+                "expires_at": key.expires_at.isoformat() if key.expires_at else None,
+                "is_revoked": key.is_revoked
+            }
+            for key in api_key_records
+        ]
 
     return templates.TemplateResponse("settings.html", {
         "request": request,
