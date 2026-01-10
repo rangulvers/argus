@@ -282,177 +282,221 @@
         </div>
     </div>
 
-    <!-- API Keys -->
-    <div class="bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-hidden" x-data="apiKeyManager()">
-        <div class="px-4 py-5 sm:px-6 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center">
-            <div>
-                <h3 class="text-lg font-medium text-gray-900 dark:text-white">API Keys</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage API keys for programmatic access</p>
-            </div>
-            <button @click="showCreateModal = true"
-                    class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">
-                <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                Create API Key
-            </button>
+    <!-- Integrations -->
+    <div class="bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-hidden" x-data="integrationsManager()">
+        <div class="px-4 py-5 sm:px-6 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Integrations</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Configure external services and API access</p>
         </div>
-        <div class="px-4 py-5 sm:p-6">
-            <!-- API Keys List -->
-            <template x-if="keys.length === 0">
-                <div class="text-center py-8">
-                    <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-                    </svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No API keys</h3>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Create an API key for external integrations.</p>
-                    <div class="mt-4">
-                        <button @click="showCreateModal = true"
-                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">
-                            Create API Key
+        <div class="px-4 py-5 sm:p-6 space-y-6">
+            <!-- CVE Integration -->
+            <div class="border dark:border-gray-600 rounded-lg p-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex-shrink-0 p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                            <svg class="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-white">CVE Database Integration</h4>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Pull vulnerability data from the NVD (National Vulnerability Database) to enrich threat assessments
+                            </p>
+                        </div>
+                    </div>
+                    <button @click="toggleCVE()"
+                            :class="cveEnabled ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-600'"
+                            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        <span :class="cveEnabled ? 'translate-x-5' : 'translate-x-0'"
+                              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                    </button>
+                </div>
+
+                <!-- CVE Settings (shown when enabled) -->
+                <div x-show="cveEnabled" x-collapse class="mt-4 pt-4 border-t dark:border-gray-600">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">NVD API Key (Optional)</label>
+                            <input type="password" x-model="cveApiKey"
+                                   class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                   placeholder="Enter API key for higher rate limits">
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Get a free API key from <a href="https://nvd.nist.gov/developers/request-an-api-key" target="_blank" class="text-indigo-600 dark:text-indigo-400 hover:underline">NVD</a> for faster lookups
+                            </p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cache Duration (hours)</label>
+                            <input type="number" x-model.number="cveCacheHours" min="1" max="168"
+                                   class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">How long to cache CVE data locally</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-end">
+                        <button @click="saveCVESettings()" :disabled="cveSaving"
+                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
+                            <span x-text="cveSaving ? 'Saving...' : 'Save CVE Settings'"></span>
                         </button>
                     </div>
                 </div>
-            </template>
 
-            <div class="space-y-4">
-                <template x-for="key in keys" :key="key.id">
-                    <div class="border dark:border-gray-600 rounded-lg p-4" :class="key.is_revoked ? 'bg-gray-50 dark:bg-gray-700/50 opacity-60' : 'hover:bg-gray-50 dark:hover:bg-gray-700'">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-4">
-                                <div class="flex-shrink-0">
-                                    <svg class="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <h4 class="text-sm font-medium text-gray-900 dark:text-white" x-text="key.name"></h4>
-                                    <div class="flex items-center space-x-3 mt-1">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 font-mono">
-                                            <span x-text="key.key_prefix + '...'"></span>
-                                        </span>
-                                        <span class="text-xs text-gray-500 dark:text-gray-400" x-text="'Created: ' + formatDate(key.created_at)"></span>
-                                        <template x-if="key.last_used_at">
-                                            <span class="text-xs text-gray-500 dark:text-gray-400" x-text="'Last used: ' + formatDate(key.last_used_at)"></span>
-                                        </template>
-                                        <template x-if="key.is_revoked">
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
-                                                Revoked
-                                            </span>
-                                        </template>
-                                        <template x-if="key.expires_at && !key.is_revoked">
-                                            <span class="text-xs" :class="isExpired(key.expires_at) ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'" x-text="'Expires: ' + formatDate(key.expires_at)"></span>
-                                        </template>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <template x-if="!key.is_revoked">
-                                    <button @click="revokeKey(key)"
-                                            class="inline-flex items-center px-3 py-1.5 border border-red-300 dark:border-red-700 text-xs font-medium rounded text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30">
-                                        Revoke
-                                    </button>
-                                </template>
-                            </div>
-                        </div>
+                <!-- CVE Message -->
+                <template x-if="cveMessage">
+                    <div class="mt-4 p-3 rounded-md" :class="cveMessageType === 'error' ? 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200' : 'bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200'">
+                        <p class="text-sm" x-text="cveMessage"></p>
                     </div>
                 </template>
             </div>
 
-            <!-- Message -->
-            <template x-if="message">
-                <div class="mt-4 p-3 rounded-md" :class="messageType === 'error' ? 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200' : 'bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200'">
-                    <p class="text-sm" x-text="message"></p>
-                </div>
-            </template>
-
-            <!-- New Key Display -->
-            <template x-if="newKey">
-                <div class="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg">
-                    <div class="flex items-start">
-                        <svg class="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                        </svg>
-                        <div class="ml-3 flex-1">
-                            <h4 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">Save your API key now!</h4>
-                            <p class="mt-1 text-sm text-yellow-700 dark:text-yellow-300">This key will not be shown again. Copy and store it securely.</p>
-                            <div class="mt-3 flex items-center space-x-2">
-                                <code class="flex-1 px-3 py-2 bg-white dark:bg-gray-800 border border-yellow-300 dark:border-yellow-600 rounded text-sm font-mono text-gray-900 dark:text-white break-all" x-text="newKey"></code>
-                                <button @click="copyKey()" class="inline-flex items-center px-3 py-2 border border-yellow-300 dark:border-yellow-600 text-sm font-medium rounded text-yellow-700 dark:text-yellow-300 hover:bg-yellow-100 dark:hover:bg-yellow-900/50">
-                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
-                                    </svg>
-                                </button>
-                            </div>
-                            <button @click="newKey = null" class="mt-3 text-sm text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-200">
-                                I've saved the key, dismiss this
-                            </button>
+            <!-- API Keys Integration -->
+            <div class="border dark:border-gray-600 rounded-lg p-4" x-data="apiKeyManager()">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex-shrink-0 p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                            <svg class="h-6 w-6 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-white">API Keys</h4>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Manage API keys for programmatic access to Argus
+                            </p>
                         </div>
                     </div>
+                    <button @click="showCreateModal = true"
+                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">
+                        <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Create Key
+                    </button>
                 </div>
-            </template>
-        </div>
 
-        <!-- Create API Key Modal -->
-        <div x-show="showCreateModal" x-cloak
-             class="fixed inset-0 z-50 overflow-y-auto"
-             @keydown.escape.window="showCreateModal = false">
-            <div class="flex items-center justify-center min-h-screen px-4">
-                <div class="fixed inset-0 bg-gray-500 dark:bg-gray-900 bg-opacity-75 dark:bg-opacity-75 transition-opacity" @click="showCreateModal = false"></div>
-
-                <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full p-6">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Create API Key</h3>
-
-                    <form @submit.prevent="createKey">
-                        <!-- Name -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
-                            <input type="text" x-model="createForm.name" required
-                                   class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                   placeholder="e.g., Homepage Widget, CLI Access">
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">A descriptive name to identify this key</p>
+                <div class="mt-4 pt-4 border-t dark:border-gray-600">
+                    <template x-if="keys.length === 0">
+                        <div class="text-center py-6">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">No API keys created yet.</p>
                         </div>
+                    </template>
 
-                        <!-- Expiration -->
-                        <div class="mb-6">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Expiration</label>
-                            <div class="grid grid-cols-4 gap-2">
-                                <button type="button" @click="createForm.expires_in_days = null"
-                                        :class="createForm.expires_in_days === null ? 'ring-2 ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/50' : 'bg-white dark:bg-gray-700'"
-                                        class="px-3 py-2 border dark:border-gray-600 rounded-md text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600">
-                                    Never
-                                </button>
-                                <button type="button" @click="createForm.expires_in_days = 30"
-                                        :class="createForm.expires_in_days === 30 ? 'ring-2 ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/50' : 'bg-white dark:bg-gray-700'"
-                                        class="px-3 py-2 border dark:border-gray-600 rounded-md text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600">
-                                    30 days
-                                </button>
-                                <button type="button" @click="createForm.expires_in_days = 90"
-                                        :class="createForm.expires_in_days === 90 ? 'ring-2 ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/50' : 'bg-white dark:bg-gray-700'"
-                                        class="px-3 py-2 border dark:border-gray-600 rounded-md text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600">
-                                    90 days
-                                </button>
-                                <button type="button" @click="createForm.expires_in_days = 365"
-                                        :class="createForm.expires_in_days === 365 ? 'ring-2 ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/50' : 'bg-white dark:bg-gray-700'"
-                                        class="px-3 py-2 border dark:border-gray-600 rounded-md text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600">
-                                    1 year
-                                </button>
+                    <div class="space-y-3">
+                        <template x-for="key in keys" :key="key.id">
+                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg" :class="key.is_revoked ? 'opacity-60' : ''">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="min-w-0">
+                                        <h5 class="text-sm font-medium text-gray-900 dark:text-white truncate" x-text="key.name"></h5>
+                                        <div class="flex items-center space-x-2 mt-0.5">
+                                            <span class="text-xs font-mono text-gray-500 dark:text-gray-400" x-text="key.key_prefix + '...'"></span>
+                                            <template x-if="key.is_revoked">
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">Revoked</span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                                <template x-if="!key.is_revoked">
+                                    <button @click="revokeKey(key)"
+                                            class="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">
+                                        Revoke
+                                    </button>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Message -->
+                    <template x-if="message">
+                        <div class="mt-3 p-3 rounded-md" :class="messageType === 'error' ? 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200' : 'bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200'">
+                            <p class="text-sm" x-text="message"></p>
+                        </div>
+                    </template>
+
+                    <!-- New Key Display -->
+                    <template x-if="newKey">
+                        <div class="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+                            <div class="flex items-start">
+                                <svg class="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                </svg>
+                                <div class="ml-3 flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">Save your API key now!</p>
+                                    <div class="mt-2 flex items-center space-x-2">
+                                        <code class="flex-1 px-2 py-1 bg-white dark:bg-gray-800 border border-yellow-300 dark:border-yellow-600 rounded text-xs font-mono text-gray-900 dark:text-white break-all" x-text="newKey"></code>
+                                        <button @click="copyKey()" class="p-1 text-yellow-700 dark:text-yellow-300 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 rounded">
+                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <button @click="newKey = null" class="mt-2 text-xs text-yellow-600 dark:text-yellow-400 hover:underline">Dismiss</button>
+                                </div>
                             </div>
                         </div>
+                    </template>
+                </div>
 
-                        <!-- Buttons -->
-                        <div class="flex justify-end space-x-3">
-                            <button type="button" @click="showCreateModal = false"
-                                    class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                Cancel
-                            </button>
-                            <button type="submit"
-                                    :disabled="creating"
-                                    class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
-                                <span x-text="creating ? 'Creating...' : 'Create Key'"></span>
-                            </button>
+                <!-- Create API Key Modal -->
+                <div x-show="showCreateModal" x-cloak
+                     class="fixed inset-0 z-50 overflow-y-auto"
+                     @keydown.escape.window="showCreateModal = false">
+                    <div class="flex items-center justify-center min-h-screen px-4">
+                        <div class="fixed inset-0 bg-gray-500 dark:bg-gray-900 bg-opacity-75 dark:bg-opacity-75 transition-opacity" @click="showCreateModal = false"></div>
+
+                        <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full p-6">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Create API Key</h3>
+
+                            <form @submit.prevent="createKey">
+                                <!-- Name -->
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                                    <input type="text" x-model="createForm.name" required
+                                           class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                           placeholder="e.g., Homepage Widget, CLI Access">
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">A descriptive name to identify this key</p>
+                                </div>
+
+                                <!-- Expiration -->
+                                <div class="mb-6">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Expiration</label>
+                                    <div class="grid grid-cols-4 gap-2">
+                                        <button type="button" @click="createForm.expires_in_days = null"
+                                                :class="createForm.expires_in_days === null ? 'ring-2 ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/50' : 'bg-white dark:bg-gray-700'"
+                                                class="px-3 py-2 border dark:border-gray-600 rounded-md text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600">
+                                            Never
+                                        </button>
+                                        <button type="button" @click="createForm.expires_in_days = 30"
+                                                :class="createForm.expires_in_days === 30 ? 'ring-2 ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/50' : 'bg-white dark:bg-gray-700'"
+                                                class="px-3 py-2 border dark:border-gray-600 rounded-md text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600">
+                                            30 days
+                                        </button>
+                                        <button type="button" @click="createForm.expires_in_days = 90"
+                                                :class="createForm.expires_in_days === 90 ? 'ring-2 ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/50' : 'bg-white dark:bg-gray-700'"
+                                                class="px-3 py-2 border dark:border-gray-600 rounded-md text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600">
+                                            90 days
+                                        </button>
+                                        <button type="button" @click="createForm.expires_in_days = 365"
+                                                :class="createForm.expires_in_days === 365 ? 'ring-2 ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/50' : 'bg-white dark:bg-gray-700'"
+                                                class="px-3 py-2 border dark:border-gray-600 rounded-md text-xs font-medium text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600">
+                                            1 year
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Buttons -->
+                                <div class="flex justify-end space-x-3">
+                                    <button type="button" @click="showCreateModal = false"
+                                            class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                        Cancel
+                                    </button>
+                                    <button type="submit"
+                                            :disabled="creating"
+                                            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
+                                        <span x-text="creating ? 'Creating...' : 'Create Key'"></span>
+                                    </button>
+                                </div>
+                            </form>
                         </div>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -558,6 +602,60 @@
 </div>
 
 <script>
+function integrationsManager() {
+    return {
+        cveEnabled: {{ 'true' if config.integrations.cve.enabled else 'false' }},
+        cveApiKey: '{{ config.integrations.cve.api_key or "" }}',
+        cveCacheHours: {{ config.integrations.cve.cache_hours }},
+        cveSaving: false,
+        cveMessage: '',
+        cveMessageType: '',
+
+        async toggleCVE() {
+            this.cveEnabled = !this.cveEnabled;
+            await this.saveCVESettings();
+        },
+
+        async saveCVESettings() {
+            this.cveSaving = true;
+            this.cveMessage = '';
+
+            try {
+                const response = await fetch('/api/integrations/cve', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        enabled: this.cveEnabled,
+                        api_key: this.cveApiKey || null,
+                        cache_hours: this.cveCacheHours
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    this.showCVEMessage('CVE integration settings saved', 'success');
+                } else {
+                    this.showCVEMessage(data.detail || 'Failed to save settings', 'error');
+                    // Revert toggle if save failed
+                    this.cveEnabled = !this.cveEnabled;
+                }
+            } catch (error) {
+                this.showCVEMessage('Failed to save settings: ' + error.message, 'error');
+                this.cveEnabled = !this.cveEnabled;
+            }
+
+            this.cveSaving = false;
+        },
+
+        showCVEMessage(msg, type) {
+            this.cveMessage = msg;
+            this.cveMessageType = type;
+            setTimeout(() => { this.cveMessage = ''; }, 5000);
+        }
+    }
+}
+
 function auditLogViewer() {
     return {
         logs: [],

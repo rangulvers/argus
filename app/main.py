@@ -232,6 +232,12 @@ class ConfigUpdate(BaseModel):
     scanning: ScanningConfigUpdate
 
 
+class CVEIntegrationUpdate(BaseModel):
+    enabled: bool
+    api_key: Optional[str] = None
+    cache_hours: int = 24
+
+
 class DeviceUpdate(BaseModel):
     label: Optional[str] = None
     notes: Optional[str] = None
@@ -1686,6 +1692,75 @@ async def get_config_endpoint():
             "enable_os_detection": config.scanning.enable_os_detection
         }
     }
+
+
+# Integration Endpoints
+@app.get("/api/integrations/cve")
+async def get_cve_integration():
+    """Get CVE integration settings"""
+    config = get_config()
+    return {
+        "enabled": config.integrations.cve.enabled,
+        "api_key": config.integrations.cve.api_key,
+        "api_url": config.integrations.cve.api_url,
+        "cache_hours": config.integrations.cve.cache_hours
+    }
+
+
+@app.put("/api/integrations/cve")
+async def update_cve_integration(
+    cve_update: CVEIntegrationUpdate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Update CVE integration settings"""
+    try:
+        config = get_config()
+
+        # Track changes for audit
+        old_settings = {
+            "enabled": config.integrations.cve.enabled,
+            "cache_hours": config.integrations.cve.cache_hours,
+            "has_api_key": bool(config.integrations.cve.api_key)
+        }
+
+        # Update settings
+        config.integrations.cve.enabled = cve_update.enabled
+        config.integrations.cve.api_key = cve_update.api_key
+        config.integrations.cve.cache_hours = cve_update.cache_hours
+
+        # Save to YAML file
+        save_config(config)
+
+        # Reload config to ensure consistency
+        reload_config()
+
+        # Log config update
+        log_from_request(
+            db=db,
+            request=request,
+            action=AuditAction.CONFIG_UPDATED,
+            resource_type=ResourceType.CONFIG,
+            details={
+                "integration": "cve",
+                "old": old_settings,
+                "new": {
+                    "enabled": cve_update.enabled,
+                    "cache_hours": cve_update.cache_hours,
+                    "has_api_key": bool(cve_update.api_key)
+                }
+            }
+        )
+
+        return {
+            "status": "success",
+            "message": "CVE integration settings updated",
+            "enabled": cve_update.enabled,
+            "cache_hours": cve_update.cache_hours
+        }
+    except Exception as e:
+        logger.error(f"Failed to update CVE integration: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")
 
 
 @app.get("/api/network/detect")

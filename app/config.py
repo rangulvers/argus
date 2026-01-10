@@ -82,6 +82,19 @@ class SecurityConfig(BaseSettings):
     rate_limit_login: str = "5/minute"  # Login attempts rate limit
 
 
+class CVEIntegrationConfig(BaseSettings):
+    """CVE (Common Vulnerabilities and Exposures) integration configuration"""
+    enabled: bool = False
+    api_url: str = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+    api_key: Optional[str] = None  # Optional NVD API key for higher rate limits
+    cache_hours: int = 24  # How long to cache CVE data
+
+
+class IntegrationsConfig(BaseSettings):
+    """External integrations configuration"""
+    cve: CVEIntegrationConfig = CVEIntegrationConfig()
+
+
 class Config(BaseSettings):
     """Main application configuration"""
     network: NetworkConfig = NetworkConfig()
@@ -92,6 +105,7 @@ class Config(BaseSettings):
     web: WebConfig = WebConfig()
     schedule: ScheduleConfig = ScheduleConfig()
     security: SecurityConfig = SecurityConfig()
+    integrations: IntegrationsConfig = IntegrationsConfig()
 
     class Config:
         env_file = ".env"
@@ -182,6 +196,14 @@ def save_config(config_obj: Config, yaml_path: str = "config.yaml"):
             "enable_auth": config_obj.web.enable_auth,
             "username": config_obj.web.username,
             "password": config_obj.web.password,
+        },
+        "integrations": {
+            "cve": {
+                "enabled": config_obj.integrations.cve.enabled,
+                "api_url": config_obj.integrations.cve.api_url,
+                "api_key": config_obj.integrations.cve.api_key,
+                "cache_hours": config_obj.integrations.cve.cache_hours,
+            },
         },
     }
 
