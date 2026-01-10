@@ -1859,35 +1859,55 @@ async def update_unifi_integration(
 async def test_unifi_connection():
     """Test connection to UniFi controller"""
     from app.integrations.unifi.enricher import UniFiEnricher
+    import logging
 
+    logger = logging.getLogger(__name__)
     config = get_config()
 
     if not config.integrations.unifi.controller_url:
         return {
             "status": "error",
-            "message": "No controller URL configured"
+            "error_message": "No controller URL configured"
         }
 
-    # Create enricher with current config
-    enricher = UniFiEnricher(
-        enabled=True,  # Force enabled for test
-        controller_url=config.integrations.unifi.controller_url,
-        controller_type=config.integrations.unifi.controller_type,
-        username=config.integrations.unifi.username,
-        password=config.integrations.unifi.password,
-        api_key=config.integrations.unifi.api_key,
-        site_id=config.integrations.unifi.site_id,
-        verify_ssl=config.integrations.unifi.verify_ssl,
-    )
+    # Check authentication is configured
+    has_credentials = config.integrations.unifi.username and config.integrations.unifi.password
+    has_api_key = config.integrations.unifi.api_key
+    if not has_credentials and not has_api_key:
+        return {
+            "status": "error",
+            "error_message": "No authentication configured. Please set username/password or API key."
+        }
 
-    health = await enricher.test_connection()
+    try:
+        logger.info(f"Testing UniFi connection to {config.integrations.unifi.controller_url}")
 
-    return {
-        "status": health.status.value,
-        "last_check": health.last_check.isoformat() if health.last_check else None,
-        "error_message": health.error_message,
-        "details": health.details
-    }
+        # Create enricher with current config
+        enricher = UniFiEnricher(
+            enabled=True,  # Force enabled for test
+            controller_url=config.integrations.unifi.controller_url,
+            controller_type=config.integrations.unifi.controller_type,
+            username=config.integrations.unifi.username,
+            password=config.integrations.unifi.password,
+            api_key=config.integrations.unifi.api_key,
+            site_id=config.integrations.unifi.site_id,
+            verify_ssl=config.integrations.unifi.verify_ssl,
+        )
+
+        health = await enricher.test_connection()
+
+        return {
+            "status": health.status.value,
+            "last_check": health.last_check.isoformat() if health.last_check else None,
+            "error_message": health.error_message,
+            "details": health.details
+        }
+    except Exception as e:
+        logger.error(f"UniFi test connection failed: {e}")
+        return {
+            "status": "error",
+            "error_message": f"Connection test failed: {str(e)}"
+        }
 
 
 @app.get("/api/integrations/unifi/clients")

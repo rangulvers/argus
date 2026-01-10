@@ -83,6 +83,8 @@ class UniFiAPIClient:
         else:
             login_url = f"{self.base_url}/api/login"
 
+        logger.info(f"Attempting login to {login_url} as {self.username}")
+
         payload = {
             "username": self.username,
             "password": self.password,
@@ -91,6 +93,7 @@ class UniFiAPIClient:
 
         try:
             response = await session.post(login_url, json=payload)
+            logger.info(f"Login response status: {response.status_code}")
 
             if response.status_code == 200:
                 self._cookies = dict(response.cookies)

@@ -105,6 +105,7 @@ class UniFiEnricher(DeviceEnricherIntegration):
             )
 
         try:
+            logger.info(f"Testing UniFi connection to {self.config.controller_url}")
             await self.connect()
             health_data = await self.client.get_site_health()
 
@@ -125,11 +126,20 @@ class UniFiEnricher(DeviceEnricherIntegration):
                 },
             )
         except UniFiError as e:
+            logger.error(f"UniFi connection test failed: {e}")
             return IntegrationHealth(
                 status=IntegrationStatus.ERROR,
                 last_check=self._last_health_check,
                 last_successful_sync=self._last_sync,
                 error_message=str(e),
+            )
+        except Exception as e:
+            logger.error(f"UniFi connection test failed with unexpected error: {e}")
+            return IntegrationHealth(
+                status=IntegrationStatus.ERROR,
+                last_check=self._last_health_check,
+                last_successful_sync=self._last_sync,
+                error_message=f"Unexpected error: {str(e)}",
             )
 
     async def get_data(self) -> Dict[str, Any]:
