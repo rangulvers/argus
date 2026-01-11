@@ -7,7 +7,7 @@ import httpx
 import logging
 import re
 from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 import base64
 
@@ -256,8 +256,8 @@ class AdGuardAPIClient:
         # Get query log for this client
         queries = await self.get_query_log(client_ip=client_ip, limit=2000)
 
-        # Filter to last N hours
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        # Filter to last N hours (use timezone-aware datetime)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
         queries = [q for q in queries if q.timestamp >= cutoff]
 
         # Calculate statistics
@@ -334,7 +334,7 @@ class AdGuardAPIClient:
                 return datetime.fromisoformat(time_str.replace("Z", ""))
         except (ValueError, TypeError):
             pass
-        return datetime.utcnow()
+        return datetime.now(timezone.utc)
 
     def _format_answer(self, answers: List[Dict]) -> Optional[str]:
         """Format DNS answer for display"""
