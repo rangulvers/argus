@@ -2,19 +2,7 @@
 
 Configuration and security management.
 
-## Network
-
-| Setting | Description |
-|---------|-------------|
-| Subnet | Target CIDR (e.g., `192.168.1.0/24`) |
-| Scan Profile | Default: quick, normal, intensive |
-
-## Scanning
-
-| Setting | Description |
-|---------|-------------|
-| Port Range | `1-1000`, `1-65535`, `common`, or specific |
-| OS Detection | Fingerprinting (requires root) |
+![Settings Page](../assets/argus_settings.png)
 
 ## Scheduled Scans
 
@@ -30,14 +18,35 @@ Create automated scan schedules:
 | `0 */6 * * *` | Every 6h |
 | `0 2 * * 0` | Sunday 2am |
 
+## Network Configuration
+
+| Setting | Description |
+|---------|-------------|
+| Subnet | Target CIDR (e.g., `192.168.1.0/24`) |
+| Default Scan Profile | quick, normal, or intensive |
+| Port Range | `1-1000`, `1-65535`, `common`, or specific |
+| OS Detection | Fingerprinting (requires root) |
+
+## External Integrations
+
+Connect Argus with external services to enrich device data. Navigate to **Manage Integrations** to configure:
+
+- **UniFi Network** - WiFi info, traffic stats, switch ports
+- **Pi-hole** - DNS queries, blocked domains
+- **AdGuard Home** - DNS queries, blocked domains
+- **CVE Database** - Vulnerability matching
+
+See the [Integrations Guide](integrations.md) for detailed configuration instructions.
+
 ## API Keys
 
 For programmatic access without session cookies.
 
 ### Create
 
-1. Settings → API Keys → Create
-2. Copy key immediately (shown once)
+1. Settings → API Access → **Create Key**
+2. Set name and expiration
+3. Copy key immediately (shown once)
 
 ### Usage
 
@@ -47,7 +56,7 @@ curl -H "X-API-Key: argus_xxxxx" http://localhost:8080/api/devices
 
 ### Manage
 
-- View: name, prefix, created, last used
+- View: name, prefix, created date
 - Revoke: immediately invalidates key
 
 ## Audit Log
@@ -77,6 +86,19 @@ network:
 scanning:
   port_range: "1-1000"
   enable_os_detection: true
+
+integrations:
+  unifi:
+    enabled: true
+    controller_url: "https://192.168.1.1"
+  pihole:
+    enabled: true
+    pihole_url: "http://pi.hole"
+  adguard:
+    enabled: false
+  cve:
+    enabled: true
+    cache_hours: 24
 ```
 
 Restart or click **Reload Config** after manual edits.

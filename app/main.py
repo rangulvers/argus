@@ -252,6 +252,25 @@ class UniFiIntegrationUpdate(BaseModel):
     include_offline_clients: bool = False
 
 
+class PiHoleIntegrationUpdate(BaseModel):
+    enabled: bool
+    pihole_url: str = ""
+    api_token: Optional[str] = None
+    verify_ssl: bool = False
+    cache_seconds: int = 60
+    sync_on_scan: bool = True
+
+
+class AdGuardIntegrationUpdate(BaseModel):
+    enabled: bool
+    adguard_url: str = ""
+    username: Optional[str] = None
+    password: Optional[str] = None
+    verify_ssl: bool = False
+    cache_seconds: int = 60
+    sync_on_scan: bool = True
+
+
 class DeviceUpdate(BaseModel):
     label: Optional[str] = None
     notes: Optional[str] = None
@@ -1941,6 +1960,279 @@ async def get_unifi_clients():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Pi-hole Integration API
+@app.get("/api/integrations/pihole")
+async def get_pihole_integration():
+    """Get Pi-hole integration settings"""
+    config = get_config()
+    return {
+        "enabled": config.integrations.pihole.enabled,
+        "pihole_url": config.integrations.pihole.pihole_url,
+        "has_api_token": bool(config.integrations.pihole.api_token),
+        "verify_ssl": config.integrations.pihole.verify_ssl,
+        "cache_seconds": config.integrations.pihole.cache_seconds,
+        "sync_on_scan": config.integrations.pihole.sync_on_scan,
+    }
+
+
+@app.put("/api/integrations/pihole")
+async def update_pihole_integration(
+    pihole_update: PiHoleIntegrationUpdate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Update Pi-hole integration settings"""
+    try:
+        config = get_config()
+
+        # Track changes for audit
+        old_enabled = config.integrations.pihole.enabled
+
+        # Update settings
+        config.integrations.pihole.enabled = pihole_update.enabled
+        config.integrations.pihole.pihole_url = pihole_update.pihole_url
+        config.integrations.pihole.verify_ssl = pihole_update.verify_ssl
+        config.integrations.pihole.cache_seconds = pihole_update.cache_seconds
+        config.integrations.pihole.sync_on_scan = pihole_update.sync_on_scan
+
+        # Only update API token if provided (not None)
+        if pihole_update.api_token is not None:
+            config.integrations.pihole.api_token = pihole_update.api_token
+
+        # Save to YAML
+        save_config(config)
+        reload_config()
+
+        # Log config update
+        log_from_request(
+            db=db,
+            request=request,
+            action=AuditAction.CONFIG_UPDATED,
+            resource_type=ResourceType.CONFIG,
+            details={
+                "integration": "pihole",
+                "enabled_changed": old_enabled != pihole_update.enabled,
+                "new_enabled": pihole_update.enabled,
+            }
+        )
+
+        return {
+            "status": "success",
+            "message": "Pi-hole integration settings updated",
+            "enabled": pihole_update.enabled
+        }
+    except Exception as e:
+        logger.error(f"Failed to update Pi-hole integration: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")
+
+
+@app.post("/api/integrations/pihole/test")
+async def test_pihole_connection():
+    """Test connection to Pi-hole"""
+    from app.integrations.pihole.enricher import PiHoleEnricher
+    import logging
+
+    logger = logging.getLogger(__name__)
+    config = get_config()
+
+    if not config.integrations.pihole.pihole_url:
+        return {
+            "status": "error",
+            "error_message": "No Pi-hole URL configured"
+        }
+
+    try:
+        logger.info(f"Testing Pi-hole connection to {config.integrations.pihole.pihole_url}")
+
+        # Create enricher with current config
+        enricher = PiHoleEnricher(
+            enabled=True,  # Force enabled for test
+            pihole_url=config.integrations.pihole.pihole_url,
+            api_token=config.integrations.pihole.api_token,
+            verify_ssl=config.integrations.pihole.verify_ssl,
+        )
+
+        health = await enricher.test_connection()
+
+        return {
+            "status": health.status.value,
+            "last_check": health.last_check.isoformat() if health.last_check else None,
+            "error_message": health.error_message,
+            "details": health.details
+        }
+    except Exception as e:
+        logger.error(f"Pi-hole test connection failed: {e}")
+        return {
+            "status": "error",
+            "error_message": f"Connection test failed: {str(e)}"
+        }
+
+
+@app.get("/api/integrations/pihole/stats")
+async def get_pihole_stats():
+    """Get Pi-hole statistics"""
+    from app.integrations.pihole.enricher import PiHoleEnricher
+
+    config = get_config()
+
+    if not config.integrations.pihole.enabled:
+        raise HTTPException(status_code=400, detail="Pi-hole integration is not enabled")
+
+    enricher = PiHoleEnricher(
+        enabled=config.integrations.pihole.enabled,
+        pihole_url=config.integrations.pihole.pihole_url,
+        api_token=config.integrations.pihole.api_token,
+        verify_ssl=config.integrations.pihole.verify_ssl,
+        cache_seconds=config.integrations.pihole.cache_seconds,
+    )
+
+    try:
+        data = await enricher.get_data()
+        return data
+    except Exception as e:
+        logger.error(f"Failed to get Pi-hole stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# AdGuard Home Integration API
+@app.get("/api/integrations/adguard")
+async def get_adguard_integration():
+    """Get AdGuard Home integration settings"""
+    config = get_config()
+    return {
+        "enabled": config.integrations.adguard.enabled,
+        "adguard_url": config.integrations.adguard.adguard_url,
+        "username": config.integrations.adguard.username,
+        "has_password": bool(config.integrations.adguard.password),
+        "verify_ssl": config.integrations.adguard.verify_ssl,
+        "cache_seconds": config.integrations.adguard.cache_seconds,
+        "sync_on_scan": config.integrations.adguard.sync_on_scan,
+    }
+
+
+@app.put("/api/integrations/adguard")
+async def update_adguard_integration(
+    adguard_update: AdGuardIntegrationUpdate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Update AdGuard Home integration settings"""
+    try:
+        config = get_config()
+
+        # Track changes for audit
+        old_enabled = config.integrations.adguard.enabled
+
+        # Update settings
+        config.integrations.adguard.enabled = adguard_update.enabled
+        config.integrations.adguard.adguard_url = adguard_update.adguard_url
+        config.integrations.adguard.verify_ssl = adguard_update.verify_ssl
+        config.integrations.adguard.cache_seconds = adguard_update.cache_seconds
+        config.integrations.adguard.sync_on_scan = adguard_update.sync_on_scan
+
+        # Only update credentials if provided (not None)
+        if adguard_update.username is not None:
+            config.integrations.adguard.username = adguard_update.username
+        if adguard_update.password is not None:
+            config.integrations.adguard.password = adguard_update.password
+
+        # Save to YAML
+        save_config(config)
+        reload_config()
+
+        # Log config update
+        log_from_request(
+            db=db,
+            request=request,
+            action=AuditAction.CONFIG_UPDATED,
+            resource_type=ResourceType.CONFIG,
+            details={
+                "integration": "adguard",
+                "enabled_changed": old_enabled != adguard_update.enabled,
+                "new_enabled": adguard_update.enabled,
+            }
+        )
+
+        return {
+            "status": "success",
+            "message": "AdGuard Home integration settings updated",
+            "enabled": adguard_update.enabled
+        }
+    except Exception as e:
+        logger.error(f"Failed to update AdGuard Home integration: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")
+
+
+@app.post("/api/integrations/adguard/test")
+async def test_adguard_connection():
+    """Test connection to AdGuard Home"""
+    from app.integrations.adguard.enricher import AdGuardEnricher
+    import logging
+
+    logger = logging.getLogger(__name__)
+    config = get_config()
+
+    if not config.integrations.adguard.adguard_url:
+        return {
+            "status": "error",
+            "error_message": "No AdGuard Home URL configured"
+        }
+
+    try:
+        logger.info(f"Testing AdGuard Home connection to {config.integrations.adguard.adguard_url}")
+
+        # Create enricher with current config
+        enricher = AdGuardEnricher(
+            enabled=True,  # Force enabled for test
+            adguard_url=config.integrations.adguard.adguard_url,
+            username=config.integrations.adguard.username,
+            password=config.integrations.adguard.password,
+            verify_ssl=config.integrations.adguard.verify_ssl,
+        )
+
+        health = await enricher.test_connection()
+
+        return {
+            "status": health.status.value,
+            "last_check": health.last_check.isoformat() if health.last_check else None,
+            "error_message": health.error_message,
+            "details": health.details
+        }
+    except Exception as e:
+        logger.error(f"AdGuard Home test connection failed: {e}")
+        return {
+            "status": "error",
+            "error_message": f"Connection test failed: {str(e)}"
+        }
+
+
+@app.get("/api/integrations/adguard/stats")
+async def get_adguard_stats():
+    """Get AdGuard Home statistics"""
+    from app.integrations.adguard.enricher import AdGuardEnricher
+
+    config = get_config()
+
+    if not config.integrations.adguard.enabled:
+        raise HTTPException(status_code=400, detail="AdGuard Home integration is not enabled")
+
+    enricher = AdGuardEnricher(
+        enabled=config.integrations.adguard.enabled,
+        adguard_url=config.integrations.adguard.adguard_url,
+        username=config.integrations.adguard.username,
+        password=config.integrations.adguard.password,
+        verify_ssl=config.integrations.adguard.verify_ssl,
+        cache_seconds=config.integrations.adguard.cache_seconds,
+    )
+
+    try:
+        data = await enricher.get_data()
+        return data
+    except Exception as e:
+        logger.error(f"Failed to get AdGuard Home stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/network/detect")
 async def detect_network():
     """Detect local network configuration.
@@ -2148,6 +2440,107 @@ async def settings_page(request: Request, db: Session = Depends(get_db)):
         "current_user": current_user,
         "api_keys": api_keys
     })
+
+
+# Integration Settings Pages
+@app.get("/settings/integrations", response_class=HTMLResponse)
+async def integrations_page(request: Request):
+    """Integrations overview page"""
+    config = get_config()
+    return templates.TemplateResponse("settings_integrations.html", {
+        "request": request,
+        "active_page": "settings",
+        "config": config,
+        "current_user": get_current_user(request)
+    })
+
+
+@app.get("/settings/integrations/unifi", response_class=HTMLResponse)
+async def integration_unifi_page(request: Request):
+    """UniFi integration settings page"""
+    config = get_config()
+    return templates.TemplateResponse("settings_integration_unifi.html", {
+        "request": request,
+        "active_page": "settings",
+        "config": config,
+        "current_user": get_current_user(request)
+    })
+
+
+@app.get("/settings/integrations/pihole", response_class=HTMLResponse)
+async def integration_pihole_page(request: Request):
+    """Pi-hole integration settings page"""
+    config = get_config()
+    return templates.TemplateResponse("settings_integration_pihole.html", {
+        "request": request,
+        "active_page": "settings",
+        "config": config,
+        "current_user": get_current_user(request)
+    })
+
+
+@app.get("/settings/integrations/adguard", response_class=HTMLResponse)
+async def integration_adguard_page(request: Request):
+    """AdGuard Home integration settings page"""
+    config = get_config()
+    return templates.TemplateResponse("settings_integration_adguard.html", {
+        "request": request,
+        "active_page": "settings",
+        "config": config,
+        "current_user": get_current_user(request)
+    })
+
+
+@app.get("/settings/integrations/cve", response_class=HTMLResponse)
+async def integration_cve_page(request: Request):
+    """CVE Database integration settings page"""
+    config = get_config()
+    return templates.TemplateResponse("settings_integration_cve.html", {
+        "request": request,
+        "active_page": "settings",
+        "config": config,
+        "current_user": get_current_user(request)
+    })
+
+
+@app.post("/api/integrations/cve/test")
+async def test_cve_connection():
+    """Test connection to NVD API"""
+    import aiohttp
+
+    config = get_config()
+
+    try:
+        # Test the NVD API with a simple request
+        headers = {}
+        if config.integrations.cve.api_key:
+            headers["apiKey"] = config.integrations.cve.api_key
+
+        async with aiohttp.ClientSession() as session:
+            # Test with a simple CVE lookup
+            async with session.get(
+                "https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=1",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                if response.status == 200:
+                    return {
+                        "status": "connected",
+                        "details": {
+                            "has_api_key": bool(config.integrations.cve.api_key)
+                        }
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "error_message": f"API returned status {response.status}"
+                    }
+    except Exception as e:
+        logger.error(f"CVE API test failed: {e}")
+        return {
+            "status": "error",
+            "error_message": f"Connection failed: {str(e)}"
+        }
 
 
 if __name__ == "__main__":

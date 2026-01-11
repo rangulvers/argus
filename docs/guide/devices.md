@@ -2,6 +2,8 @@
 
 Device inventory and management.
 
+![Device Details](../assets/argus_device_details.png)
+
 ## Device List
 
 | Column | Description |

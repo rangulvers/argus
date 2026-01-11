@@ -6,6 +6,7 @@ import asyncio
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy import desc
 from app.models import Scan, Device, Port, DeviceHistory
 from app.utils.threat_detector import ThreatDetector
@@ -416,26 +417,50 @@ class NetworkScanner:
                                 "recommendation": t.recommendation,
                                 "cves": [
                                     {
-                                        "id": cve.cve_id,
-                                        "description": cve.description,
-                                        "severity": cve.severity,
-                                        "cvss_score": cve.cvss_score
+                                        "id": m.cve.cve_id,
+                                        "description": m.cve.description,
+                                        "severity": m.cve.severity,
+                                        "cvss_score": m.cve.cvss_score,
+                                        "confidence": m.confidence,
+                                        "matched_version": m.matched_version
                                     }
-                                    for cve in (t.cves or [])
+                                    for m in (t.cves or [])
+                                ],
+                                "warnings": [
+                                    {
+                                        "id": w.cve_id,
+                                        "description": w.description,
+                                        "severity": w.severity,
+                                        "cvss_score": w.cvss_score
+                                    }
+                                    for w in (t.warnings or [])
                                 ]
                             }
                             for t in assessment.threats
                         ],
                         "cves": [
                             {
-                                "id": cve.cve_id,
-                                "description": cve.description,
-                                "severity": cve.severity,
-                                "cvss_score": cve.cvss_score,
-                                "remediation": cve.remediation,
-                                "references": cve.references
+                                "id": m.cve.cve_id,
+                                "description": m.cve.description,
+                                "severity": m.cve.severity,
+                                "cvss_score": m.cve.cvss_score,
+                                "remediation": m.cve.remediation,
+                                "references": m.cve.references,
+                                "confidence": m.confidence,
+                                "matched_product": m.matched_product,
+                                "matched_version": m.matched_version
                             }
-                            for cve in assessment.cves
+                            for m in assessment.cves
+                        ],
+                        "warnings": [
+                            {
+                                "id": w.cve_id,
+                                "description": w.description,
+                                "severity": w.severity,
+                                "cvss_score": w.cvss_score,
+                                "remediation": w.remediation
+                            }
+                            for w in assessment.warnings
                         ],
                         "top_recommendation": assessment.top_recommendation
                     }
@@ -528,6 +553,26 @@ class NetworkScanner:
                 logger.warning(f"UniFi enrichment failed: {e}")
                 print(f"  Warning: UniFi enrichment failed: {e}")
 
+        # Check if Pi-hole integration is enabled and sync_on_scan is True
+        if (config.integrations.pihole.enabled and
+                config.integrations.pihole.sync_on_scan):
+            try:
+                print("\nEnriching devices with Pi-hole DNS data...")
+                asyncio.run(self._enrich_with_pihole(scan_id))
+            except Exception as e:
+                logger.warning(f"Pi-hole enrichment failed: {e}")
+                print(f"  Warning: Pi-hole enrichment failed: {e}")
+
+        # Check if AdGuard Home integration is enabled and sync_on_scan is True
+        if (config.integrations.adguard.enabled and
+                config.integrations.adguard.sync_on_scan):
+            try:
+                print("\nEnriching devices with AdGuard Home DNS data...")
+                asyncio.run(self._enrich_with_adguard(scan_id))
+            except Exception as e:
+                logger.warning(f"AdGuard Home enrichment failed: {e}")
+                print(f"  Warning: AdGuard Home enrichment failed: {e}")
+
     async def _enrich_with_unifi(self, scan_id: int) -> None:
         """Enrich devices with UniFi controller data"""
         from app.integrations.unifi import UniFiEnricher
@@ -554,34 +599,48 @@ class NetworkScanner:
             if not devices:
                 return
 
-            # Build device list for batch enrichment
+            # Build device list for batch enrichment (include ALL devices, not just those with MAC)
             device_list = [
-                {"mac": d.mac_address, "ip": d.ip_address}
+                {"mac": d.mac_address or "", "ip": d.ip_address}
                 for d in devices
-                if d.mac_address
             ]
 
             if not device_list:
-                logger.info("No devices with MAC addresses to enrich")
+                logger.info("No devices to enrich")
                 return
 
-            # Batch enrich
-            enrichment_data = await enricher.enrich_devices_batch(device_list)
+            # Batch enrich - returns {"by_mac": {...}, "by_ip": {...}}
+            enrichment_result = await enricher.enrich_devices_batch(device_list)
 
-            if not enrichment_data:
+            by_mac = enrichment_result.get("by_mac", {})
+            by_ip = enrichment_result.get("by_ip", {})
+
+            if not by_mac and not by_ip:
                 logger.info("No UniFi enrichment data returned")
+                print("  No matching devices found in UniFi")
                 return
+
+            logger.info(f"UniFi enrichment: {len(by_mac)} by MAC, {len(by_ip)} by IP")
 
             # Apply enrichment data to devices
             enriched_count = 0
             for device in devices:
-                if not device.mac_address:
-                    continue
+                unifi_data = None
 
-                mac = device.mac_address.upper().replace("-", ":")
-                if mac in enrichment_data:
+                # Try MAC matching first (more reliable)
+                if device.mac_address:
+                    mac = device.mac_address.upper().replace("-", ":")
+                    if mac in by_mac:
+                        unifi_data = by_mac[mac]
+                        logger.debug(f"Enriching {device.ip_address} by MAC ({mac})")
+
+                # Fallback to IP matching
+                if not unifi_data and device.ip_address in by_ip:
+                    unifi_data = by_ip[device.ip_address]
+                    logger.debug(f"Enriching {device.ip_address} by IP")
+
+                if unifi_data:
                     # Merge UniFi data into threat_details
-                    unifi_data = enrichment_data[mac]
                     if device.threat_details:
                         device.threat_details = {
                             **device.threat_details,
@@ -592,6 +651,8 @@ class NetworkScanner:
                         }
                     else:
                         device.threat_details = {"integrations": unifi_data}
+                    # Ensure SQLAlchemy detects the JSON column change
+                    flag_modified(device, "threat_details")
                     enriched_count += 1
 
             self.db.commit()
@@ -600,6 +661,165 @@ class NetworkScanner:
 
         except Exception as e:
             logger.error(f"Failed to enrich devices with UniFi data: {e}")
+            raise
+        finally:
+            await enricher.disconnect()
+
+    async def _enrich_with_pihole(self, scan_id: int) -> None:
+        """Enrich devices with Pi-hole DNS query data"""
+        from app.integrations.pihole import PiHoleEnricher
+        config = get_config()
+
+        # Create enricher from config
+        enricher = PiHoleEnricher(
+            enabled=config.integrations.pihole.enabled,
+            pihole_url=config.integrations.pihole.pihole_url,
+            api_token=config.integrations.pihole.api_token,
+            verify_ssl=config.integrations.pihole.verify_ssl,
+            cache_seconds=config.integrations.pihole.cache_seconds,
+            sync_on_scan=config.integrations.pihole.sync_on_scan,
+        )
+
+        try:
+            # Get all devices from this scan
+            devices = self.db.query(Device).filter(Device.scan_id == scan_id).all()
+            if not devices:
+                return
+
+            # Build device list for batch enrichment (Pi-hole uses IP for matching)
+            device_list = [
+                {"mac": d.mac_address or "", "ip": d.ip_address}
+                for d in devices
+            ]
+
+            if not device_list:
+                logger.info("No devices to enrich with Pi-hole")
+                return
+
+            # Batch enrich - returns {"by_mac": {...}, "by_ip": {...}}
+            enrichment_result = await enricher.enrich_devices_batch(device_list)
+
+            by_ip = enrichment_result.get("by_ip", {})
+
+            if not by_ip:
+                logger.info("No Pi-hole enrichment data returned")
+                print("  No matching devices found in Pi-hole")
+                return
+
+            logger.info(f"Pi-hole enrichment: {len(by_ip)} devices")
+
+            # Apply enrichment data to devices
+            enriched_count = 0
+            for device in devices:
+                pihole_data = None
+
+                # Pi-hole tracks by IP
+                if device.ip_address in by_ip:
+                    pihole_data = by_ip[device.ip_address]
+                    logger.debug(f"Enriching {device.ip_address} with Pi-hole DNS data")
+
+                if pihole_data:
+                    # Merge Pi-hole data into threat_details
+                    if device.threat_details:
+                        device.threat_details = {
+                            **device.threat_details,
+                            "integrations": {
+                                **device.threat_details.get("integrations", {}),
+                                **pihole_data
+                            }
+                        }
+                    else:
+                        device.threat_details = {"integrations": pihole_data}
+                    # Ensure SQLAlchemy detects the JSON column change
+                    flag_modified(device, "threat_details")
+                    enriched_count += 1
+
+            self.db.commit()
+            logger.info(f"Enriched {enriched_count} devices with Pi-hole data")
+            print(f"  Enriched {enriched_count} devices with Pi-hole DNS data")
+
+        except Exception as e:
+            logger.error(f"Failed to enrich devices with Pi-hole data: {e}")
+            raise
+        finally:
+            await enricher.disconnect()
+
+    async def _enrich_with_adguard(self, scan_id: int) -> None:
+        """Enrich devices with AdGuard Home DNS query data"""
+        from app.integrations.adguard import AdGuardEnricher
+        config = get_config()
+
+        # Create enricher from config
+        enricher = AdGuardEnricher(
+            enabled=config.integrations.adguard.enabled,
+            adguard_url=config.integrations.adguard.adguard_url,
+            username=config.integrations.adguard.username,
+            password=config.integrations.adguard.password,
+            verify_ssl=config.integrations.adguard.verify_ssl,
+            cache_seconds=config.integrations.adguard.cache_seconds,
+            sync_on_scan=config.integrations.adguard.sync_on_scan,
+        )
+
+        try:
+            # Get all devices from this scan
+            devices = self.db.query(Device).filter(Device.scan_id == scan_id).all()
+            if not devices:
+                return
+
+            # Build device list for batch enrichment (AdGuard uses IP for matching)
+            device_list = [
+                {"mac": d.mac_address or "", "ip": d.ip_address}
+                for d in devices
+            ]
+
+            if not device_list:
+                logger.info("No devices to enrich with AdGuard Home")
+                return
+
+            # Batch enrich - returns {"by_mac": {...}, "by_ip": {...}}
+            enrichment_result = await enricher.enrich_devices_batch(device_list)
+
+            by_ip = enrichment_result.get("by_ip", {})
+
+            if not by_ip:
+                logger.info("No AdGuard Home enrichment data returned")
+                print("  No matching devices found in AdGuard Home")
+                return
+
+            logger.info(f"AdGuard Home enrichment: {len(by_ip)} devices")
+
+            # Apply enrichment data to devices
+            enriched_count = 0
+            for device in devices:
+                adguard_data = None
+
+                # AdGuard tracks by IP
+                if device.ip_address in by_ip:
+                    adguard_data = by_ip[device.ip_address]
+                    logger.debug(f"Enriching {device.ip_address} with AdGuard Home DNS data")
+
+                if adguard_data:
+                    # Merge AdGuard data into threat_details
+                    if device.threat_details:
+                        device.threat_details = {
+                            **device.threat_details,
+                            "integrations": {
+                                **device.threat_details.get("integrations", {}),
+                                **adguard_data
+                            }
+                        }
+                    else:
+                        device.threat_details = {"integrations": adguard_data}
+                    # Ensure SQLAlchemy detects the JSON column change
+                    flag_modified(device, "threat_details")
+                    enriched_count += 1
+
+            self.db.commit()
+            logger.info(f"Enriched {enriched_count} devices with AdGuard Home data")
+            print(f"  Enriched {enriched_count} devices with AdGuard Home DNS data")
+
+        except Exception as e:
+            logger.error(f"Failed to enrich devices with AdGuard Home data: {e}")
             raise
         finally:
             await enricher.disconnect()

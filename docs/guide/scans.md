@@ -2,6 +2,8 @@
 
 Network scanning with nmap.
 
+![Scan History](../assets/argus_scan_history.png)
+
 ## Profiles
 
 | Profile | nmap Command | Use Case |

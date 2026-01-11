@@ -177,9 +177,14 @@ class UniFiEnricher(DeviceEnricherIntegration):
         self,
         devices: List[Dict[str, str]],
     ) -> Dict[str, Dict[str, Any]]:
-        """Batch enrich multiple devices"""
+        """Batch enrich multiple devices.
+
+        Returns a dict with two sub-dicts:
+        - 'by_mac': enrichment data keyed by normalized MAC address
+        - 'by_ip': enrichment data keyed by IP address (fallback when MAC unavailable)
+        """
         if not self.is_enabled:
-            return {}
+            return {"by_mac": {}, "by_ip": {}}
 
         try:
             if not self._connected:
@@ -187,20 +192,40 @@ class UniFiEnricher(DeviceEnricherIntegration):
 
             # Fetch all clients once
             clients = await self.client.get_clients()
-            client_map = {c.mac: c for c in clients}
 
-            result = {}
+            # Normalize MAC addresses consistently (uppercase, colons)
+            def normalize_mac(mac: str) -> str:
+                return mac.upper().replace("-", ":") if mac else ""
+
+            # Build lookup maps by both MAC and IP
+            client_by_mac = {normalize_mac(c.mac): c for c in clients if c.mac}
+            client_by_ip = {c.ip: c for c in clients if c.ip}
+
+            logger.debug(f"UniFi has {len(client_by_mac)} clients by MAC, {len(client_by_ip)} by IP")
+
+            result_by_mac = {}
+            result_by_ip = {}
+
             for device in devices:
-                mac = device.get("mac", "").upper().replace("-", ":")
-                if mac in client_map:
-                    result[mac] = self._build_enrichment_data(client_map[mac])
+                mac = normalize_mac(device.get("mac", ""))
+                ip = device.get("ip", "")
+
+                # Try MAC first (more reliable)
+                if mac and mac in client_by_mac:
+                    logger.debug(f"Matched device by MAC: {mac}")
+                    result_by_mac[mac] = self._build_enrichment_data(client_by_mac[mac])
+                # Fallback to IP matching
+                elif ip and ip in client_by_ip:
+                    logger.debug(f"Matched device by IP: {ip}")
+                    result_by_ip[ip] = self._build_enrichment_data(client_by_ip[ip])
 
             self._last_sync = datetime.utcnow()
-            return result
+            logger.info(f"Enrichment: {len(result_by_mac)} by MAC, {len(result_by_ip)} by IP")
+            return {"by_mac": result_by_mac, "by_ip": result_by_ip}
 
         except UniFiError as e:
             logger.warning(f"Failed to batch enrich devices: {e}")
-            return {}
+            return {"by_mac": {}, "by_ip": {}}
 
     def _build_enrichment_data(self, client: UniFiClient) -> Dict[str, Any]:
         """Build enrichment data dict from UniFi client"""

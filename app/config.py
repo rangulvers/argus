@@ -105,10 +105,33 @@ class UniFiIntegrationConfig(BaseSettings):
     include_offline_clients: bool = False  # Include disconnected clients
 
 
+class PiHoleIntegrationConfig(BaseSettings):
+    """Pi-hole DNS integration configuration"""
+    enabled: bool = False
+    pihole_url: str = ""  # e.g., http://pi.hole or http://192.168.1.2
+    api_token: Optional[str] = None  # v5 API token or v6 app password
+    verify_ssl: bool = False
+    cache_seconds: int = 60  # How long to cache data
+    sync_on_scan: bool = True  # Auto-enrich devices after scans
+
+
+class AdGuardIntegrationConfig(BaseSettings):
+    """AdGuard Home DNS integration configuration"""
+    enabled: bool = False
+    adguard_url: str = ""  # e.g., http://192.168.1.2:3000
+    username: Optional[str] = None
+    password: Optional[str] = None
+    verify_ssl: bool = False
+    cache_seconds: int = 60  # How long to cache data
+    sync_on_scan: bool = True  # Auto-enrich devices after scans
+
+
 class IntegrationsConfig(BaseSettings):
     """External integrations configuration"""
     cve: CVEIntegrationConfig = CVEIntegrationConfig()
     unifi: UniFiIntegrationConfig = UniFiIntegrationConfig()
+    pihole: PiHoleIntegrationConfig = PiHoleIntegrationConfig()
+    adguard: AdGuardIntegrationConfig = AdGuardIntegrationConfig()
 
 
 class Config(BaseSettings):
@@ -232,6 +255,23 @@ def save_config(config_obj: Config, yaml_path: str = "config.yaml"):
                 "cache_seconds": config_obj.integrations.unifi.cache_seconds,
                 "sync_on_scan": config_obj.integrations.unifi.sync_on_scan,
                 "include_offline_clients": config_obj.integrations.unifi.include_offline_clients,
+            },
+            "pihole": {
+                "enabled": config_obj.integrations.pihole.enabled,
+                "pihole_url": config_obj.integrations.pihole.pihole_url,
+                "api_token": config_obj.integrations.pihole.api_token,
+                "verify_ssl": config_obj.integrations.pihole.verify_ssl,
+                "cache_seconds": config_obj.integrations.pihole.cache_seconds,
+                "sync_on_scan": config_obj.integrations.pihole.sync_on_scan,
+            },
+            "adguard": {
+                "enabled": config_obj.integrations.adguard.enabled,
+                "adguard_url": config_obj.integrations.adguard.adguard_url,
+                "username": config_obj.integrations.adguard.username,
+                "password": config_obj.integrations.adguard.password,
+                "verify_ssl": config_obj.integrations.adguard.verify_ssl,
+                "cache_seconds": config_obj.integrations.adguard.cache_seconds,
+                "sync_on_scan": config_obj.integrations.adguard.sync_on_scan,
             },
         },
     }

@@ -112,6 +112,7 @@ nav:
     - Dashboard: guide/dashboard.md
     - Devices: guide/devices.md
     - Scans: guide/scans.md
+    - Integrations: guide/integrations.md
     - Settings: guide/settings.md
   - API:
     - Overview: api/overview.md

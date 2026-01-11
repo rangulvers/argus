@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Pi-hole Integration - Argus{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-6 lg:px-8 py-8 max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <nav class="flex mb-2" aria-label="Breadcrumb">
+            <ol class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                <li><a href="/settings" class="hover:text-gray-700 dark:hover:text-gray-300">Settings</a></li>
+                <li><span class="mx-2">/</span></li>
+                <li><a href="/settings/integrations" class="hover:text-gray-700 dark:hover:text-gray-300">Integrations</a></li>
+                <li><span class="mx-2">/</span></li>
+                <li class="text-gray-900 dark:text-white font-medium">Pi-hole</li>
+            </ol>
+        </nav>
+        <div class="flex items-center">
+            <div class="flex-shrink-0 p-3 bg-green-100 dark:bg-green-900/30 rounded-xl mr-4">
+                <svg class="h-8 w-8 text-green-600 dark:text-green-400" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Pi-hole</h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Enrich devices with DNS query data from Pi-hole
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Card -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg" x-data="piholeSettings()">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white">Configuration</h2>
+                <button type="button" @click="toggleEnabled()"
+                        :class="enabled ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-600'"
+                        class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                    <span :class="enabled ? 'translate-x-5' : 'translate-x-0'"
+                          class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="px-6 py-6 space-y-6">
+            <!-- Pi-hole URL -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Pi-hole URL</label>
+                <input type="text" x-model="form.pihole_url"
+                       placeholder="http://pi.hole or http://192.168.1.2"
+                       class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Your Pi-hole address (supports v5 and v6)</p>
+            </div>
+
+            <!-- API Token -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">API Token / App Password</label>
+                <input type="password" x-model="form.api_token"
+                       :placeholder="hasApiToken ? '••••••••' : 'Optional for authenticated access'"
+                       class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <strong>Pi-hole v5:</strong> Find in Settings > API > Show API token<br>
+                    <strong>Pi-hole v6:</strong> Create an app password in Settings > Privacy
+                </p>
+            </div>
+
+            <!-- Options -->
+            <div class="flex flex-wrap gap-6">
+                <label class="flex items-center">
+                    <input type="checkbox" x-model="form.verify_ssl"
+                           class="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500">
+                    <span class="ml-2 text-sm text-gray-600 dark:text-gray-300">Verify SSL Certificate</span>
+                </label>
+                <label class="flex items-center">
+                    <input type="checkbox" x-model="form.sync_on_scan"
+                           class="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500">
+                    <span class="ml-2 text-sm text-gray-600 dark:text-gray-300">Sync on scan</span>
+                </label>
+            </div>
+
+            <!-- Info Box -->
+            <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <div class="flex">
+                    <svg class="h-5 w-5 text-green-400 mr-3 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+                    </svg>
+                    <div class="text-sm text-green-700 dark:text-green-300">
+                        <p class="font-medium">What this integration provides:</p>
+                        <ul class="mt-1 list-disc list-inside space-y-1">
+                            <li>DNS queries per device (24h)</li>
+                            <li>Blocked domains and block rate</li>
+                            <li>Top queried domains</li>
+                            <li>Suspicious domain detection</li>
+                            <li>DNS behavior risk score</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 rounded-b-lg flex justify-between items-center">
+            <div>
+                <template x-if="message">
+                    <div :class="messageType === 'error' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'" class="text-sm" x-text="message"></div>
+                </template>
+            </div>
+            <div class="flex space-x-3">
+                <button @click="testConnection()" :disabled="testing"
+                        class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50">
+                    <svg class="h-4 w-4 mr-2" :class="testing ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    <span x-text="testing ? 'Testing...' : 'Test Connection'"></span>
+                </button>
+                <button @click="save()" :disabled="saving"
+                        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
+                    <span x-text="saving ? 'Saving...' : 'Save Settings'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back Link -->
+    <div class="mt-6">
+        <a href="/settings/integrations" class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center">
+            <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Back to Integrations
+        </a>
+    </div>
+</div>
+
+<script>
+function piholeSettings() {
+    return {
+        enabled: {{ 'true' if config.integrations.pihole.enabled else 'false' }},
+        form: {
+            pihole_url: '{{ config.integrations.pihole.pihole_url or "" }}',
+            api_token: '',
+            verify_ssl: {{ 'true' if config.integrations.pihole.verify_ssl else 'false' }},
+            sync_on_scan: {{ 'true' if config.integrations.pihole.sync_on_scan else 'false' }}
+        },
+        hasApiToken: {{ 'true' if config.integrations.pihole.api_token else 'false' }},
+        testing: false,
+        saving: false,
+        message: '',
+        messageType: '',
+
+        toggleEnabled() {
+            this.enabled = !this.enabled;
+        },
+
+        async save() {
+            this.saving = true;
+            this.message = '';
+
+            try {
+                const payload = {
+                    enabled: this.enabled,
+                    pihole_url: this.form.pihole_url,
+                    verify_ssl: this.form.verify_ssl,
+                    sync_on_scan: this.form.sync_on_scan
+                };
+
+                if (this.form.api_token) {
+                    payload.api_token = this.form.api_token;
+                }
+
+                const response = await fetch('/api/integrations/pihole', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    this.showMessage('Settings saved successfully', 'success');
+                    if (this.form.api_token) {
+                        this.hasApiToken = true;
+                        this.form.api_token = '';
+                    }
+                } else {
+                    const data = await response.json();
+                    this.showMessage(data.detail || 'Failed to save settings', 'error');
+                }
+            } catch (error) {
+                this.showMessage('Failed to save: ' + error.message, 'error');
+            }
+
+            this.saving = false;
+        },
+
+        async testConnection() {
+            this.testing = true;
+            this.message = '';
+
+            try {
+                const response = await fetch('/api/integrations/pihole/test', { method: 'POST' });
+                const data = await response.json();
+
+                if (data.status === 'connected') {
+                    let msg = 'Connected successfully';
+                    if (data.details) {
+                        msg += ` (v${data.details.version || '?'})`;
+                        if (data.details.total_queries !== undefined) {
+                            msg += ` - ${data.details.total_queries.toLocaleString()} queries today`;
+                        }
+                    }
+                    this.showMessage(msg, 'success');
+                } else {
+                    this.showMessage(data.error_message || 'Connection test failed', 'error');
+                }
+            } catch (error) {
+                this.showMessage('Test failed: ' + error.message, 'error');
+            }
+
+            this.testing = false;
+        },
+
+        showMessage(msg, type) {
+            this.message = msg;
+            this.messageType = type;
+            setTimeout(() => { this.message = ''; }, 5000);
+        }
+    }
+}
+</script>
+{% endblock %}

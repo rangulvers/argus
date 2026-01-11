@@ -30,6 +30,9 @@ httpx>=0.28.0
 pydantic>=2.10.0
 pydantic-settings>=2.6.0
 
+# Version comparison for CVE matching
+packaging>=24.0
+
 # Authentication
 passlib>=1.7.4
 itsdangerous>=2.1.2

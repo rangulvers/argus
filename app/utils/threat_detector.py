@@ -4,7 +4,13 @@ from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass, field
 from enum import Enum
 
-from app.utils.cve_database import find_cves_for_service, CVEEntry, severity_to_score
+from app.utils.cve_database import (
+    find_cves_strict,
+    CVEEntry,
+    CVEMatchResult,
+    severity_to_score,
+    EntryType
+)
 
 
 class RiskLevel(Enum):
@@ -26,13 +32,16 @@ class PortThreat:
     threat_description: str
     recommendation: str
     cve_references: List[str] = None
-    cves: List[CVEEntry] = None
+    cves: List[CVEMatchResult] = None  # Confirmed CVEs with match info
+    warnings: List[CVEEntry] = None  # Protocol warnings (separate from CVEs)
 
     def __post_init__(self):
         if self.cve_references is None:
             self.cve_references = []
         if self.cves is None:
             self.cves = []
+        if self.warnings is None:
+            self.warnings = []
 
 
 # Database of known risky ports
@@ -330,7 +339,8 @@ class DeviceThreatAssessment:
     threats: List[PortThreat]
     summary: str
     top_recommendation: str
-    cves: List[CVEEntry] = field(default_factory=list)  # All CVEs found across all ports
+    cves: List[CVEMatchResult] = field(default_factory=list)  # Confirmed CVEs with match confidence
+    warnings: List[CVEEntry] = field(default_factory=list)  # Protocol warnings (cleartext, weak auth, etc.)
 
 
 class ThreatDetector:
@@ -364,7 +374,8 @@ class ThreatDetector:
             DeviceThreatAssessment with overall risk analysis
         """
         threats = []
-        all_cves = []
+        all_cve_matches: List[CVEMatchResult] = []
+        all_warnings: List[CVEEntry] = []
         risk_score = 0
 
         # Check each port against threat database and CVE database
@@ -381,8 +392,8 @@ class ThreatDetector:
 
             threat = self.assess_port(port_num)
 
-            # Find CVEs for this service
-            port_cves = find_cves_for_service(
+            # Find CVEs with strict matching (separates CVEs from warnings)
+            cve_matches, port_warnings = find_cves_strict(
                 service_name=service,
                 service_product=service_product,
                 service_version=service_version,
@@ -390,7 +401,7 @@ class ThreatDetector:
             )
 
             if threat:
-                # Add CVEs to the threat
+                # Add CVEs and warnings to the threat
                 threat_copy = PortThreat(
                     port=threat.port,
                     protocol=threat.protocol,
@@ -399,7 +410,8 @@ class ThreatDetector:
                     threat_description=threat.threat_description,
                     recommendation=threat.recommendation,
                     cve_references=threat.cve_references.copy() if threat.cve_references else [],
-                    cves=port_cves
+                    cves=cve_matches,
+                    warnings=port_warnings
                 )
                 threats.append(threat_copy)
 
@@ -412,24 +424,25 @@ class ThreatDetector:
                     risk_score += 10
                 elif threat.risk_level == RiskLevel.LOW:
                     risk_score += 5
-            elif port_cves:
-                # No threat in database, but CVEs found - create a threat entry
-                highest_cve = max(port_cves, key=lambda c: c.cvss_score)
-                cve_risk = self._cvss_to_risk_level(highest_cve.cvss_score)
+            elif cve_matches:
+                # No threat in database, but confirmed CVEs found - create a threat entry
+                highest_match = max(cve_matches, key=lambda m: m.cve.cvss_score)
+                cve_risk = self._cvss_to_risk_level(highest_match.cve.cvss_score)
 
                 threat_copy = PortThreat(
                     port=port_num,
                     protocol=protocol or "tcp",
                     risk_level=cve_risk,
                     service_name=service or "unknown",
-                    threat_description=f"Known vulnerabilities detected: {highest_cve.description}",
-                    recommendation=highest_cve.remediation,
-                    cve_references=[c.cve_id for c in port_cves],
-                    cves=port_cves
+                    threat_description=f"Known vulnerability detected: {highest_match.cve.description}",
+                    recommendation=highest_match.cve.remediation,
+                    cve_references=[m.cve.cve_id for m in cve_matches],
+                    cves=cve_matches,
+                    warnings=port_warnings
                 )
                 threats.append(threat_copy)
 
-                # Add CVE-based risk score
+                # Add CVE-based risk score (confirmed CVEs score higher)
                 if cve_risk == RiskLevel.CRITICAL:
                     risk_score += 40
                 elif cve_risk == RiskLevel.HIGH:
@@ -438,27 +451,65 @@ class ThreatDetector:
                     risk_score += 10
                 elif cve_risk == RiskLevel.LOW:
                     risk_score += 5
+            elif port_warnings:
+                # Only protocol warnings, no confirmed CVEs - add with lower severity
+                highest_warning = max(port_warnings, key=lambda w: w.cvss_score)
+                warning_risk = self._cvss_to_risk_level(highest_warning.cvss_score)
 
-            # Collect all CVEs
-            all_cves.extend(port_cves)
+                threat_copy = PortThreat(
+                    port=port_num,
+                    protocol=protocol or "tcp",
+                    risk_level=warning_risk,
+                    service_name=service or "unknown",
+                    threat_description=highest_warning.description,
+                    recommendation=highest_warning.remediation,
+                    cve_references=[],
+                    cves=[],
+                    warnings=port_warnings
+                )
+                threats.append(threat_copy)
 
-        # Additional CVE-based scoring (for multiple CVEs on same port)
-        for cve in all_cves:
-            if cve.cvss_score >= 9.0:
-                risk_score += 5  # Bonus for critical CVEs
-            elif cve.cvss_score >= 7.0:
-                risk_score += 2
+                # Warnings score lower than confirmed CVEs
+                if warning_risk == RiskLevel.CRITICAL:
+                    risk_score += 15
+                elif warning_risk == RiskLevel.HIGH:
+                    risk_score += 10
+                elif warning_risk == RiskLevel.MEDIUM:
+                    risk_score += 5
+
+            # Collect all CVE matches and warnings
+            all_cve_matches.extend(cve_matches)
+            for warning in port_warnings:
+                if warning.cve_id not in [w.cve_id for w in all_warnings]:
+                    all_warnings.append(warning)
+
+        # Additional scoring for confirmed CVEs
+        for match in all_cve_matches:
+            if match.confidence == "confirmed":
+                if match.cve.cvss_score >= 9.0:
+                    risk_score += 10  # Bonus for confirmed critical CVEs
+                elif match.cve.cvss_score >= 7.0:
+                    risk_score += 5
+            elif match.confidence == "likely":
+                if match.cve.cvss_score >= 9.0:
+                    risk_score += 3
 
         # Cap score at 100
         risk_score = min(risk_score, 100)
 
-        # Determine overall risk level
-        has_critical_cve = any(c.severity == "critical" for c in all_cves)
-        has_high_cve = any(c.severity == "high" for c in all_cves)
+        # Determine overall risk level (only based on confirmed CVEs, not warnings)
+        has_confirmed_critical = any(
+            m.confidence == "confirmed" and m.cve.severity == "critical"
+            for m in all_cve_matches
+        )
+        has_confirmed_high = any(
+            m.confidence == "confirmed" and m.cve.severity == "high"
+            for m in all_cve_matches
+        )
 
-        if any(t.risk_level == RiskLevel.CRITICAL for t in threats) or has_critical_cve:
+        if any(t.risk_level == RiskLevel.CRITICAL for t in threats) or has_confirmed_critical:
             overall_risk = RiskLevel.CRITICAL
-        elif risk_score >= 50 or any(t.risk_level == RiskLevel.HIGH for t in threats) or has_high_cve:
+        elif risk_score >= 50 or any(t.risk_level == RiskLevel.HIGH for t in threats) or has_confirmed_high:
             overall_risk = RiskLevel.HIGH
         elif risk_score >= 20:
             overall_risk = RiskLevel.MEDIUM
@@ -468,7 +519,7 @@ class ThreatDetector:
             overall_risk = RiskLevel.NONE
 
         # Generate summary
-        if not threats and not all_cves:
+        if not threats and not all_cve_matches and not all_warnings:
             summary = "No known risky ports detected."
             top_recommendation = "Continue monitoring with regular scans."
         else:
@@ -484,8 +535,17 @@ class ThreatDetector:
             if medium_count:
                 parts.append(f"{medium_count} medium")
 
-            cve_info = f" ({len(all_cves)} CVEs)" if all_cves else ""
-            summary = f"Found {len(threats)} risky ports: {', '.join(parts)} risk{cve_info}."
+            # Only count confirmed CVEs in summary
+            confirmed_count = sum(1 for m in all_cve_matches if m.confidence == "confirmed")
+            cve_info = f" ({confirmed_count} confirmed CVEs)" if confirmed_count else ""
+            warning_info = f", {len(all_warnings)} warnings" if all_warnings else ""
+
+            if parts:
+                summary = f"Found {len(threats)} risky ports: {', '.join(parts)} risk{cve_info}{warning_info}."
+            elif all_warnings:
+                summary = f"Found {len(all_warnings)} protocol security warnings."
+            else:
+                summary = "No significant security issues detected."
 
             # Get top recommendation from highest severity threat
             sorted_threats = sorted(threats, key=lambda t: (
@@ -495,16 +555,23 @@ class ThreatDetector:
             ), reverse=True)
             top_recommendation = sorted_threats[0].recommendation if sorted_threats else ""
 
-        # Deduplicate CVEs
+        # Deduplicate CVE matches
         seen_cves = set()
-        unique_cves = []
-        for cve in all_cves:
-            if cve.cve_id not in seen_cves:
-                seen_cves.add(cve.cve_id)
-                unique_cves.append(cve)
+        unique_cve_matches = []
+        for match in all_cve_matches:
+            if match.cve.cve_id not in seen_cves:
+                seen_cves.add(match.cve.cve_id)
+                unique_cve_matches.append(match)
 
-        # Sort CVEs by severity
-        unique_cves.sort(key=lambda c: severity_to_score(c.severity), reverse=True)
+        # Sort CVE matches by confidence then severity
+        def sort_key(m: CVEMatchResult):
+            confidence_order = {"confirmed": 0, "likely": 1, "possible": 2}
+            return (confidence_order.get(m.confidence, 3), -m.cve.cvss_score)
+
+        unique_cve_matches.sort(key=sort_key)
+
+        # Sort warnings by severity
+        all_warnings.sort(key=lambda w: severity_to_score(w.severity), reverse=True)
 
         return DeviceThreatAssessment(
             risk_level=overall_risk,
@@ -512,7 +579,8 @@ class ThreatDetector:
             threats=threats,
             summary=summary,
             top_recommendation=top_recommendation,
-            cves=unique_cves
+            cves=unique_cve_matches,
+            warnings=all_warnings
         )
 
     def _cvss_to_risk_level(self, cvss_score: float) -> RiskLevel:

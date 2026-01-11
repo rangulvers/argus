@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}CVE Database Integration - Argus{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-6 lg:px-8 py-8 max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <nav class="flex mb-2" aria-label="Breadcrumb">
+            <ol class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                <li><a href="/settings" class="hover:text-gray-700 dark:hover:text-gray-300">Settings</a></li>
+                <li><span class="mx-2">/</span></li>
+                <li><a href="/settings/integrations" class="hover:text-gray-700 dark:hover:text-gray-300">Integrations</a></li>
+                <li><span class="mx-2">/</span></li>
+                <li class="text-gray-900 dark:text-white font-medium">CVE Database</li>
+            </ol>
+        </nav>
+        <div class="flex items-center">
+            <div class="flex-shrink-0 p-3 bg-red-100 dark:bg-red-900/30 rounded-xl mr-4">
+                <svg class="h-8 w-8 text-red-600 dark:text-red-400" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">CVE Database</h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Match detected services against known vulnerabilities
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Card -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg" x-data="cveSettings()">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white">Configuration</h2>
+                <button type="button" @click="toggleEnabled()"
+                        :class="enabled ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-600'"
+                        class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                    <span :class="enabled ? 'translate-x-5' : 'translate-x-0'"
+                          class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="px-6 py-6 space-y-6">
+            <!-- NVD API Key -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">NVD API Key</label>
+                <input type="password" x-model="form.nvd_api_key"
+                       :placeholder="hasApiKey ? '••••••••' : 'Optional - increases rate limits'"
+                       class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Get a free API key from <a href="https://nvd.nist.gov/developers/request-an-api-key" target="_blank" class="text-indigo-600 dark:text-indigo-400 hover:underline">nvd.nist.gov</a>.
+                    Without a key, rate limits are 5 requests per 30 seconds.
+                </p>
+            </div>
+
+            <!-- Minimum Severity -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Minimum Severity</label>
+                <select x-model="form.min_severity"
+                        class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                    <option value="LOW">Low (4.0+)</option>
+                    <option value="MEDIUM">Medium (5.0+)</option>
+                    <option value="HIGH">High (7.0+)</option>
+                    <option value="CRITICAL">Critical (9.0+)</option>
+                </select>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Only show vulnerabilities at or above this severity level</p>
+            </div>
+
+            <!-- Cache Duration -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cache Duration (hours)</label>
+                <input type="number" x-model.number="form.cache_hours" min="1" max="168"
+                       class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">How long to cache CVE results before refreshing (1-168 hours)</p>
+            </div>
+
+            <!-- Options -->
+            <div class="flex flex-wrap gap-6">
+                <label class="flex items-center">
+                    <input type="checkbox" x-model="form.check_on_scan"
+                           class="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500">
+                    <span class="ml-2 text-sm text-gray-600 dark:text-gray-300">Check CVEs on scan</span>
+                </label>
+            </div>
+
+            <!-- Info Box -->
+            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <div class="flex">
+                    <svg class="h-5 w-5 text-red-400 mr-3 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+                    </svg>
+                    <div class="text-sm text-red-700 dark:text-red-300">
+                        <p class="font-medium">What this integration provides:</p>
+                        <ul class="mt-1 list-disc list-inside space-y-1">
+                            <li>CVE matching for detected services</li>
+                            <li>CVSS severity scores and descriptions</li>
+                            <li>Links to vulnerability details</li>
+                            <li>Affected version range detection</li>
+                            <li>Security risk assessment per device</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warning Box -->
+            <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                <div class="flex">
+                    <svg class="h-5 w-5 text-yellow-400 mr-3 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                    </svg>
+                    <div class="text-sm text-yellow-700 dark:text-yellow-300">
+                        <p><strong>Note:</strong> CVE matching requires accurate service version detection from nmap. Use "Normal" or "Intensive" scan profiles for best results.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 rounded-b-lg flex justify-between items-center">
+            <div>
+                <template x-if="message">
+                    <div :class="messageType === 'error' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'" class="text-sm" x-text="message"></div>
+                </template>
+            </div>
+            <div class="flex space-x-3">
+                <button @click="testConnection()" :disabled="testing"
+                        class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50">
+                    <svg class="h-4 w-4 mr-2" :class="testing ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    <span x-text="testing ? 'Testing...' : 'Test API'"></span>
+                </button>
+                <button @click="save()" :disabled="saving"
+                        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
+                    <span x-text="saving ? 'Saving...' : 'Save Settings'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back Link -->
+    <div class="mt-6">
+        <a href="/settings/integrations" class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center">
+            <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Back to Integrations
+        </a>
+    </div>
+</div>
+
+<script>
+function cveSettings() {
+    return {
+        enabled: {{ 'true' if config.integrations.cve.enabled else 'false' }},
+        form: {
+            nvd_api_key: '',
+            min_severity: '{{ config.integrations.cve.min_severity or "MEDIUM" }}',
+            cache_hours: {{ config.integrations.cve.cache_hours or 24 }},
+            check_on_scan: {{ 'true' if config.integrations.cve.check_on_scan else 'false' }}
+        },
+        hasApiKey: {{ 'true' if config.integrations.cve.nvd_api_key else 'false' }},
+        testing: false,
+        saving: false,
+        message: '',
+        messageType: '',
+
+        toggleEnabled() {
+            this.enabled = !this.enabled;
+        },
+
+        async save() {
+            this.saving = true;
+            this.message = '';
+
+            try {
+                const payload = {
+                    enabled: this.enabled,
+                    min_severity: this.form.min_severity,
+                    cache_hours: this.form.cache_hours,
+                    check_on_scan: this.form.check_on_scan
+                };
+
+                if (this.form.nvd_api_key) {
+                    payload.nvd_api_key = this.form.nvd_api_key;
+                }
+
+                const response = await fetch('/api/integrations/cve', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    this.showMessage('Settings saved successfully', 'success');
+                    if (this.form.nvd_api_key) {
+                        this.hasApiKey = true;
+                        this.form.nvd_api_key = '';
+                    }
+                } else {
+                    const data = await response.json();
+                    this.showMessage(data.detail || 'Failed to save settings', 'error');
+                }
+            } catch (error) {
+                this.showMessage('Failed to save: ' + error.message, 'error');
+            }
+
+            this.saving = false;
+        },
+
+        async testConnection() {
+            this.testing = true;
+            this.message = '';
+
+            try {
+                const response = await fetch('/api/integrations/cve/test', { method: 'POST' });
+                const data = await response.json();
+
+                if (data.status === 'connected') {
+                    this.showMessage('NVD API accessible' + (data.details?.has_api_key ? ' (with API key)' : ' (rate limited)'), 'success');
+                } else {
+                    this.showMessage(data.error_message || 'API test failed', 'error');
+                }
+            } catch (error) {
+                this.showMessage('Test failed: ' + error.message, 'error');
+            }
+
+            this.testing = false;
+        },
+
+        showMessage(msg, type) {
+            this.message = msg;
+            this.messageType = type;
+            setTimeout(() => { this.message = ''; }, 5000);
+        }
+    }
+}
+</script>
+{% endblock %}

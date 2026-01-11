@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}Integrations - Argus{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="sm:flex sm:items-center sm:justify-between mb-8">
+        <div>
+            <nav class="flex mb-2" aria-label="Breadcrumb">
+                <ol class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                    <li><a href="/settings" class="hover:text-gray-700 dark:hover:text-gray-300">Settings</a></li>
+                    <li><span class="mx-2">/</span></li>
+                    <li class="text-gray-900 dark:text-white font-medium">Integrations</li>
+                </ol>
+            </nav>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Integrations</h1>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Connect Argus with external services to enrich device data and enhance security insights.
+            </p>
+        </div>
+    </div>
+
+    <!-- Integration Cards Grid -->
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2">
+
+        <!-- UniFi Network Card -->
+        <a href="/settings/integrations/unifi"
+           class="group relative bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-200 overflow-hidden">
+            <div class="p-6">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                            <svg class="h-8 w-8 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                                UniFi Network
+                            </h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Network controller integration
+                            </p>
+                        </div>
+                    </div>
+                    {% if config.integrations.unifi.enabled %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
+                        <span class="w-2 h-2 mr-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                        Active
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                        Inactive
+                    </span>
+                    {% endif %}
+                </div>
+                <p class="mt-4 text-sm text-gray-600 dark:text-gray-300">
+                    Enrich devices with connection data from UniFi Controller - wireless info, traffic stats, switch ports.
+                </p>
+                <div class="mt-4 flex items-center text-sm text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
+                    <span>Configure</span>
+                    <svg class="ml-1 h-4 w-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </div>
+            </div>
+            {% if config.integrations.unifi.enabled %}
+            <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-blue-600"></div>
+            {% endif %}
+        </a>
+
+        <!-- Pi-hole Card -->
+        <a href="/settings/integrations/pihole"
+           class="group relative bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-200 overflow-hidden">
+            <div class="p-6">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
+                            <svg class="h-8 w-8 text-green-600 dark:text-green-400" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                                Pi-hole
+                            </h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                DNS sinkhole integration
+                            </p>
+                        </div>
+                    </div>
+                    {% if config.integrations.pihole.enabled %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
+                        <span class="w-2 h-2 mr-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                        Active
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                        Inactive
+                    </span>
+                    {% endif %}
+                </div>
+                <p class="mt-4 text-sm text-gray-600 dark:text-gray-300">
+                    View DNS queries per device, blocked domains, and detect suspicious DNS activity patterns.
+                </p>
+                <div class="mt-4 flex items-center text-sm text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
+                    <span>Configure</span>
+                    <svg class="ml-1 h-4 w-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </div>
+            </div>
+            {% if config.integrations.pihole.enabled %}
+            <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-green-500 to-green-600"></div>
+            {% endif %}
+        </a>
+
+        <!-- AdGuard Home Card -->
+        <a href="/settings/integrations/adguard"
+           class="group relative bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-200 overflow-hidden">
+            <div class="p-6">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 p-3 bg-teal-100 dark:bg-teal-900/30 rounded-xl">
+                            <svg class="h-8 w-8 text-teal-600 dark:text-teal-400" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                                AdGuard Home
+                            </h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                DNS server integration
+                            </p>
+                        </div>
+                    </div>
+                    {% if config.integrations.adguard.enabled %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
+                        <span class="w-2 h-2 mr-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                        Active
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                        Inactive
+                    </span>
+                    {% endif %}
+                </div>
+                <p class="mt-4 text-sm text-gray-600 dark:text-gray-300">
+                    View DNS queries per device, blocked domains, and detect suspicious DNS activity patterns.
+                </p>
+                <div class="mt-4 flex items-center text-sm text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
+                    <span>Configure</span>
+                    <svg class="ml-1 h-4 w-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </div>
+            </div>
+            {% if config.integrations.adguard.enabled %}
+            <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 to-teal-600"></div>
+            {% endif %}
+        </a>
+
+        <!-- CVE Database Card -->
+        <a href="/settings/integrations/cve"
+           class="group relative bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-200 overflow-hidden">
+            <div class="p-6">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 p-3 bg-red-100 dark:bg-red-900/30 rounded-xl">
+                            <svg class="h-8 w-8 text-red-600 dark:text-red-400" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                                CVE Database
+                            </h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Vulnerability database
+                            </p>
+                        </div>
+                    </div>
+                    {% if config.integrations.cve.enabled %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
+                        <span class="w-2 h-2 mr-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                        Active
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                        Inactive
+                    </span>
+                    {% endif %}
+                </div>
+                <p class="mt-4 text-sm text-gray-600 dark:text-gray-300">
+                    Match detected services against known vulnerabilities from the National Vulnerability Database.
+                </p>
+                <div class="mt-4 flex items-center text-sm text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
+                    <span>Configure</span>
+                    <svg class="ml-1 h-4 w-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </div>
+            </div>
+            {% if config.integrations.cve.enabled %}
+            <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 to-red-600"></div>
+            {% endif %}
+        </a>
+
+    </div>
+
+    <!-- Integration Status Summary -->
+    <div class="mt-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-6">
+                <div class="text-sm">
+                    <span class="text-gray-500 dark:text-gray-400">Active integrations:</span>
+                    <span class="ml-1 font-semibold text-gray-900 dark:text-white">
+                        {{ [config.integrations.unifi.enabled, config.integrations.pihole.enabled, config.integrations.adguard.enabled, config.integrations.cve.enabled] | select | list | length }} / 4
+                    </span>
+                </div>
+            </div>
+            <a href="/settings" class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center">
+                <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Back to Settings
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

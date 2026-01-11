@@ -2,6 +2,8 @@
 
 Overview of your network's current state.
 
+![Dashboard](../assets/argus_dashboard.png)
+
 ## Metrics
 
 | Card | Description |

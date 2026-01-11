@@ -282,241 +282,63 @@
         </div>
     </div>
 
-    <!-- Integrations -->
-    <div class="bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-hidden" x-data="integrationsManager()">
+    <!-- External Integrations -->
+    <div class="bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-hidden">
         <div class="px-4 py-5 sm:px-6 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Integrations</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Configure external services and API access</p>
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white">External Integrations</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Connect Argus with external services to enrich device data</p>
         </div>
-        <div class="px-4 py-5 sm:p-6 space-y-6">
-            <!-- CVE Integration -->
-            <div class="border dark:border-gray-600 rounded-lg p-4">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-4">
-                        <div class="flex-shrink-0 p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                            <svg class="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h4 class="text-sm font-medium text-gray-900 dark:text-white">CVE Database Integration</h4>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">
-                                Pull vulnerability data from the NVD (National Vulnerability Database) to enrich threat assessments
-                            </p>
-                        </div>
-                    </div>
-                    <button @click="toggleCVE()"
-                            :class="cveEnabled ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-600'"
-                            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                        <span :class="cveEnabled ? 'translate-x-5' : 'translate-x-0'"
-                              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
-                    </button>
-                </div>
-
-                <!-- CVE Settings (shown when enabled) -->
-                <div x-show="cveEnabled" x-collapse class="mt-4 pt-4 border-t dark:border-gray-600">
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">NVD API Key (Optional)</label>
-                            <input type="password" x-model="cveApiKey"
-                                   class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                   placeholder="Enter API key for higher rate limits">
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                Get a free API key from <a href="https://nvd.nist.gov/developers/request-an-api-key" target="_blank" class="text-indigo-600 dark:text-indigo-400 hover:underline">NVD</a> for faster lookups
-                            </p>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cache Duration (hours)</label>
-                            <input type="number" x-model.number="cveCacheHours" min="1" max="168"
-                                   class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">How long to cache CVE data locally</p>
-                        </div>
-                    </div>
-                    <div class="mt-4 flex justify-end">
-                        <button @click="saveCVESettings()" :disabled="cveSaving"
-                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
-                            <span x-text="cveSaving ? 'Saving...' : 'Save CVE Settings'"></span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- CVE Message -->
-                <template x-if="cveMessage">
-                    <div class="mt-4 p-3 rounded-md" :class="cveMessageType === 'error' ? 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200' : 'bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200'">
-                        <p class="text-sm" x-text="cveMessage"></p>
-                    </div>
-                </template>
-            </div>
-
-            <!-- UniFi Network Integration -->
-            <div class="border dark:border-gray-600 rounded-lg p-4" x-data="unifiManager()">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-4">
-                        <div class="flex-shrink-0 p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                            <svg class="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h4 class="text-sm font-medium text-gray-900 dark:text-white">UniFi Network</h4>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">
-                                Enrich devices with connection data from UniFi Controller
-                            </p>
-                        </div>
-                    </div>
-                    <button @click="toggleUnifi()"
-                            :class="unifiEnabled ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-600'"
-                            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                        <span :class="unifiEnabled ? 'translate-x-5' : 'translate-x-0'"
-                              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
-                    </button>
-                </div>
-
-                <!-- UniFi Settings (shown when enabled) -->
-                <div x-show="unifiEnabled" x-collapse class="mt-4 pt-4 border-t dark:border-gray-600">
-                    <div class="space-y-4">
-                        <!-- Controller URL -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Controller URL</label>
-                            <input type="text" x-model="unifiForm.controller_url"
-                                   class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                   placeholder="https://192.168.1.1">
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Your UniFi controller address (UDM, Cloud Key, or self-hosted)</p>
-                        </div>
-
-                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <!-- Controller Type -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Controller Type</label>
-                                <select x-model="unifiForm.controller_type"
-                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                                    <option value="udm">UDM / Dream Machine</option>
-                                    <option value="self_hosted">Self-Hosted</option>
-                                    <option value="cloud">UniFi Cloud</option>
-                                </select>
-                            </div>
-
-                            <!-- Site ID -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Site ID</label>
-                                <input type="text" x-model="unifiForm.site_id"
-                                       class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                       placeholder="default">
-                            </div>
-                        </div>
-
-                        <!-- Authentication Method Toggle -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Authentication Method</label>
-                            <div class="flex space-x-4">
-                                <label class="inline-flex items-center">
-                                    <input type="radio" x-model="unifiForm.auth_method" value="credentials"
-                                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600">
-                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Username & Password</span>
-                                </label>
-                                <label class="inline-flex items-center">
-                                    <input type="radio" x-model="unifiForm.auth_method" value="api_key"
-                                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600">
-                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">API Key</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Username/Password Auth -->
-                        <div x-show="unifiForm.auth_method === 'credentials'" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
-                                <input type="text" x-model="unifiForm.username"
-                                       class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                       placeholder="admin">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
-                                <input type="password" x-model="unifiForm.password"
-                                       class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                       :placeholder="hasPassword ? '••••••••' : 'Enter password'">
-                            </div>
-                        </div>
-
-                        <!-- API Key Auth -->
-                        <div x-show="unifiForm.auth_method === 'api_key'">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Key</label>
-                            <input type="password" x-model="unifiForm.api_key"
-                                   class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                   :placeholder="hasApiKey ? '••••••••' : 'Enter API key'">
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Read-only API key from UniFi controller. Create one in UniFi Settings > Admins.</p>
-                        </div>
-
-                        <!-- Options -->
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" x-model="unifiForm.verify_ssl"
-                                       class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded">
-                                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Verify SSL</span>
-                            </label>
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" x-model="unifiForm.sync_on_scan"
-                                       class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded">
-                                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Sync on scan</span>
-                            </label>
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" x-model="unifiForm.include_offline_clients"
-                                       class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded">
-                                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Include offline</span>
-                            </label>
-                        </div>
-
-                        <!-- Actions -->
-                        <div class="flex justify-between items-center">
-                            <button @click="testUnifi()" :disabled="unifiTesting"
-                                    class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">
-                                <svg class="h-4 w-4 mr-1.5" :class="unifiTesting ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                </svg>
-                                <span x-text="unifiTesting ? 'Testing...' : 'Test Connection'"></span>
-                            </button>
-                            <button @click="saveUnifi()" :disabled="unifiSaving"
-                                    class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
-                                <span x-text="unifiSaving ? 'Saving...' : 'Save Settings'"></span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- UniFi Message -->
-                <template x-if="unifiMessage">
-                    <div class="mt-4 p-3 rounded-md" :class="unifiMessageType === 'error' ? 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200' : 'bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200'">
-                        <p class="text-sm" x-text="unifiMessage"></p>
-                    </div>
-                </template>
-            </div>
-
-            <!-- API Keys Integration -->
-            <div class="border dark:border-gray-600 rounded-lg p-4" x-data="apiKeyManager()">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-4">
-                        <div class="flex-shrink-0 p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-                            <svg class="h-6 w-6 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h4 class="text-sm font-medium text-gray-900 dark:text-white">API Keys</h4>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">
-                                Manage API keys for programmatic access to Argus
-                            </p>
-                        </div>
-                    </div>
-                    <button @click="showCreateModal = true"
-                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">
-                        <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        <div class="px-4 py-5 sm:p-6">
+            <a href="/settings/integrations"
+               class="group flex items-center justify-between p-4 border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-all">
+                <div class="flex items-center space-x-4">
+                    <div class="flex-shrink-0 p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                        <svg class="h-6 w-6 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/>
                         </svg>
-                        Create Key
-                    </button>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">Manage Integrations</h4>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            Configure UniFi, Pi-hole, AdGuard Home, and CVE database connections
+                        </p>
+                    </div>
                 </div>
+                <div class="flex items-center space-x-3">
+                    <span class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ [config.integrations.unifi.enabled, config.integrations.pihole.enabled, config.integrations.adguard.enabled, config.integrations.cve.enabled] | select | list | length }} / 4 active
+                    </span>
+                    <svg class="h-5 w-5 text-gray-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </div>
+            </a>
+        </div>
+    </div>
 
-                <div class="mt-4 pt-4 border-t dark:border-gray-600">
+    <!-- API Keys & Access -->
+    <div class="bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-hidden">
+        <div class="px-4 py-5 sm:px-6 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white">API Access</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage API keys for programmatic access to Argus</p>
+        </div>
+        <div class="px-4 py-5 sm:p-6" x-data="apiKeyManager()">
+            <!-- API Keys Header -->
+            <div class="flex items-center justify-between mb-4">
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Create and manage API keys for programmatic access to Argus
+                </p>
+                <button @click="showCreateModal = true"
+                        class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">
+                    <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Create Key
+                </button>
+            </div>
+
+            <!-- Keys List -->
+            <div class="border dark:border-gray-600 rounded-lg p-4">
                     <template x-if="keys.length === 0">
                         <div class="text-center py-6">
                             <p class="text-sm text-gray-500 dark:text-gray-400">No API keys created yet.</p>
@@ -641,7 +463,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
         </div>
     </div>
 
@@ -745,186 +566,6 @@
 </div>
 
 <script>
-function integrationsManager() {
-    return {
-        cveEnabled: {{ 'true' if config.integrations.cve.enabled else 'false' }},
-        cveApiKey: '{{ config.integrations.cve.api_key or "" }}',
-        cveCacheHours: {{ config.integrations.cve.cache_hours }},
-        cveSaving: false,
-        cveMessage: '',
-        cveMessageType: '',
-
-        async toggleCVE() {
-            this.cveEnabled = !this.cveEnabled;
-            await this.saveCVESettings();
-        },
-
-        async saveCVESettings() {
-            this.cveSaving = true;
-            this.cveMessage = '';
-
-            try {
-                const response = await fetch('/api/integrations/cve', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        enabled: this.cveEnabled,
-                        api_key: this.cveApiKey || null,
-                        cache_hours: this.cveCacheHours
-                    })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    this.showCVEMessage('CVE integration settings saved', 'success');
-                } else {
-                    this.showCVEMessage(data.detail || 'Failed to save settings', 'error');
-                    // Revert toggle if save failed
-                    this.cveEnabled = !this.cveEnabled;
-                }
-            } catch (error) {
-                this.showCVEMessage('Failed to save settings: ' + error.message, 'error');
-                this.cveEnabled = !this.cveEnabled;
-            }
-
-            this.cveSaving = false;
-        },
-
-        showCVEMessage(msg, type) {
-            this.cveMessage = msg;
-            this.cveMessageType = type;
-            setTimeout(() => { this.cveMessage = ''; }, 5000);
-        }
-    }
-}
-
-function unifiManager() {
-    return {
-        unifiEnabled: {{ 'true' if config.integrations.unifi.enabled else 'false' }},
-        unifiForm: {
-            controller_url: '{{ config.integrations.unifi.controller_url or "" }}',
-            controller_type: '{{ config.integrations.unifi.controller_type or "udm" }}',
-            site_id: '{{ config.integrations.unifi.site_id or "default" }}',
-            auth_method: '{{ "api_key" if config.integrations.unifi.api_key else "credentials" }}',
-            username: '{{ config.integrations.unifi.username or "" }}',
-            password: '',
-            api_key: '',
-            verify_ssl: {{ 'true' if config.integrations.unifi.verify_ssl else 'false' }},
-            sync_on_scan: {{ 'true' if config.integrations.unifi.sync_on_scan else 'false' }},
-            include_offline_clients: {{ 'true' if config.integrations.unifi.include_offline_clients else 'false' }}
-        },
-        hasPassword: {{ 'true' if config.integrations.unifi.password else 'false' }},
-        hasApiKey: {{ 'true' if config.integrations.unifi.api_key else 'false' }},
-        unifiTesting: false,
-        unifiSaving: false,
-        unifiMessage: '',
-        unifiMessageType: '',
-
-        async toggleUnifi() {
-            this.unifiEnabled = !this.unifiEnabled;
-            await this.saveUnifi();
-        },
-
-        async saveUnifi() {
-            this.unifiSaving = true;
-            this.unifiMessage = '';
-
-            try {
-                const payload = {
-                    enabled: this.unifiEnabled,
-                    controller_url: this.unifiForm.controller_url,
-                    controller_type: this.unifiForm.controller_type,
-                    site_id: this.unifiForm.site_id,
-                    verify_ssl: this.unifiForm.verify_ssl,
-                    sync_on_scan: this.unifiForm.sync_on_scan,
-                    include_offline_clients: this.unifiForm.include_offline_clients
-                };
-
-                // Include credentials based on auth method
-                if (this.unifiForm.auth_method === 'credentials') {
-                    payload.username = this.unifiForm.username || null;
-                    if (this.unifiForm.password) {
-                        payload.password = this.unifiForm.password;
-                    }
-                    // Clear API key when using credentials
-                    payload.api_key = null;
-                } else {
-                    // API key auth
-                    if (this.unifiForm.api_key) {
-                        payload.api_key = this.unifiForm.api_key;
-                    }
-                    // Clear credentials when using API key
-                    payload.username = null;
-                    payload.password = null;
-                }
-
-                const response = await fetch('/api/integrations/unifi', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    this.showUnifiMessage('UniFi integration settings saved', 'success');
-                    if (this.unifiForm.password) {
-                        this.hasPassword = true;
-                        this.unifiForm.password = '';
-                    }
-                    if (this.unifiForm.api_key) {
-                        this.hasApiKey = true;
-                        this.unifiForm.api_key = '';
-                    }
-                } else {
-                    this.showUnifiMessage(data.detail || 'Failed to save settings', 'error');
-                    // Revert toggle if save failed during toggle
-                    this.unifiEnabled = !this.unifiEnabled;
-                }
-            } catch (error) {
-                this.showUnifiMessage('Failed to save settings: ' + error.message, 'error');
-                this.unifiEnabled = !this.unifiEnabled;
-            }
-
-            this.unifiSaving = false;
-        },
-
-        async testUnifi() {
-            this.unifiTesting = true;
-            this.unifiMessage = '';
-
-            try {
-                const response = await fetch('/api/integrations/unifi/test', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                const data = await response.json();
-
-                if (response.ok && data.status === 'connected') {
-                    const clients = data.details?.clients || 0;
-                    this.showUnifiMessage(`Connection successful! Found ${clients} clients.`, 'success');
-                } else if (data.status === 'disabled') {
-                    this.showUnifiMessage('UniFi integration is disabled. Enable it first.', 'error');
-                } else {
-                    this.showUnifiMessage(data.error_message || 'Connection failed', 'error');
-                }
-            } catch (error) {
-                this.showUnifiMessage('Test failed: ' + error.message, 'error');
-            }
-
-            this.unifiTesting = false;
-        },
-
-        showUnifiMessage(msg, type) {
-            this.unifiMessage = msg;
-            this.unifiMessageType = type;
-            setTimeout(() => { this.unifiMessage = ''; }, 5000);
-        }
-    }
-}
-
 function auditLogViewer() {
     return {
         logs: [],

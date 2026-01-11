@@ -220,6 +220,553 @@
     </div>
 </div>
 
+<!-- UniFi Network Details -->
+{% if device.threat_details and device.threat_details.integrations and device.threat_details.integrations.unifi %}
+{% set unifi = device.threat_details.integrations.unifi %}
+<div class="mt-6 bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-hidden">
+    <div class="px-4 py-5 sm:px-6 bg-gradient-to-r from-blue-500 to-indigo-600 border-b border-gray-200 dark:border-gray-600">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <svg class="h-6 w-6 text-white mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
+                </svg>
+                <h3 class="text-lg font-medium text-white">UniFi Network Details</h3>
+            </div>
+            <div class="flex items-center space-x-2">
+                {% if unifi.is_online %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <span class="w-2 h-2 mr-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                    Online
+                </span>
+                {% else %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    <span class="w-2 h-2 mr-1.5 bg-gray-400 rounded-full"></span>
+                    Offline
+                </span>
+                {% endif %}
+                {% if unifi.is_guest %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                    Guest
+                </span>
+                {% endif %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
+                    {% if unifi.connection_type == 'wireless' %}
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0"/>
+                    </svg>
+                    Wireless
+                    {% else %}
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/>
+                    </svg>
+                    Wired
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="px-4 py-5 sm:p-6">
+        <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+            {% if unifi.unifi_name %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Device Name (UniFi)</dt>
+                <dd class="mt-1 text-sm text-gray-900 dark:text-white font-medium">{{ unifi.unifi_name }}</dd>
+            </div>
+            {% endif %}
+
+            {% if unifi.device_type %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Device Type (UniFi)</dt>
+                <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ unifi.device_type }}</dd>
+            </div>
+            {% endif %}
+
+            {% if unifi.network and unifi.network.name %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Network</dt>
+                <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+                    {{ unifi.network.name }}
+                    {% if unifi.network.vlan %}
+                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200">
+                        VLAN {{ unifi.network.vlan }}
+                    </span>
+                    {% endif %}
+                </dd>
+            </div>
+            {% endif %}
+
+            {% if unifi.uptime_seconds %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Uptime</dt>
+                <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+                    {% set days = (unifi.uptime_seconds // 86400)|int %}
+                    {% set hours = ((unifi.uptime_seconds % 86400) // 3600)|int %}
+                    {% set minutes = ((unifi.uptime_seconds % 3600) // 60)|int %}
+                    {% if days > 0 %}{{ days }}d {% endif %}{% if hours > 0 %}{{ hours }}h {% endif %}{{ minutes }}m
+                </dd>
+            </div>
+            {% endif %}
+
+            <!-- Wireless-specific info -->
+            {% if unifi.connection_type == 'wireless' and unifi.wireless %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">SSID</dt>
+                <dd class="mt-1 text-sm text-gray-900 dark:text-white font-medium">{{ unifi.wireless.ssid or '-' }}</dd>
+            </div>
+
+            <div>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Signal Strength</dt>
+                <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+                    {% if unifi.wireless.signal %}
+                    <div class="flex items-center">
+                        <!-- Signal bars -->
+                        <div class="flex items-end space-x-0.5 mr-2">
+                            {% set signal = unifi.wireless.signal|int %}
+                            {% if signal >= -50 %}
+                                {% set bars = 4 %}
+                            {% elif signal >= -60 %}
+                                {% set bars = 3 %}
+                            {% elif signal >= -70 %}
+                                {% set bars = 2 %}
+                            {% else %}
+                                {% set bars = 1 %}
+                            {% endif %}
+                            <div class="w-1 h-1.5 rounded-sm {% if bars >= 1 %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}"></div>
+                            <div class="w-1 h-2.5 rounded-sm {% if bars >= 2 %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}"></div>
+                            <div class="w-1 h-3.5 rounded-sm {% if bars >= 3 %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}"></div>
+                            <div class="w-1 h-4.5 rounded-sm {% if bars >= 4 %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}"></div>
+                        </div>
+                        <span>{{ signal }} dBm</span>
+                        <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                            {% if bars == 4 %}(Excellent){% elif bars == 3 %}(Good){% elif bars == 2 %}(Fair){% else %}(Poor){% endif %}
+                        </span>
+                    </div>
+                    {% else %}
+                    -
+                    {% endif %}
+                </dd>
+            </div>
+
+            {% if unifi.wireless.channel %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Channel / Radio</dt>
+                <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+                    Channel {{ unifi.wireless.channel }}
+                    {% if unifi.wireless.radio %}
+                    <span class="ml-1 text-gray-500 dark:text-gray-400">
+                        ({{ unifi.wireless.radio|replace('ng', '2.4 GHz')|replace('na', '5 GHz')|replace('ac', '5 GHz AC')|replace('ax', 'WiFi 6') }})
+                    </span>
+                    {% endif %}
+                </dd>
+            </div>
+            {% endif %}
+
+            {% if unifi.wireless.tx_rate or unifi.wireless.rx_rate %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Link Speed</dt>
+                <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+                    {% if unifi.wireless.tx_rate %}
+                    <span class="text-green-600 dark:text-green-400">TX: {{ (unifi.wireless.tx_rate / 1000)|int }} Mbps</span>
+                    {% endif %}
+                    {% if unifi.wireless.rx_rate %}
+                    <span class="ml-2 text-blue-600 dark:text-blue-400">RX: {{ (unifi.wireless.rx_rate / 1000)|int }} Mbps</span>
+                    {% endif %}
+                </dd>
+            </div>
+            {% endif %}
+            {% endif %}
+
+            <!-- Wired-specific info -->
+            {% if unifi.connection_type == 'wired' and unifi.wired %}
+            {% if unifi.wired.switch_port %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Switch Port</dt>
+                <dd class="mt-1 text-sm text-gray-900 dark:text-white font-mono">Port {{ unifi.wired.switch_port }}</dd>
+            </div>
+            {% endif %}
+            {% if unifi.wired.switch_mac %}
+            <div>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Switch MAC</dt>
+                <dd class="mt-1 text-sm text-gray-900 dark:text-white font-mono">{{ unifi.wired.switch_mac }}</dd>
+            </div>
+            {% endif %}
+            {% endif %}
+        </dl>
+
+        <!-- Traffic Stats -->
+        {% if unifi.traffic and (unifi.traffic.tx_bytes or unifi.traffic.rx_bytes) %}
+        <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-4">Traffic Statistics</h4>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                    <dt class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Uploaded</dt>
+                    <dd class="mt-1 text-lg font-semibold text-green-600 dark:text-green-400">
+                        {% if unifi.traffic.tx_bytes >= 1073741824 %}
+                            {{ "%.1f"|format(unifi.traffic.tx_bytes / 1073741824) }} GB
+                        {% elif unifi.traffic.tx_bytes >= 1048576 %}
+                            {{ "%.1f"|format(unifi.traffic.tx_bytes / 1048576) }} MB
+                        {% elif unifi.traffic.tx_bytes >= 1024 %}
+                            {{ "%.1f"|format(unifi.traffic.tx_bytes / 1024) }} KB
+                        {% else %}
+                            {{ unifi.traffic.tx_bytes }} B
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                    <dt class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Downloaded</dt>
+                    <dd class="mt-1 text-lg font-semibold text-blue-600 dark:text-blue-400">
+                        {% if unifi.traffic.rx_bytes >= 1073741824 %}
+                            {{ "%.1f"|format(unifi.traffic.rx_bytes / 1073741824) }} GB
+                        {% elif unifi.traffic.rx_bytes >= 1048576 %}
+                            {{ "%.1f"|format(unifi.traffic.rx_bytes / 1048576) }} MB
+                        {% elif unifi.traffic.rx_bytes >= 1024 %}
+                            {{ "%.1f"|format(unifi.traffic.rx_bytes / 1024) }} KB
+                        {% else %}
+                            {{ unifi.traffic.rx_bytes }} B
+                        {% endif %}
+                    </dd>
+                </div>
+                {% if unifi.traffic.tx_packets %}
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                    <dt class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">TX Packets</dt>
+                    <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
+                        {{ "{:,}".format(unifi.traffic.tx_packets) }}
+                    </dd>
+                </div>
+                {% endif %}
+                {% if unifi.traffic.rx_packets %}
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                    <dt class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">RX Packets</dt>
+                    <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
+                        {{ "{:,}".format(unifi.traffic.rx_packets) }}
+                    </dd>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Pi-hole DNS Activity Section -->
+{% set pihole = device.threat_details.integrations.pihole if device.threat_details and device.threat_details.integrations and device.threat_details.integrations.pihole else none %}
+{% if pihole %}
+<div class="mt-6 bg-gradient-to-r from-green-700 to-teal-600 rounded-lg shadow-lg overflow-hidden">
+    <div class="px-6 py-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <svg class="h-8 w-8 text-white mr-3" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                </svg>
+                <h3 class="text-lg font-medium text-white">DNS Activity (Pi-hole)</h3>
+            </div>
+            {% if pihole.suspicious_domains and pihole.suspicious_domains|length > 0 %}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-500 text-white">
+                <svg class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                </svg>
+                Suspicious Activity
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 px-6 py-5">
+        <!-- DNS Stats Summary -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Queries (24h)</dt>
+                <dd class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+                    {{ "{:,}".format(pihole.queries_24h) }}
+                </dd>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Blocked</dt>
+                <dd class="mt-1 text-2xl font-bold text-red-600 dark:text-red-400">
+                    {{ "{:,}".format(pihole.blocked_24h) }}
+                </dd>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Block Rate</dt>
+                <dd class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+                    {{ pihole.blocked_percentage }}%
+                </dd>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">DNS Risk Score</dt>
+                <dd class="mt-1 text-2xl font-bold {% if pihole.dns_risk_score > 50 %}text-red-600 dark:text-red-400{% elif pihole.dns_risk_score > 20 %}text-yellow-600 dark:text-yellow-400{% else %}text-green-600 dark:text-green-400{% endif %}">
+                    {{ pihole.dns_risk_score }}/100
+                </dd>
+            </div>
+        </div>
+
+        <!-- DNS Risk Score Bar -->
+        <div class="mb-6">
+            <div class="flex items-center justify-between text-sm mb-1">
+                <span class="font-medium text-gray-700 dark:text-gray-300">DNS Behavior Risk</span>
+                <span class="text-gray-500 dark:text-gray-400">{{ pihole.dns_risk_score }}/100</span>
+            </div>
+            <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-3">
+                <div class="h-3 rounded-full transition-all duration-300
+                    {% if pihole.dns_risk_score > 50 %}bg-red-500{% elif pihole.dns_risk_score > 20 %}bg-yellow-500{% else %}bg-green-500{% endif %}"
+                    style="width: {{ pihole.dns_risk_score }}%"></div>
+            </div>
+        </div>
+
+        <!-- Suspicious Domains Alert -->
+        {% if pihole.suspicious_domains and pihole.suspicious_domains|length > 0 %}
+        <div class="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-r-lg">
+            <div class="flex items-start">
+                <svg class="h-5 w-5 text-red-500 mr-3 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                </svg>
+                <div>
+                    <h4 class="text-sm font-semibold text-red-800 dark:text-red-200">Suspicious Domains Detected</h4>
+                    <p class="mt-1 text-sm text-red-700 dark:text-red-300">
+                        This device has contacted potentially suspicious domains:
+                    </p>
+                    <ul class="mt-2 space-y-1">
+                        {% for domain in pihole.suspicious_domains %}
+                        <li class="text-sm font-mono text-red-600 dark:text-red-400">{{ domain }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Top Domains and Blocked Domains -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Top Domains -->
+            {% if pihole.top_domains and pihole.top_domains|length > 0 %}
+            <div>
+                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                    <svg class="h-4 w-4 mr-2 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M12.577 4.878a.75.75 0 01.919-.53l4.78 1.281a.75.75 0 01.531.919l-1.281 4.78a.75.75 0 01-1.449-.387l.81-3.022a19.407 19.407 0 00-5.594 5.203.75.75 0 01-1.139.093L7 10.06l-4.72 4.72a.75.75 0 01-1.06-1.061l5.25-5.25a.75.75 0 011.06 0l3.074 3.073a20.923 20.923 0 015.545-4.931l-3.042-.815a.75.75 0 01-.53-.919z" clip-rule="evenodd" />
+                    </svg>
+                    Top Domains (24h)
+                </h4>
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden">
+                    <ul class="divide-y divide-gray-200 dark:divide-gray-600">
+                        {% for item in pihole.top_domains[:10] %}
+                        <li class="px-4 py-2 flex justify-between items-center">
+                            <span class="text-sm font-mono text-gray-700 dark:text-gray-300 truncate max-w-xs" title="{{ item.domain }}">
+                                {{ item.domain }}
+                            </span>
+                            <span class="ml-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+                                {{ "{:,}".format(item.count) }}
+                            </span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Blocked Domains -->
+            {% if pihole.blocked_domains and pihole.blocked_domains|length > 0 %}
+            <div>
+                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                    <svg class="h-4 w-4 mr-2 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd" />
+                    </svg>
+                    Blocked Domains (24h)
+                </h4>
+                <div class="bg-red-50 dark:bg-red-900/20 rounded-lg overflow-hidden">
+                    <ul class="divide-y divide-red-100 dark:divide-red-900/40">
+                        {% for item in pihole.blocked_domains[:10] %}
+                        <li class="px-4 py-2 flex justify-between items-center">
+                            <span class="text-sm font-mono text-red-700 dark:text-red-300 truncate max-w-xs" title="{{ item.domain }}">
+                                {{ item.domain }}
+                            </span>
+                            <span class="ml-2 text-sm font-medium text-red-500 dark:text-red-400">
+                                {{ "{:,}".format(item.count) }}
+                            </span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Query Types -->
+        {% if pihole.query_types %}
+        <div class="mt-6">
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Query Types</h4>
+            <div class="flex flex-wrap gap-2">
+                {% for qtype, count in pihole.query_types.items() %}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                    {{ qtype }}: {{ "{:,}".format(count) }}
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- AdGuard Home DNS Activity Section -->
+{% set adguard = device.threat_details.integrations.adguard if device.threat_details and device.threat_details.integrations and device.threat_details.integrations.adguard else none %}
+{% if adguard %}
+<div class="mt-6 bg-gradient-to-r from-teal-700 to-cyan-600 rounded-lg shadow-lg overflow-hidden">
+    <div class="px-6 py-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <svg class="h-8 w-8 text-white mr-3" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                </svg>
+                <h3 class="text-lg font-medium text-white">DNS Activity (AdGuard Home)</h3>
+            </div>
+            {% if adguard.suspicious_domains and adguard.suspicious_domains|length > 0 %}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-500 text-white">
+                <svg class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                </svg>
+                Suspicious Activity
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 px-6 py-5">
+        <!-- DNS Stats Summary -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Queries (24h)</dt>
+                <dd class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+                    {{ "{:,}".format(adguard.queries_24h) }}
+                </dd>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Blocked</dt>
+                <dd class="mt-1 text-2xl font-bold text-red-600 dark:text-red-400">
+                    {{ "{:,}".format(adguard.blocked_24h) }}
+                </dd>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Block Rate</dt>
+                <dd class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+                    {{ adguard.blocked_percentage }}%
+                </dd>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">DNS Risk Score</dt>
+                <dd class="mt-1 text-2xl font-bold {% if adguard.dns_risk_score > 50 %}text-red-600 dark:text-red-400{% elif adguard.dns_risk_score > 20 %}text-yellow-600 dark:text-yellow-400{% else %}text-green-600 dark:text-green-400{% endif %}">
+                    {{ adguard.dns_risk_score }}/100
+                </dd>
+            </div>
+        </div>
+
+        <!-- DNS Risk Score Bar -->
+        <div class="mb-6">
+            <div class="flex items-center justify-between text-sm mb-1">
+                <span class="font-medium text-gray-700 dark:text-gray-300">DNS Behavior Risk</span>
+                <span class="text-gray-500 dark:text-gray-400">{{ adguard.dns_risk_score }}/100</span>
+            </div>
+            <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-3">
+                <div class="h-3 rounded-full transition-all duration-300
+                    {% if adguard.dns_risk_score > 50 %}bg-red-500{% elif adguard.dns_risk_score > 20 %}bg-yellow-500{% else %}bg-green-500{% endif %}"
+                    style="width: {{ adguard.dns_risk_score }}%"></div>
+            </div>
+        </div>
+
+        <!-- Suspicious Domains Alert -->
+        {% if adguard.suspicious_domains and adguard.suspicious_domains|length > 0 %}
+        <div class="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-r-lg">
+            <div class="flex items-start">
+                <svg class="h-5 w-5 text-red-500 mr-3 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                </svg>
+                <div>
+                    <h4 class="text-sm font-semibold text-red-800 dark:text-red-200">Suspicious Domains Detected</h4>
+                    <p class="mt-1 text-sm text-red-700 dark:text-red-300">
+                        This device has contacted potentially suspicious domains:
+                    </p>
+                    <ul class="mt-2 space-y-1">
+                        {% for domain in adguard.suspicious_domains %}
+                        <li class="text-sm font-mono text-red-600 dark:text-red-400">{{ domain }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Top Domains and Blocked Domains -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Top Domains -->
+            {% if adguard.top_domains and adguard.top_domains|length > 0 %}
+            <div>
+                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                    <svg class="h-4 w-4 mr-2 text-teal-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M12.577 4.878a.75.75 0 01.919-.53l4.78 1.281a.75.75 0 01.531.919l-1.281 4.78a.75.75 0 01-1.449-.387l.81-3.022a19.407 19.407 0 00-5.594 5.203.75.75 0 01-1.139.093L7 10.06l-4.72 4.72a.75.75 0 01-1.06-1.061l5.25-5.25a.75.75 0 011.06 0l3.074 3.073a20.923 20.923 0 015.545-4.931l-3.042-.815a.75.75 0 01-.53-.919z" clip-rule="evenodd" />
+                    </svg>
+                    Top Domains (24h)
+                </h4>
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden">
+                    <ul class="divide-y divide-gray-200 dark:divide-gray-600">
+                        {% for item in adguard.top_domains[:10] %}
+                        <li class="px-4 py-2 flex justify-between items-center">
+                            <span class="text-sm font-mono text-gray-700 dark:text-gray-300 truncate max-w-xs" title="{{ item.domain }}">
+                                {{ item.domain }}
+                            </span>
+                            <span class="ml-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+                                {{ "{:,}".format(item.count) }}
+                            </span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Blocked Domains -->
+            {% if adguard.blocked_domains and adguard.blocked_domains|length > 0 %}
+            <div>
+                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                    <svg class="h-4 w-4 mr-2 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd" />
+                    </svg>
+                    Blocked Domains (24h)
+                </h4>
+                <div class="bg-red-50 dark:bg-red-900/20 rounded-lg overflow-hidden">
+                    <ul class="divide-y divide-red-100 dark:divide-red-900/40">
+                        {% for item in adguard.blocked_domains[:10] %}
+                        <li class="px-4 py-2 flex justify-between items-center">
+                            <span class="text-sm font-mono text-red-700 dark:text-red-300 truncate max-w-xs" title="{{ item.domain }}">
+                                {{ item.domain }}
+                            </span>
+                            <span class="ml-2 text-sm font-medium text-red-500 dark:text-red-400">
+                                {{ "{:,}".format(item.count) }}
+                            </span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Query Types -->
+        {% if adguard.query_types %}
+        <div class="mt-6">
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Query Types</h4>
+            <div class="flex flex-wrap gap-2">
+                {% for qtype, count in adguard.query_types.items() %}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                    {{ qtype }}: {{ "{:,}".format(count) }}
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Device Settings (Edit Form) -->
 <div class="mt-6 bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-hidden"
      x-data="{
@@ -464,21 +1011,25 @@
 </div>
 {% endif %}
 
-<!-- CVE Summary Section -->
+<!-- CVE Summary Section - Confirmed Vulnerabilities Only -->
 {% if device.threat_details and device.threat_details.cves and device.threat_details.cves|length > 0 %}
 <div class="mt-8">
-    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
+    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+        <svg class="h-5 w-5 text-red-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+        </svg>
         Known Vulnerabilities ({{ device.threat_details.cves|length }} CVEs)
     </h3>
-    <div class="bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-x-auto">
+    <div class="bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-x-auto border-l-4 border-red-500">
         <table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-700">
+            <thead class="bg-red-50 dark:bg-red-900/30">
                 <tr>
                     <th scope="col" class="py-3 pl-4 pr-3 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase">CVE ID</th>
+                    <th scope="col" class="px-3 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase">Confidence</th>
                     <th scope="col" class="px-3 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase">Severity</th>
                     <th scope="col" class="px-3 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase">CVSS</th>
+                    <th scope="col" class="px-3 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase">Matched Product</th>
                     <th scope="col" class="px-3 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase">Description</th>
-                    <th scope="col" class="px-3 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase">Remediation</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -495,6 +1046,30 @@
                         </a>
                     </td>
                     <td class="whitespace-nowrap px-3 py-3 text-sm">
+                        {% if cve.confidence == 'confirmed' %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                            <svg class="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                            </svg>
+                            Confirmed
+                        </span>
+                        {% elif cve.confidence == 'likely' %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                            <svg class="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+                            </svg>
+                            Likely
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                            <svg class="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.94 6.94a.75.75 0 11-1.061-1.061 3 3 0 112.871 5.026v.345a.75.75 0 01-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 108.94 6.94zM10 15a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                            </svg>
+                            Possible
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-3 text-sm">
                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
                             {% if cve.severity == 'critical' %}bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200
                             {% elif cve.severity == 'high' %}bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200
@@ -506,16 +1081,71 @@
                     <td class="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900 dark:text-white">
                         {{ cve.cvss_score }}
                     </td>
+                    <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-600 dark:text-gray-300">
+                        {% if cve.matched_product %}
+                            <span class="font-medium">{{ cve.matched_product }}</span>
+                            {% if cve.matched_version %}
+                            <span class="text-gray-500 dark:text-gray-400">v{{ cve.matched_version }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-gray-400 dark:text-gray-500">-</span>
+                        {% endif %}
+                    </td>
                     <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-300 max-w-md">
                         {{ cve.description | truncate(150) }}
-                    </td>
-                    <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-300 max-w-sm">
-                        {{ cve.remediation | truncate(100) }}
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Protocol Security Warnings Section -->
+{% if device.threat_details and device.threat_details.warnings and device.threat_details.warnings|length > 0 %}
+<div class="mt-8">
+    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+        <svg class="h-5 w-5 text-amber-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+        </svg>
+        Protocol Security Warnings ({{ device.threat_details.warnings|length }})
+    </h3>
+    <div class="bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-hidden border-l-4 border-amber-500">
+        <div class="divide-y divide-gray-200 dark:divide-gray-700">
+            {% for warning in device.threat_details.warnings %}
+            <div class="p-4 bg-amber-50/50 dark:bg-amber-900/10">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3 flex-1">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm font-medium text-amber-800 dark:text-amber-200">
+                                {{ warning.id }}
+                            </p>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                {% if warning.severity == 'high' %}bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200
+                                {% elif warning.severity == 'medium' %}bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200
+                                {% else %}bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200{% endif %}">
+                                {{ warning.severity | upper }}
+                            </span>
+                        </div>
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                            {{ warning.description }}
+                        </p>
+                        {% if warning.remediation %}
+                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                            <span class="font-medium">Recommendation:</span> {{ warning.remediation }}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 </div>
 {% endif %}
