@@ -21,6 +21,7 @@ from app.integrations.adguard.models import (
     SUSPICIOUS_TLDS,
 )
 from app.integrations.adguard.exceptions import (
+    AdGuardError,
     AdGuardAuthenticationError,
     AdGuardConnectionError,
     AdGuardAPIError,
