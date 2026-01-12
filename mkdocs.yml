@@ -1,5 +1,8 @@
 site_name: Argus
-site_description: Home Network Security Monitor - Keep your home network safe
+site_description: >-
+  Self-hosted network security scanner for homelabs. Discover devices,
+  detect vulnerabilities, and monitor changes. Open-source alternative
+  to Fing. Runs on Docker, Raspberry Pi, or any Linux server.
 site_author: rangulvers
 site_url: https://rangulvers.github.io/argus/
 
@@ -112,7 +115,12 @@ nav:
     - Dashboard: guide/dashboard.md
     - Devices: guide/devices.md
     - Scans: guide/scans.md
-    - Integrations: guide/integrations.md
+    - Integrations:
+      - Overview: guide/integrations/index.md
+      - UniFi Network: guide/integrations/unifi.md
+      - Pi-hole: guide/integrations/pihole.md
+      - AdGuard Home: guide/integrations/adguard.md
+      - CVE Database: guide/integrations/cve.md
     - Settings: guide/settings.md
   - API:
     - Overview: api/overview.md

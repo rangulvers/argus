@@ -211,6 +211,66 @@
 }
 
 /* ============================================
+   HOME PAGE - USE CASES SECTION
+   ============================================ */
+
+.argus-usecases {
+  padding: 4rem 2rem;
+  background: linear-gradient(180deg, var(--md-default-bg-color) 0%, #f1f5f9 100%);
+}
+
+[data-md-color-scheme="slate"] .argus-usecases {
+  background: linear-gradient(180deg, var(--md-default-bg-color) 0%, #1e293b 100%);
+}
+
+.argus-usecases-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.argus-usecases h2 {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 2.5rem 0;
+  color: var(--md-default-fg-color);
+}
+
+.argus-usecases-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+.argus-usecase-item {
+  padding: 1.25rem;
+  border-radius: 10px;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  background: var(--md-default-bg-color);
+  transition: all 0.2s ease;
+}
+
+.argus-usecase-item:hover {
+  border-color: #06b6d4;
+  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.1);
+}
+
+.argus-usecase-item strong {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--md-default-fg-color);
+}
+
+.argus-usecase-item p {
+  font-size: 0.9rem;
+  color: var(--md-default-fg-color--light);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ============================================
    HOME PAGE - QUICK START SECTION
    ============================================ */
 
@@ -378,6 +438,10 @@
   .argus-features-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .argus-usecases-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media screen and (max-width: 600px) {
@@ -399,12 +463,14 @@
   }
 
   .argus-features,
+  .argus-usecases,
   .argus-quickstart,
   .argus-cta {
     padding: 3rem 1.5rem;
   }
 
-  .argus-features-grid {
+  .argus-features-grid,
+  .argus-usecases-grid {
     grid-template-columns: 1fr;
   }
 

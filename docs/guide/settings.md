@@ -36,7 +36,7 @@ Connect Argus with external services to enrich device data. Navigate to **Manage
 - **AdGuard Home** - DNS queries, blocked domains
 - **CVE Database** - Vulnerability matching
 
-See the [Integrations Guide](integrations.md) for detailed configuration instructions.
+See the [Integrations Guide](integrations/index.md) for detailed configuration instructions.
 
 ## API Keys
 

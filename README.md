@@ -1,7 +1,8 @@
-# Argus - Home Network Security Monitor
+# Argus - Self-Hosted Home Network Security Scanner
 
-Keep your home network safe. Argus automatically discovers all devices on your network, monitors for changes, and alerts you to potential security threats.
+Open-source network monitoring for homelabs. Argus automatically discovers all devices on your network, detects vulnerabilities, and alerts you to changes - all running locally on Docker or bare metal.
 
+![GitHub Stars](https://img.shields.io/github/stars/rangulvers/argus?style=social)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Docker](https://img.shields.io/badge/docker-ready-blue.svg)
@@ -15,15 +16,22 @@ Your home network is growing. Smart TVs, IoT devices, phones, computers - it's h
 - **Find vulnerabilities** - Identify risky open ports and known CVEs
 - **Track changes** - Monitor your network over time with scan history
 
+## Who Is This For?
+
+- **Homelab enthusiasts** - Get visibility into your self-hosted infrastructure
+- **Privacy-conscious users** - All data stays local, no cloud required
+- **IoT device owners** - Monitor smart home devices for security risks
+- **Small office/home office** - Inventory and secure your network without enterprise tools
+
 ## Features
 
-### Network Discovery
+### Network Discovery & Device Scanning
 - Automatic device detection using nmap
 - MAC address, hostname, and vendor identification
 - OS fingerprinting to identify device types
 - Multiple scan profiles (quick, normal, intensive)
 
-### Security Analysis
+### Vulnerability Detection & Risk Scoring
 - Risk scoring based on open ports and services
 - CVE vulnerability matching for common services (SSH, SMB, RDP, etc.)
 - Threat severity classification (Critical, High, Medium, Low)
@@ -41,7 +49,7 @@ Your home network is growing. Smart TVs, IoT devices, phones, computers - it's h
 - Service change detection
 - Historical comparison between scans
 
-### Modern Interface
+### Self-Hosted Web Dashboard
 - Clean, responsive web dashboard
 - Dark mode support
 - Real-time scan progress
@@ -234,6 +242,20 @@ Full API docs available at `/docs` when running.
 | RAM | ~100-150MB | ~50-80MB |
 | Disk | ~500MB + data | ~100MB + data |
 | CPU | Low idle, spikes during scans | Same |
+
+## Alternatives & Comparison
+
+How does Argus compare to other network scanning tools?
+
+| Tool | Self-Hosted | Vulnerability Detection | Change Tracking | Web UI |
+|------|-------------|------------------------|-----------------|--------|
+| **Argus** | Yes | Yes | Yes | Yes |
+| Fing/Fingbox | No (cloud) | Limited | Yes | Yes |
+| Angry IP Scanner | Yes | No | No | No |
+| OpenVAS | Yes | Yes | No | Yes |
+| Nmap (CLI) | Yes | Manual | No | No |
+
+Argus is designed for homelab users who want a self-hosted, open-source alternative to commercial network scanners like Fing - with vulnerability detection, change tracking, and a clean web interface.
 
 ## Contributing
 
