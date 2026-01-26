@@ -14,6 +14,117 @@ from app.database import SessionLocal, init_db, engine, Base
 from app.models import Scan, Device, Port, Change, DeviceHistory
 
 
+# Sample integration data generators
+def generate_unifi_data(device_type, is_wireless=None):
+    """Generate realistic UniFi integration data"""
+    if is_wireless is None:
+        is_wireless = device_type in ["Smartphone", "Tablet", "Laptop"]
+
+    data = {
+        "is_online": random.choice([True, True, True, False]),  # 75% online
+        "is_guest": random.choice([False, False, False, True]),  # 25% guest
+        "connection_type": "wireless" if is_wireless else "wired",
+        "uptime_seconds": random.randint(3600, 864000),  # 1 hour to 10 days
+        "traffic": {
+            "tx_bytes": random.randint(1000000, 50000000000),
+            "rx_bytes": random.randint(1000000, 100000000000),
+            "tx_packets": random.randint(1000, 10000000),
+            "rx_packets": random.randint(1000, 20000000),
+        },
+    }
+
+    if is_wireless:
+        data["wireless"] = {
+            "ssid": random.choice(["HomeNetwork", "HomeNetwork_5G", "IoT_Network", "Guest_WiFi"]),
+            "signal_strength": random.randint(-80, -30),
+            "channel": random.choice([1, 6, 11, 36, 40, 44, 48, 149, 153]),
+            "radio": random.choice(["ng", "na", "ac", "ax"]),
+            "tx_rate": random.choice([54, 144, 300, 433, 867, 1200]),
+            "rx_rate": random.choice([54, 144, 300, 433, 867, 1200]),
+        }
+    else:
+        data["wired"] = {
+            "switch_mac": ":".join([f"{random.randint(0, 255):02x}" for _ in range(6)]),
+            "switch_port": random.randint(1, 24),
+        }
+
+    data["network"] = {
+        "name": random.choice(["LAN", "IoT", "Guest", "Management"]),
+        "vlan": random.choice([1, 10, 20, 30, None]),
+    }
+
+    return data
+
+
+def generate_pihole_data():
+    """Generate realistic Pi-hole integration data"""
+    queries = random.randint(100, 50000)
+    blocked = random.randint(0, int(queries * 0.3))
+
+    return {
+        "queries_24h": queries,
+        "blocked_24h": blocked,
+        "blocked_percentage": round((blocked / queries * 100) if queries > 0 else 0, 1),
+        "unique_domains": random.randint(20, 500),
+        "dns_risk_score": random.randint(0, 100),
+        "top_domains": [
+            {"domain": "google.com", "count": random.randint(50, 500)},
+            {"domain": "facebook.com", "count": random.randint(20, 200)},
+            {"domain": "amazonaws.com", "count": random.randint(30, 300)},
+            {"domain": "cloudflare.com", "count": random.randint(10, 100)},
+            {"domain": "apple.com", "count": random.randint(10, 150)},
+        ],
+        "blocked_domains": [
+            {"domain": "ads.google.com", "count": random.randint(5, 50)},
+            {"domain": "tracking.facebook.com", "count": random.randint(3, 30)},
+            {"domain": "telemetry.microsoft.com", "count": random.randint(2, 20)},
+        ],
+        "suspicious_domains": random.choice([
+            [],
+            [],
+            [{"domain": "suspicious-tracker.xyz", "reason": "Known tracker"}],
+        ]),
+        "query_types": {
+            "A": random.randint(50, 80),
+            "AAAA": random.randint(10, 30),
+            "HTTPS": random.randint(5, 15),
+            "PTR": random.randint(1, 5),
+        },
+        "last_query": datetime.utcnow().isoformat(),
+    }
+
+
+def generate_adguard_data():
+    """Generate realistic AdGuard integration data"""
+    queries = random.randint(100, 50000)
+    blocked = random.randint(0, int(queries * 0.25))
+
+    return {
+        "queries_24h": queries,
+        "blocked_24h": blocked,
+        "blocked_percentage": round((blocked / queries * 100) if queries > 0 else 0, 1),
+        "unique_domains": random.randint(20, 500),
+        "dns_risk_score": random.randint(0, 100),
+        "top_domains": [
+            {"domain": "microsoft.com", "count": random.randint(50, 400)},
+            {"domain": "apple.com", "count": random.randint(30, 250)},
+            {"domain": "netflix.com", "count": random.randint(20, 150)},
+            {"domain": "spotify.com", "count": random.randint(10, 100)},
+        ],
+        "blocked_domains": [
+            {"domain": "ads.doubleclick.net", "count": random.randint(10, 100)},
+            {"domain": "analytics.google.com", "count": random.randint(5, 50)},
+        ],
+        "suspicious_domains": [],
+        "query_types": {
+            "A": random.randint(50, 80),
+            "AAAA": random.randint(10, 30),
+            "HTTPS": random.randint(5, 15),
+        },
+        "last_query": datetime.utcnow().isoformat(),
+    }
+
+
 # Realistic device data for home/office networks
 DEVICES_DATA = [
     # Routers/Gateways
@@ -298,6 +409,27 @@ def seed_database():
                 risk_score += random.randint(-5, 5)  # Add some variance
                 risk_score = max(0, min(100, risk_score))
 
+                # Generate integration data for some devices
+                # UniFi: ~70% of devices, Pi-hole: ~50%, AdGuard: ~30%
+                threat_details = {"integrations": {}}
+                device_type = device_data.get("device_type")
+
+                # UniFi data for most devices (simulate managed network)
+                if random.random() < 0.7:
+                    threat_details["integrations"]["unifi"] = generate_unifi_data(device_type)
+
+                # Pi-hole OR AdGuard (typically you'd have one or the other)
+                # ~50% have Pi-hole data
+                if random.random() < 0.5:
+                    threat_details["integrations"]["pihole"] = generate_pihole_data()
+                # ~30% have AdGuard data (some overlap is fine for demo)
+                elif random.random() < 0.4:
+                    threat_details["integrations"]["adguard"] = generate_adguard_data()
+
+                # Clean up empty integrations dict
+                if not threat_details["integrations"]:
+                    threat_details = None
+
                 device = Device(
                     scan_id=scan.id,
                     ip_address=ip,
@@ -316,6 +448,7 @@ def seed_database():
                     risk_level=device_data["risk_level"],
                     risk_score=risk_score,
                     threat_summary=f"Risk level: {device_data['risk_level']}" if device_data["risk_level"] != "none" else None,
+                    threat_details=threat_details,
                 )
                 db.add(device)
                 db.flush()

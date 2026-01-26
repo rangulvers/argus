@@ -28,115 +28,186 @@
 
 <!-- Filter and Search Section -->
 {% if devices %}
-<div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-700 p-4">
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Text Search -->
-        <div>
-            <label for="search-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
-            <div class="relative">
-                <input type="text" id="search-input"
-                       placeholder="IP, hostname, MAC, vendor..."
-                       class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 pl-10 pr-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+<div class="mb-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <!-- Filter Header with Search -->
+    <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <!-- Search Input -->
+            <div class="relative flex-1 max-w-md">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg class="h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
                 </div>
+                <input type="text" id="search-input"
+                       placeholder="Search by IP, hostname, MAC, vendor..."
+                       class="block w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow">
+            </div>
+
+            <!-- Filter Toggle & Actions -->
+            <div class="flex items-center gap-2">
+                <button type="button" id="toggle-filters"
+                        class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors">
+                    <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                    </svg>
+                    Filters
+                    <span id="filter-count-badge" class="hidden ml-2 px-1.5 py-0.5 text-xs font-semibold bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full">0</span>
+                    <svg id="filter-chevron" class="ml-2 h-4 w-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <button type="button" id="clear-filters"
+                        class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none transition-colors">
+                    <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    Clear
+                </button>
             </div>
         </div>
 
-        <!-- Risk Level Filter -->
-        <div>
-            <label for="risk-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Risk Level</label>
-            <select id="risk-filter" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <option value="all">All Levels</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-                <option value="none">Safe (None)</option>
-            </select>
-        </div>
-
-        <!-- Trusted Status Filter -->
-        <div>
-            <label for="trusted-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trusted Status</label>
-            <select id="trusted-filter" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <option value="all">All Devices</option>
-                <option value="trusted">Trusted Only</option>
-                <option value="untrusted">Untrusted Only</option>
-            </select>
-        </div>
-
-        <!-- Port Filter -->
-        <div>
-            <label for="port-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Port</label>
-            <input type="text" id="port-filter"
-                   placeholder="e.g., 22, 80, 443"
-                   class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 py-2 px-3 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <!-- Active Filters Tags -->
+        <div id="active-filters" class="mt-3 hidden">
+            <div class="flex flex-wrap items-center gap-2">
+                <div id="filter-tags" class="flex flex-wrap gap-1.5"></div>
+            </div>
         </div>
     </div>
 
-    <!-- Second Row: Vendor Filter + Zone Filter + Clear Button -->
-    <div class="mt-4 flex flex-wrap items-end gap-4">
-        <!-- Vendor Filter -->
-        <div class="flex-1 min-w-[200px] max-w-xs">
-            <label for="vendor-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vendor</label>
-            <select id="vendor-filter" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <option value="all">All Vendors</option>
-                {% set vendors = devices|map(attribute='vendor')|select('string')|unique|sort %}
-                {% for vendor in vendors %}
-                {% if vendor %}
-                <option value="{{ vendor }}">{{ vendor|truncate(40) }}</option>
-                {% endif %}
-                {% endfor %}
-            </select>
-        </div>
+    <!-- Collapsible Filter Panel -->
+    <div id="filter-panel" class="hidden">
+        <div class="p-4 bg-white dark:bg-gray-800">
+            <!-- Filter Groups -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
+                <!-- Security Group -->
+                <div class="space-y-3">
+                    <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Security</h4>
+                    <div class="space-y-2">
+                        <div>
+                            <label for="risk-filter" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Risk Level</label>
+                            <select id="risk-filter" class="filter-select">
+                                <option value="all">All Levels</option>
+                                <option value="at_risk">At Risk (Med/High/Crit)</option>
+                                <option value="critical">Critical</option>
+                                <option value="high">High</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                                <option value="none">Safe</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="trusted-filter" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Trust Status</label>
+                            <select id="trusted-filter" class="filter-select">
+                                <option value="all">All Devices</option>
+                                <option value="trusted">Trusted</option>
+                                <option value="untrusted">Untrusted</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
 
-        <!-- Zone Filter -->
-        <div class="flex-1 min-w-[150px] max-w-[180px]">
-            <label for="zone-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Zone</label>
-            <select id="zone-filter" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <option value="all">All Zones</option>
-                {% set zones = devices|map(attribute='zone')|select('string')|unique|sort %}
-                {% for zone in zones %}
-                {% if zone %}
-                <option value="{{ zone }}">{{ zone }}</option>
-                {% endif %}
-                {% endfor %}
-            </select>
-        </div>
+                <!-- Network Group -->
+                <div class="space-y-3">
+                    <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Network</h4>
+                    <div class="space-y-2">
+                        <div>
+                            <label for="port-filter" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Specific Port</label>
+                            <input type="text" id="port-filter"
+                                   placeholder="22, 80, 443..."
+                                   class="filter-input">
+                        </div>
+                        <div>
+                            <label for="ports-filter" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Port Status</label>
+                            <select id="ports-filter" class="filter-select">
+                                <option value="all">Any</option>
+                                <option value="has-ports">Has Open Ports</option>
+                                <option value="no-ports">No Open Ports</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
 
-        <!-- Has Ports Filter -->
-        <div class="flex-1 min-w-[150px] max-w-[180px]">
-            <label for="ports-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Open Ports</label>
-            <select id="ports-filter" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <option value="all">Any</option>
-                <option value="has-ports">Has Open Ports</option>
-                <option value="no-ports">No Open Ports</option>
-            </select>
-        </div>
+                <!-- Device Group -->
+                <div class="space-y-3">
+                    <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Device</h4>
+                    <div class="space-y-2">
+                        <div>
+                            <label for="vendor-filter" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Vendor</label>
+                            <select id="vendor-filter" class="filter-select">
+                                <option value="all">All Vendors</option>
+                                {% set vendors = devices|map(attribute='vendor')|select('string')|unique|sort %}
+                                {% for vendor in vendors %}
+                                {% if vendor %}
+                                <option value="{{ vendor }}">{{ vendor|truncate(30) }}</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="zone-filter" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Zone</label>
+                            <select id="zone-filter" class="filter-select">
+                                <option value="all">All Zones</option>
+                                {% set zones = devices|map(attribute='zone')|select('string')|unique|sort %}
+                                {% for zone in zones %}
+                                {% if zone %}
+                                <option value="{{ zone }}">{{ zone }}</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
 
-        <!-- Clear Filters Button -->
-        <div>
-            <button type="button" id="clear-filters"
-                    class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                <svg class="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-                Clear Filters
-            </button>
-        </div>
-    </div>
-
-    <!-- Active Filters Display -->
-    <div id="active-filters" class="mt-3 hidden">
-        <div class="flex flex-wrap items-center gap-2">
-            <span class="text-xs text-gray-500 dark:text-gray-400">Active filters:</span>
-            <div id="filter-tags" class="flex flex-wrap gap-2"></div>
+                <!-- Integration Group -->
+                <div class="space-y-3">
+                    <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Integrations</h4>
+                    <div class="space-y-2">
+                        <div>
+                            <label for="integration-filter" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Data Source</label>
+                            <select id="integration-filter" class="filter-select">
+                                <option value="all">All Devices</option>
+                                <option value="any">Has Integration Data</option>
+                                <option value="none">No Integration Data</option>
+                                <option value="unifi">UniFi</option>
+                                <option value="pihole">Pi-hole</option>
+                                <option value="adguard">AdGuard</option>
+                            </select>
+                        </div>
+                        <!-- Integration Quick Filters -->
+                        <div class="flex flex-wrap gap-1.5 pt-1">
+                            <button type="button" data-integration="unifi" class="integration-quick-filter px-2 py-1 text-xs font-medium rounded-md border transition-colors
+                                bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-cyan-400 hover:text-cyan-600 dark:hover:text-cyan-400">
+                                UniFi
+                            </button>
+                            <button type="button" data-integration="pihole" class="integration-quick-filter px-2 py-1 text-xs font-medium rounded-md border transition-colors
+                                bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-red-400 hover:text-red-600 dark:hover:text-red-400">
+                                Pi-hole
+                            </button>
+                            <button type="button" data-integration="adguard" class="integration-quick-filter px-2 py-1 text-xs font-medium rounded-md border transition-colors
+                                bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-green-400 hover:text-green-600 dark:hover:text-green-400">
+                                AdGuard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Filter Styles -->
+<style>
+    .filter-select {
+        @apply block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white py-1.5 pl-3 pr-8 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow;
+    }
+    .filter-input {
+        @apply block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 py-1.5 px-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow;
+    }
+    .integration-quick-filter.active {
+        @apply border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300;
+    }
+</style>
 {% endif %}
 
 <!-- Risk Summary (if any threats) -->
@@ -178,6 +249,15 @@
         </thead>
         <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
             {% for device in devices %}
+            {# Determine which integrations have data for this device #}
+            {% set integrations = device.threat_details.integrations if device.threat_details and device.threat_details.integrations else {} %}
+            {% set has_unifi = integrations.unifi is defined and integrations.unifi %}
+            {% set has_pihole = integrations.pihole is defined and integrations.pihole %}
+            {% set has_adguard = integrations.adguard is defined and integrations.adguard %}
+            {% set integration_list = [] %}
+            {% if has_unifi %}{% set _ = integration_list.append('unifi') %}{% endif %}
+            {% if has_pihole %}{% set _ = integration_list.append('pihole') %}{% endif %}
+            {% if has_adguard %}{% set _ = integration_list.append('adguard') %}{% endif %}
             <tr class="device-row {% if device.risk_level == 'critical' %}bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50{% elif device.risk_level == 'high' %}bg-orange-50 dark:bg-orange-900/30 hover:bg-orange-100 dark:hover:bg-orange-900/50{% else %}hover:bg-gray-50 dark:hover:bg-gray-700{% endif %}"
                 data-ip="{{ device.ip_address|lower }}"
                 data-hostname="{{ (device.hostname or '')|lower }}"
@@ -188,7 +268,8 @@
                 data-risk="{{ device.risk_level or 'none' }}"
                 data-trusted="{{ 'true' if device.is_trusted else 'false' }}"
                 data-ports="{% for port in device.ports %}{{ port.port_number }}{% if not loop.last %},{% endif %}{% endfor %}"
-                data-port-count="{{ device.ports|length }}">
+                data-port-count="{{ device.ports|length }}"
+                data-integrations="{{ integration_list|join(',') }}">
                 <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white">
                     <div class="flex items-center">
                         {# Device type icon #}
@@ -211,6 +292,29 @@
                     {% endif %}
                     {% if device.os_name %}
                     <div class="text-xs text-gray-400 dark:text-gray-500 truncate max-w-[150px]" title="{{ device.os_name }}">{{ device.os_name }}</div>
+                    {% endif %}
+                    {# Integration badges #}
+                    {% if has_unifi or has_pihole or has_adguard %}
+                    <div class="flex flex-wrap gap-1 mt-1">
+                        {% if has_unifi %}
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-cyan-100 dark:bg-cyan-900 text-cyan-700 dark:text-cyan-300" title="UniFi: {{ 'Online' if integrations.unifi.is_online else 'Offline' }}{% if integrations.unifi.connection_type %} ({{ integrations.unifi.connection_type }}){% endif %}">
+                            <svg class="w-3 h-3 mr-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                            UniFi
+                        </span>
+                        {% endif %}
+                        {% if has_pihole %}
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300" title="Pi-hole: {{ integrations.pihole.queries_24h or 0 }} queries, {{ integrations.pihole.blocked_24h or 0 }} blocked">
+                            <svg class="w-3 h-3 mr-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                            Pi-hole
+                        </span>
+                        {% endif %}
+                        {% if has_adguard %}
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300" title="AdGuard: {{ integrations.adguard.queries_24h or 0 }} queries, {{ integrations.adguard.blocked_24h or 0 }} blocked">
+                            <svg class="w-3 h-3 mr-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+                            AdGuard
+                        </span>
+                        {% endif %}
+                    </div>
                     {% endif %}
                 </td>
                 <td class="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
@@ -394,14 +498,74 @@ document.addEventListener('DOMContentLoaded', function() {
     const vendorFilter = document.getElementById('vendor-filter');
     const zoneFilter = document.getElementById('zone-filter');
     const portsFilter = document.getElementById('ports-filter');
+    const integrationFilter = document.getElementById('integration-filter');
     const clearButton = document.getElementById('clear-filters');
     const visibleCount = document.getElementById('visible-count');
     const activeFiltersDiv = document.getElementById('active-filters');
     const filterTagsDiv = document.getElementById('filter-tags');
 
+    // Filter panel elements
+    const toggleFiltersBtn = document.getElementById('toggle-filters');
+    const filterPanel = document.getElementById('filter-panel');
+    const filterChevron = document.getElementById('filter-chevron');
+    const filterCountBadge = document.getElementById('filter-count-badge');
+    const integrationQuickFilters = document.querySelectorAll('.integration-quick-filter');
+
     // Get all device rows
     const deviceRows = document.querySelectorAll('.device-row');
     const totalDevices = deviceRows.length;
+
+    // Toggle filter panel
+    if (toggleFiltersBtn && filterPanel) {
+        toggleFiltersBtn.addEventListener('click', () => {
+            const isHidden = filterPanel.classList.contains('hidden');
+            filterPanel.classList.toggle('hidden');
+            if (filterChevron) {
+                filterChevron.style.transform = isHidden ? 'rotate(180deg)' : '';
+            }
+            // Save panel state
+            sessionStorage.setItem('filterPanelOpen', isHidden ? 'true' : 'false');
+        });
+
+        // Restore panel state
+        const panelState = sessionStorage.getItem('filterPanelOpen');
+        if (panelState === 'true') {
+            filterPanel.classList.remove('hidden');
+            if (filterChevron) {
+                filterChevron.style.transform = 'rotate(180deg)';
+            }
+        }
+    }
+
+    // Integration quick filter buttons
+    integrationQuickFilters.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const integration = btn.dataset.integration;
+            if (integrationFilter) {
+                // Toggle: if already selected, clear it
+                if (integrationFilter.value === integration) {
+                    integrationFilter.value = 'all';
+                } else {
+                    integrationFilter.value = integration;
+                }
+                updateIntegrationQuickFilters();
+                applyFilters();
+            }
+        });
+    });
+
+    function updateIntegrationQuickFilters() {
+        const currentValue = integrationFilter ? integrationFilter.value : 'all';
+        integrationQuickFilters.forEach(btn => {
+            const isActive = btn.dataset.integration === currentValue;
+            btn.classList.toggle('active', isActive);
+            btn.classList.toggle('border-indigo-500', isActive);
+            btn.classList.toggle('bg-indigo-50', isActive);
+            btn.classList.toggle('dark:bg-indigo-900/30', isActive);
+            btn.classList.toggle('text-indigo-700', isActive);
+            btn.classList.toggle('dark:text-indigo-300', isActive);
+        });
+    }
 
     // Debounce function for search input
     function debounce(func, wait) {
@@ -425,6 +589,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const vendorValue = vendorFilter ? vendorFilter.value : 'all';
         const zoneValue = zoneFilter ? zoneFilter.value : 'all';
         const portsValue = portsFilter ? portsFilter.value : 'all';
+        const integrationValue = integrationFilter ? integrationFilter.value : 'all';
 
         let visibleDevices = 0;
 
@@ -445,7 +610,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Risk level filter
             if (riskValue !== 'all' && visible) {
-                visible = row.dataset.risk === riskValue;
+                if (riskValue === 'at_risk') {
+                    // "At Risk" means medium, high, or critical
+                    visible = ['medium', 'high', 'critical'].includes(row.dataset.risk);
+                } else {
+                    visible = row.dataset.risk === riskValue;
+                }
             }
 
             // Trusted status filter
@@ -484,6 +654,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
+            // Integration filter
+            if (integrationValue !== 'all' && visible) {
+                const integrations = row.dataset.integrations ? row.dataset.integrations.split(',').filter(i => i) : [];
+                const hasIntegrations = integrations.length > 0;
+
+                if (integrationValue === 'any') {
+                    visible = hasIntegrations;
+                } else if (integrationValue === 'none') {
+                    visible = !hasIntegrations;
+                } else {
+                    // Specific integration (unifi, pihole, adguard)
+                    visible = integrations.includes(integrationValue);
+                }
+            }
+
             // Show/hide row
             row.style.display = visible ? '' : 'none';
             if (visible) visibleDevices++;
@@ -503,54 +688,74 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update active filters tags
     function updateActiveFilters() {
-        if (!activeFiltersDiv || !filterTagsDiv) return;
-
         const filters = [];
 
         if (searchInput && searchInput.value.trim()) {
-            filters.push({ type: 'Search', value: searchInput.value.trim(), clear: () => { searchInput.value = ''; } });
+            filters.push({ type: 'Search', value: searchInput.value.trim(), icon: 'search', clear: () => { searchInput.value = ''; } });
         }
         if (riskFilter && riskFilter.value !== 'all') {
-            filters.push({ type: 'Risk', value: riskFilter.value, clear: () => { riskFilter.value = 'all'; } });
+            const riskLabels = { at_risk: 'At Risk', critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', none: 'Safe' };
+            filters.push({ type: 'Risk', value: riskLabels[riskFilter.value] || riskFilter.value, icon: 'shield', clear: () => { riskFilter.value = 'all'; } });
         }
         if (trustedFilter && trustedFilter.value !== 'all') {
-            filters.push({ type: 'Trusted', value: trustedFilter.value, clear: () => { trustedFilter.value = 'all'; } });
+            filters.push({ type: 'Trust', value: trustedFilter.value === 'trusted' ? 'Trusted' : 'Untrusted', icon: 'check', clear: () => { trustedFilter.value = 'all'; } });
         }
         if (portFilter && portFilter.value.trim()) {
-            filters.push({ type: 'Port', value: portFilter.value.trim(), clear: () => { portFilter.value = ''; } });
+            filters.push({ type: 'Port', value: portFilter.value.trim(), icon: 'port', clear: () => { portFilter.value = ''; } });
         }
         if (vendorFilter && vendorFilter.value !== 'all') {
-            filters.push({ type: 'Vendor', value: vendorFilter.options[vendorFilter.selectedIndex].text, clear: () => { vendorFilter.value = 'all'; } });
+            filters.push({ type: 'Vendor', value: vendorFilter.options[vendorFilter.selectedIndex].text, icon: 'vendor', clear: () => { vendorFilter.value = 'all'; } });
         }
         if (zoneFilter && zoneFilter.value !== 'all') {
-            filters.push({ type: 'Zone', value: zoneFilter.options[zoneFilter.selectedIndex].text, clear: () => { zoneFilter.value = 'all'; } });
+            filters.push({ type: 'Zone', value: zoneFilter.options[zoneFilter.selectedIndex].text, icon: 'zone', clear: () => { zoneFilter.value = 'all'; } });
         }
         if (portsFilter && portsFilter.value !== 'all') {
-            filters.push({ type: 'Ports', value: portsFilter.value === 'has-ports' ? 'Has Ports' : 'No Ports', clear: () => { portsFilter.value = 'all'; } });
+            filters.push({ type: 'Ports', value: portsFilter.value === 'has-ports' ? 'Has Ports' : 'No Ports', icon: 'network', clear: () => { portsFilter.value = 'all'; } });
+        }
+        if (integrationFilter && integrationFilter.value !== 'all') {
+            const integrationLabels = { 'any': 'Any Integration', 'none': 'No Integration', 'unifi': 'UniFi', 'pihole': 'Pi-hole', 'adguard': 'AdGuard' };
+            filters.push({ type: 'Integration', value: integrationLabels[integrationFilter.value] || integrationFilter.value, icon: 'integration', clear: () => { integrationFilter.value = 'all'; updateIntegrationQuickFilters(); } });
         }
 
-        if (filters.length > 0) {
-            activeFiltersDiv.classList.remove('hidden');
-            filterTagsDiv.innerHTML = filters.map((f, i) => `
-                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200">
-                    ${f.type}: ${f.value}
-                    <button type="button" data-filter-index="${i}" class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800">
-                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-                    </button>
-                </span>
-            `).join('');
+        // Update filter count badge
+        if (filterCountBadge) {
+            if (filters.length > 0) {
+                filterCountBadge.textContent = filters.length;
+                filterCountBadge.classList.remove('hidden');
+            } else {
+                filterCountBadge.classList.add('hidden');
+            }
+        }
 
-            // Add click handlers for individual filter removal
-            filterTagsDiv.querySelectorAll('button').forEach((btn, index) => {
-                btn.addEventListener('click', () => {
-                    filters[index].clear();
-                    applyFilters();
+        // Update active filters display
+        if (activeFiltersDiv && filterTagsDiv) {
+            if (filters.length > 0) {
+                activeFiltersDiv.classList.remove('hidden');
+                filterTagsDiv.innerHTML = filters.map((f, i) => `
+                    <span class="group inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-colors">
+                        <span class="text-gray-500 dark:text-gray-400">${f.type}:</span>
+                        <span class="font-semibold">${f.value}</span>
+                        <button type="button" data-filter-index="${i}" class="ml-0.5 -mr-1 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </span>
+                `).join('');
+
+                // Add click handlers for individual filter removal
+                filterTagsDiv.querySelectorAll('button').forEach((btn, index) => {
+                    btn.addEventListener('click', () => {
+                        filters[index].clear();
+                        applyFilters();
+                    });
                 });
-            });
-        } else {
-            activeFiltersDiv.classList.add('hidden');
-            filterTagsDiv.innerHTML = '';
+            } else {
+                activeFiltersDiv.classList.add('hidden');
+                filterTagsDiv.innerHTML = '';
+            }
         }
+
+        // Update integration quick filters
+        updateIntegrationQuickFilters();
     }
 
     // Clear all filters
@@ -562,6 +767,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (vendorFilter) vendorFilter.value = 'all';
         if (zoneFilter) zoneFilter.value = 'all';
         if (portsFilter) portsFilter.value = 'all';
+        if (integrationFilter) integrationFilter.value = 'all';
+        updateIntegrationQuickFilters();
         applyFilters();
     }
 
@@ -574,13 +781,53 @@ document.addEventListener('DOMContentLoaded', function() {
             port: portFilter ? portFilter.value : '',
             vendor: vendorFilter ? vendorFilter.value : 'all',
             zone: zoneFilter ? zoneFilter.value : 'all',
-            ports: portsFilter ? portsFilter.value : 'all'
+            ports: portsFilter ? portsFilter.value : 'all',
+            integration: integrationFilter ? integrationFilter.value : 'all'
         };
         sessionStorage.setItem('deviceFilters', JSON.stringify(state));
     }
 
-    // Restore filter state from sessionStorage
+    // Restore filter state from sessionStorage or URL parameters
     function restoreFilterState() {
+        // First check for URL parameters (from dashboard tile clicks)
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlFilterRisk = urlParams.get('filter_risk');
+        const urlFilterPorts = urlParams.get('filter_ports');
+
+        // If we have URL filter parameters, apply them and clear sessionStorage
+        if (urlFilterRisk || urlFilterPorts) {
+            // Clear previous session filters when coming from dashboard
+            sessionStorage.removeItem('deviceFilters');
+
+            // Apply URL-based filters
+            if (urlFilterRisk === 'at_risk' && riskFilter) {
+                // "At Risk" means medium, high, or critical - we'll filter for all non-safe devices
+                // Set to a special value and handle in applyFilters
+                riskFilter.value = 'at_risk';
+            }
+
+            if (urlFilterPorts === 'has_ports' && portsFilter) {
+                portsFilter.value = 'has-ports';
+            }
+
+            // Open filter panel to show active filters
+            if (filterPanel && filterPanel.classList.contains('hidden')) {
+                filterPanel.classList.remove('hidden');
+                if (filterChevron) {
+                    filterChevron.style.transform = 'rotate(180deg)';
+                }
+            }
+
+            updateIntegrationQuickFilters();
+            applyFilters();
+
+            // Clean URL without reloading (remove filter params for cleaner URL)
+            const cleanUrl = window.location.pathname + (urlParams.get('scan_id') ? '?scan_id=' + urlParams.get('scan_id') : '');
+            window.history.replaceState({}, '', cleanUrl);
+            return;
+        }
+
+        // Otherwise, restore from sessionStorage
         const saved = sessionStorage.getItem('deviceFilters');
         if (saved) {
             try {
@@ -592,10 +839,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (vendorFilter && state.vendor) vendorFilter.value = state.vendor;
                 if (zoneFilter && state.zone) zoneFilter.value = state.zone;
                 if (portsFilter && state.ports) portsFilter.value = state.ports;
+                if (integrationFilter && state.integration) integrationFilter.value = state.integration;
+                updateIntegrationQuickFilters();
                 applyFilters();
             } catch (e) {
                 console.error('Error restoring filter state:', e);
             }
+        } else {
+            // Initialize quick filters even without saved state
+            updateIntegrationQuickFilters();
         }
     }
 
@@ -620,6 +872,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (portsFilter) {
         portsFilter.addEventListener('change', applyFilters);
+    }
+    if (integrationFilter) {
+        integrationFilter.addEventListener('change', () => {
+            updateIntegrationQuickFilters();
+            applyFilters();
+        });
     }
     if (clearButton) {
         clearButton.addEventListener('click', clearFilters);

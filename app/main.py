@@ -508,6 +508,103 @@ async def get_trend_data(
     }
 
 
+@app.get("/api/dashboard/distributions")
+async def get_dashboard_distributions(db: Session = Depends(get_db)):
+    """Get distribution data for dashboard charts.
+
+    Returns aggregated data for:
+    - Risk level distribution (for doughnut chart)
+    - Device type distribution (for doughnut chart)
+    - Top ports frequency (for polar area chart)
+    - Security posture metrics (for radar chart)
+    """
+    # Get the latest completed network scan
+    latest_scan = db.query(Scan).filter(
+        Scan.status == "completed",
+        Scan.scan_type == "network"
+    ).order_by(desc(Scan.started_at)).first()
+
+    if not latest_scan:
+        return {
+            "risk_distribution": {},
+            "device_types": {},
+            "top_ports": [],
+            "security_posture": {},
+            "has_data": False
+        }
+
+    devices = db.query(Device).filter(Device.scan_id == latest_scan.id).all()
+
+    # Risk distribution
+    risk_distribution = {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "safe": 0
+    }
+    for device in devices:
+        risk = device.risk_level or "none"
+        if risk == "none":
+            risk_distribution["safe"] += 1
+        elif risk in risk_distribution:
+            risk_distribution[risk] += 1
+
+    # Device type distribution
+    device_types = {}
+    for device in devices:
+        dtype = device.device_type or "Unknown"
+        device_types[dtype] = device_types.get(dtype, 0) + 1
+
+    # Sort by count and take top 8
+    device_types = dict(sorted(device_types.items(), key=lambda x: x[1], reverse=True)[:8])
+
+    # Top ports frequency
+    port_counts = {}
+    for device in devices:
+        for port in device.ports:
+            port_key = f"{port.port_number}"
+            if port.service_name:
+                port_key = f"{port.port_number} ({port.service_name})"
+            port_counts[port_key] = port_counts.get(port_key, 0) + 1
+
+    # Sort by count and take top 10
+    top_ports = sorted(port_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+
+    # Security posture metrics (normalized to 0-100 scale for radar chart)
+    total_devices = len(devices)
+    at_risk_devices = sum(1 for d in devices if d.risk_level in ("medium", "high", "critical"))
+    trusted_devices = sum(1 for d in devices if d.is_trusted)
+    devices_with_ports = sum(1 for d in devices if len(d.ports) > 0)
+
+    # Calculate total open ports
+    total_ports = sum(len(d.ports) for d in devices)
+
+    # Get recent changes count
+    from datetime import timedelta
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    recent_changes = db.query(Change).filter(Change.detected_at >= week_ago).count()
+
+    # Normalize metrics (higher is better for security)
+    security_posture = {
+        "device_security": round(100 - (at_risk_devices / total_devices * 100) if total_devices > 0 else 100, 1),
+        "trust_coverage": round((trusted_devices / total_devices * 100) if total_devices > 0 else 0, 1),
+        "port_exposure": round(100 - min(total_ports * 2, 100), 1),  # Lower ports = better
+        "network_stability": round(100 - min(recent_changes * 5, 100), 1),  # Fewer changes = more stable
+        "monitoring_coverage": round((devices_with_ports / total_devices * 100) if total_devices > 0 else 0, 1),
+    }
+
+    return {
+        "risk_distribution": risk_distribution,
+        "device_types": device_types,
+        "top_ports": [{"port": p[0], "count": p[1]} for p in top_ports],
+        "security_posture": security_posture,
+        "has_data": True,
+        "total_devices": total_devices,
+        "scan_id": latest_scan.id
+    }
+
+
 @app.get("/api/updates/check")
 async def check_for_updates(force: bool = False):
     """Check for available updates from GitHub releases.
@@ -1212,6 +1309,330 @@ async def get_timeline_data(
         "changes": timeline_events,
         "scans": scan_events,
         "days": days
+    }
+
+
+@app.get("/api/visualization/network-insights")
+async def get_network_insights(
+    scan_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """Get comprehensive network insights for enhanced visualizations.
+
+    Returns data for:
+    - Enhanced topology with UniFi connection data
+    - Vendor distribution
+    - Connection types (wired/wireless)
+    - Traffic analysis
+    - DNS query analysis (Pi-hole/AdGuard)
+    - Signal strength for wireless devices
+    """
+    # Get the scan to use
+    if scan_id:
+        scan = db.query(Scan).filter(Scan.id == scan_id).first()
+        if not scan:
+            raise HTTPException(status_code=404, detail="Scan not found")
+    else:
+        scan = db.query(Scan).filter(
+            Scan.status == "completed",
+            Scan.scan_type == "network"
+        ).order_by(desc(Scan.started_at)).first()
+
+    if not scan:
+        return {
+            "has_data": False,
+            "vendor_distribution": {},
+            "connection_types": {},
+            "traffic_data": [],
+            "dns_analysis": {},
+            "signal_strength": [],
+            "topology_enhanced": {"nodes": [], "edges": [], "switches": [], "access_points": []}
+        }
+
+    devices = db.query(Device).filter(Device.scan_id == scan.id).all()
+
+    # ===== Vendor Distribution =====
+    vendor_counts = {}
+    for device in devices:
+        vendor = device.vendor or "Unknown"
+        # Simplify vendor names (take first word/company name)
+        if vendor != "Unknown":
+            vendor = vendor.split()[0] if " " in vendor else vendor
+            vendor = vendor.replace(",", "").replace("Inc.", "").replace("Ltd.", "")
+        vendor_counts[vendor] = vendor_counts.get(vendor, 0) + 1
+
+    # Sort by count and take top 10
+    vendor_distribution = dict(sorted(vendor_counts.items(), key=lambda x: x[1], reverse=True)[:10])
+
+    # ===== Connection Types & Traffic & Signal Strength =====
+    connection_types = {"wired": 0, "wireless": 0, "unknown": 0}
+    traffic_data = []
+    signal_strength_data = []
+    switches = {}  # switch_mac -> {name, port_count, devices: []}
+    access_points = {}  # ssid -> {devices: [], channel, etc.}
+
+    for device in devices:
+        integrations = {}
+        if device.threat_details and isinstance(device.threat_details, dict):
+            integrations = device.threat_details.get("integrations", {})
+
+        unifi_data = integrations.get("unifi", {})
+
+        # Connection type
+        conn_type = unifi_data.get("connection_type", "unknown")
+        if conn_type in connection_types:
+            connection_types[conn_type] += 1
+        else:
+            connection_types["unknown"] += 1
+
+        # Traffic data (only for devices with UniFi data)
+        if unifi_data and unifi_data.get("traffic"):
+            traffic = unifi_data["traffic"]
+            traffic_data.append({
+                "device_id": device.id,
+                "label": device.label or device.hostname or device.ip_address,
+                "ip": device.ip_address,
+                "tx_bytes": traffic.get("tx_bytes", 0),
+                "rx_bytes": traffic.get("rx_bytes", 0),
+                "total_bytes": traffic.get("tx_bytes", 0) + traffic.get("rx_bytes", 0),
+                "is_online": unifi_data.get("is_online", True)
+            })
+
+        # Wireless signal strength
+        if unifi_data.get("wireless"):
+            wireless = unifi_data["wireless"]
+            signal_strength_data.append({
+                "device_id": device.id,
+                "label": device.label or device.hostname or device.ip_address,
+                "ip": device.ip_address,
+                "signal": wireless.get("signal_strength", 0),
+                "ssid": wireless.get("ssid", "Unknown"),
+                "channel": wireless.get("channel"),
+                "radio": wireless.get("radio", ""),
+                "tx_rate": wireless.get("tx_rate", 0),
+                "rx_rate": wireless.get("rx_rate", 0)
+            })
+
+            # Group by access point (SSID)
+            ssid = wireless.get("ssid", "Unknown")
+            if ssid not in access_points:
+                access_points[ssid] = {
+                    "ssid": ssid,
+                    "channel": wireless.get("channel"),
+                    "radio": wireless.get("radio"),
+                    "devices": []
+                }
+            access_points[ssid]["devices"].append({
+                "id": device.id,
+                "label": device.label or device.hostname or device.ip_address,
+                "signal": wireless.get("signal_strength", 0)
+            })
+
+        # Wired connections - group by switch
+        if unifi_data.get("wired"):
+            wired = unifi_data["wired"]
+            switch_mac = wired.get("switch_mac", "unknown")
+            if switch_mac not in switches:
+                switches[switch_mac] = {
+                    "mac": switch_mac,
+                    "devices": []
+                }
+            switches[switch_mac]["devices"].append({
+                "id": device.id,
+                "label": device.label or device.hostname or device.ip_address,
+                "port": wired.get("switch_port")
+            })
+
+    # Sort traffic data by total bytes (top consumers)
+    traffic_data.sort(key=lambda x: x["total_bytes"], reverse=True)
+    traffic_data = traffic_data[:15]  # Top 15
+
+    # Sort signal strength by signal (weakest first for troubleshooting)
+    signal_strength_data.sort(key=lambda x: x["signal"])
+
+    # ===== DNS Analysis =====
+    dns_analysis = {
+        "total_queries": 0,
+        "total_blocked": 0,
+        "devices_with_dns": 0,
+        "top_domains": {},
+        "top_blocked": {},
+        "query_types": {},
+        "risk_scores": []
+    }
+
+    for device in devices:
+        integrations = {}
+        if device.threat_details and isinstance(device.threat_details, dict):
+            integrations = device.threat_details.get("integrations", {})
+
+        # Check Pi-hole or AdGuard
+        dns_data = integrations.get("pihole") or integrations.get("adguard")
+        if dns_data:
+            dns_analysis["devices_with_dns"] += 1
+            dns_analysis["total_queries"] += dns_data.get("queries_24h", 0)
+            dns_analysis["total_blocked"] += dns_data.get("blocked_24h", 0)
+
+            # Aggregate top domains
+            for domain_info in dns_data.get("top_domains", []):
+                domain = domain_info.get("domain", "")
+                count = domain_info.get("count", 0)
+                dns_analysis["top_domains"][domain] = dns_analysis["top_domains"].get(domain, 0) + count
+
+            # Aggregate blocked domains
+            for domain_info in dns_data.get("blocked_domains", []):
+                domain = domain_info.get("domain", "")
+                count = domain_info.get("count", 0)
+                dns_analysis["top_blocked"][domain] = dns_analysis["top_blocked"].get(domain, 0) + count
+
+            # Query types
+            for qtype, count in dns_data.get("query_types", {}).items():
+                dns_analysis["query_types"][qtype] = dns_analysis["query_types"].get(qtype, 0) + count
+
+            # Risk scores
+            if dns_data.get("dns_risk_score") is not None:
+                dns_analysis["risk_scores"].append({
+                    "device_id": device.id,
+                    "label": device.label or device.hostname or device.ip_address,
+                    "score": dns_data.get("dns_risk_score", 0)
+                })
+
+    # Sort and limit
+    dns_analysis["top_domains"] = dict(sorted(
+        dns_analysis["top_domains"].items(),
+        key=lambda x: x[1],
+        reverse=True
+    )[:10])
+    dns_analysis["top_blocked"] = dict(sorted(
+        dns_analysis["top_blocked"].items(),
+        key=lambda x: x[1],
+        reverse=True
+    )[:10])
+    dns_analysis["risk_scores"].sort(key=lambda x: x["score"], reverse=True)
+    dns_analysis["risk_scores"] = dns_analysis["risk_scores"][:10]
+
+    # ===== Enhanced Topology =====
+    # Build topology with actual connection data from UniFi
+    topology_nodes = []
+    topology_edges = []
+
+    # Find gateway
+    gateway = None
+    for device in devices:
+        if device.ip_address and (device.ip_address.endswith(".1") or device.ip_address.endswith(".254")):
+            gateway = device
+            break
+
+    gateway_id = gateway.id if gateway else "gateway"
+
+    # Add gateway node
+    if not gateway:
+        topology_nodes.append({
+            "id": "gateway",
+            "label": "Gateway",
+            "type": "gateway",
+            "group": "infrastructure"
+        })
+
+    # Add switch nodes
+    for idx, (switch_mac, switch_info) in enumerate(switches.items()):
+        switch_id = f"switch-{idx}"
+        topology_nodes.append({
+            "id": switch_id,
+            "label": f"Switch",
+            "type": "switch",
+            "mac": switch_mac,
+            "group": "infrastructure",
+            "device_count": len(switch_info["devices"])
+        })
+        # Connect switch to gateway
+        topology_edges.append({
+            "from": gateway_id,
+            "to": switch_id,
+            "type": "wired"
+        })
+        # Connect devices to switch
+        for dev in switch_info["devices"]:
+            topology_edges.append({
+                "from": switch_id,
+                "to": dev["id"],
+                "type": "wired",
+                "port": dev.get("port")
+            })
+
+    # Add AP nodes
+    for idx, (ssid, ap_info) in enumerate(access_points.items()):
+        ap_id = f"ap-{idx}"
+        topology_nodes.append({
+            "id": ap_id,
+            "label": ssid,
+            "type": "access_point",
+            "group": "infrastructure",
+            "channel": ap_info.get("channel"),
+            "device_count": len(ap_info["devices"])
+        })
+        # Connect AP to gateway
+        topology_edges.append({
+            "from": gateway_id,
+            "to": ap_id,
+            "type": "wired"
+        })
+        # Connect wireless devices to AP
+        for dev in ap_info["devices"]:
+            topology_edges.append({
+                "from": ap_id,
+                "to": dev["id"],
+                "type": "wireless",
+                "signal": dev.get("signal")
+            })
+
+    # Add all device nodes
+    for device in devices:
+        integrations = {}
+        if device.threat_details and isinstance(device.threat_details, dict):
+            integrations = device.threat_details.get("integrations", {})
+
+        unifi_data = integrations.get("unifi", {})
+
+        node = {
+            "id": device.id,
+            "label": device.label or device.hostname or device.ip_address,
+            "ip": device.ip_address,
+            "mac": device.mac_address,
+            "type": device.device_type or "unknown",
+            "risk_level": device.risk_level or "none",
+            "risk_score": device.risk_score or 0,
+            "is_trusted": device.is_trusted,
+            "is_online": unifi_data.get("is_online", True),
+            "connection_type": unifi_data.get("connection_type", "unknown"),
+            "group": device.zone or "default"
+        }
+        topology_nodes.append(node)
+
+        # If device has no switch/AP connection, connect directly to gateway
+        has_connection = any(e["to"] == device.id for e in topology_edges)
+        if not has_connection and device.id != gateway_id:
+            topology_edges.append({
+                "from": gateway_id,
+                "to": device.id,
+                "type": "unknown"
+            })
+
+    return {
+        "has_data": True,
+        "scan_id": scan.id,
+        "total_devices": len(devices),
+        "vendor_distribution": vendor_distribution,
+        "connection_types": connection_types,
+        "traffic_data": traffic_data,
+        "dns_analysis": dns_analysis,
+        "signal_strength": signal_strength_data,
+        "topology_enhanced": {
+            "nodes": topology_nodes,
+            "edges": topology_edges,
+            "switches": list(switches.values()),
+            "access_points": list(access_points.values())
+        }
     }
 
 

@@ -5,22 +5,74 @@
 {% block extra_head %}
 <!-- vis.js for network topology -->
 <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<!-- Chart.js for charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
     #topology-container {
         width: 100%;
-        height: 500px;
+        height: 600px;
         border: 1px solid #374151;
         border-radius: 0.5rem;
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
     }
-    .dark #topology-container {
-        background-color: #1f2937;
+    .light #topology-container {
+        background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+        border-color: #d1d5db;
     }
     .heatmap-cell {
-        transition: transform 0.2s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
     .heatmap-cell:hover {
         transform: scale(1.05);
         z-index: 10;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+    .signal-bar {
+        transition: width 0.5s ease;
+    }
+    .traffic-bar {
+        transition: width 0.5s ease;
+    }
+    .chart-container {
+        position: relative;
+        height: 250px;
+    }
+    .chart-container-sm {
+        position: relative;
+        height: 200px;
+    }
+    /* Tab styling */
+    .viz-tab {
+        padding: 0.625rem 1rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        border-radius: 0.5rem;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        border: none;
+        outline: none;
+    }
+    .viz-tab-active {
+        background-color: #4f46e5;
+        color: white;
+        box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3), 0 4px 6px -4px rgba(99, 102, 241, 0.3);
+    }
+    .viz-tab-inactive {
+        color: #4b5563;
+        background-color: transparent;
+    }
+    .viz-tab-inactive:hover {
+        background-color: #f3f4f6;
+    }
+    .dark .viz-tab-inactive {
+        color: #9ca3af;
+    }
+    .dark .viz-tab-inactive:hover {
+        background-color: #374151;
     }
 </style>
 {% endblock %}
@@ -29,199 +81,549 @@
 
 {% block content %}
 <div x-data="visualizationApp()" x-init="init()">
-    <!-- Tab Navigation -->
+    <!-- Tab Navigation - Modern Design -->
     <div class="mb-6">
-        <div class="sm:hidden">
-            <select x-model="activeTab" class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                <option value="heatmap">Risk Heat Map</option>
-                <option value="matrix">Port Matrix</option>
-                <option value="timeline">Timeline</option>
-            </select>
-        </div>
-        <div class="hidden sm:block">
-            <nav class="flex space-x-4" aria-label="Tabs">
-                <button @click="activeTab = 'heatmap'"
-                        :class="activeTab === 'heatmap' ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'"
-                        class="px-3 py-2 font-medium text-sm rounded-md transition-colors">
-                    <svg class="inline-block w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                    </svg>
-                    Risk Heat Map
-                </button>
-                <button @click="activeTab = 'matrix'"
-                        :class="activeTab === 'matrix' ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'"
-                        class="px-3 py-2 font-medium text-sm rounded-md transition-colors">
-                    <svg class="inline-block w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                    </svg>
-                    Port Matrix
-                </button>
-                <button @click="activeTab = 'timeline'"
-                        :class="activeTab === 'timeline' ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'"
-                        class="px-3 py-2 font-medium text-sm rounded-md transition-colors">
-                    <svg class="inline-block w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    Timeline
-                </button>
-            </nav>
-        </div>
+        <nav class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-1.5 inline-flex flex-wrap gap-1">
+            <button @click="activeTab = 'topology'"
+                    :class="activeTab === 'topology' ? 'viz-tab viz-tab-active' : 'viz-tab viz-tab-inactive'">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                </svg>
+                <span>Topology</span>
+            </button>
+            <button @click="activeTab = 'heatmap'"
+                    :class="activeTab === 'heatmap' ? 'viz-tab viz-tab-active' : 'viz-tab viz-tab-inactive'">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                <span>Risk Map</span>
+            </button>
+            <button @click="activeTab = 'traffic'"
+                    :class="activeTab === 'traffic' ? 'viz-tab viz-tab-active' : 'viz-tab viz-tab-inactive'">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+                </svg>
+                <span>Traffic</span>
+            </button>
+            <button @click="activeTab = 'wireless'"
+                    :class="activeTab === 'wireless' ? 'viz-tab viz-tab-active' : 'viz-tab viz-tab-inactive'">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
+                </svg>
+                <span>Wireless</span>
+            </button>
+            <button @click="activeTab = 'dns'"
+                    :class="activeTab === 'dns' ? 'viz-tab viz-tab-active' : 'viz-tab viz-tab-inactive'">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                </svg>
+                <span>DNS Analysis</span>
+            </button>
+            <button @click="activeTab = 'matrix'"
+                    :class="activeTab === 'matrix' ? 'viz-tab viz-tab-active' : 'viz-tab viz-tab-inactive'">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+                <span>Port Matrix</span>
+            </button>
+            <button @click="activeTab = 'timeline'"
+                    :class="activeTab === 'timeline' ? 'viz-tab viz-tab-active' : 'viz-tab viz-tab-inactive'">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>Timeline</span>
+            </button>
+        </nav>
     </div>
 
-    <!-- Scan Selector -->
-    <div class="mb-4 flex items-center space-x-4">
-        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Data from:</label>
-        <select x-model="selectedScanId" @change="loadData()"
-                class="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
-            <option value="">Latest Scan</option>
-            {% for scan in scans %}
-            <option value="{{ scan.id }}">
-                {{ scan.completed_at.strftime('%Y-%m-%d %H:%M') if scan.completed_at else scan.started_at.strftime('%Y-%m-%d %H:%M') }}
-                - {{ scan.devices_found }} devices
-            </option>
-            {% endfor %}
-        </select>
-        <span x-show="loading" class="text-sm text-gray-500 dark:text-gray-400">
-            <svg class="animate-spin h-4 w-4 inline" fill="none" viewBox="0 0 24 24">
+    <!-- Scan Selector & Loading -->
+    <div class="mb-4 flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Data from:</label>
+            <select x-model="selectedScanId" @change="loadData()"
+                    class="rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm shadow-sm">
+                <option value="">Latest Scan</option>
+                {% for scan in scans %}
+                <option value="{{ scan.id }}">
+                    {{ scan.completed_at.strftime('%Y-%m-%d %H:%M') if scan.completed_at else scan.started_at.strftime('%Y-%m-%d %H:%M') }}
+                    - {{ scan.devices_found }} devices
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div x-show="loading" class="flex items-center text-sm text-gray-500 dark:text-gray-400">
+            <svg class="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
             Loading...
-        </span>
+        </div>
     </div>
 
-    <!-- Network Topology Tab (hidden - needs more work) -->
-    <div x-show="false" x-cloak>
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-medium text-gray-900 dark:text-white">Network Topology</h2>
-                <div class="flex items-center space-x-4">
-                    <!-- Legend -->
-                    <div class="flex items-center space-x-3 text-xs">
+    <!-- ==================== TOPOLOGY TAB ==================== -->
+    <div x-show="activeTab === 'topology'" x-cloak>
+        <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            <!-- Main Topology View -->
+            <div class="xl:col-span-3 bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Network Topology</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Interactive network map with device connections</p>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <button @click="resetTopology()" class="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+                            Reset View
+                        </button>
+                    </div>
+                </div>
+                <div id="topology-container"></div>
+                <!-- Legend -->
+                <div class="px-6 py-3 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700">
+                    <div class="flex flex-wrap items-center gap-4 text-xs">
+                        <span class="font-medium text-gray-600 dark:text-gray-400">Risk Level:</span>
                         <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-red-600 mr-1"></span> Critical</span>
                         <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-orange-500 mr-1"></span> High</span>
                         <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-yellow-500 mr-1"></span> Medium</span>
-                        <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-green-500 mr-1"></span> Low</span>
-                        <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-gray-500 mr-1"></span> None</span>
+                        <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-green-500 mr-1"></span> Low/Safe</span>
+                        <span class="border-l border-gray-300 dark:border-gray-600 pl-4 font-medium text-gray-600 dark:text-gray-400">Connection:</span>
+                        <span class="flex items-center"><span class="w-4 h-0.5 bg-cyan-500 mr-1"></span> Wired</span>
+                        <span class="flex items-center"><span class="w-4 h-0.5 bg-purple-500 mr-1 border-dashed border-t-2 border-purple-500"></span> Wireless</span>
                     </div>
-                    <button @click="resetTopology()" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
-                        Reset View
-                    </button>
                 </div>
             </div>
-            <div id="topology-container"></div>
-            <!-- Selected Node Details -->
-            <div x-show="selectedNode" x-cloak class="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <h3 class="font-medium text-gray-900 dark:text-white mb-2" x-text="selectedNode?.label"></h3>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                        <span class="text-gray-500 dark:text-gray-400">IP:</span>
-                        <span class="ml-1 text-gray-900 dark:text-white" x-text="selectedNode?.ip"></span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500 dark:text-gray-400">MAC:</span>
-                        <span class="ml-1 text-gray-900 dark:text-white" x-text="selectedNode?.mac || 'N/A'"></span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500 dark:text-gray-400">Vendor:</span>
-                        <span class="ml-1 text-gray-900 dark:text-white" x-text="selectedNode?.vendor || 'Unknown'"></span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500 dark:text-gray-400">Risk:</span>
-                        <span class="ml-1 px-2 py-0.5 rounded text-xs font-medium"
-                              :class="getRiskBadgeClass(selectedNode?.risk_level)"
-                              x-text="selectedNode?.risk_level || 'none'"></span>
+
+            <!-- Sidebar Stats -->
+            <div class="space-y-4">
+                <!-- Connection Types -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5">
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Connection Types</h3>
+                    <div class="chart-container-sm">
+                        <canvas id="connectionTypesChart"></canvas>
                     </div>
                 </div>
-                <div class="mt-2">
-                    <a :href="'/devices/' + selectedNode?.id"
-                       class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
-                        View Device Details &rarr;
-                    </a>
+
+                <!-- Vendor Distribution -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5">
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Top Vendors</h3>
+                    <div class="space-y-2">
+                        <template x-for="(count, vendor) in insightsData.vendor_distribution" :key="vendor">
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-gray-600 dark:text-gray-400 truncate" x-text="vendor"></span>
+                                <span class="font-medium text-gray-900 dark:text-white" x-text="count"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Selected Node Details -->
+                <div x-show="selectedNode" x-cloak class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5">
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Selected Device</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Name</span>
+                            <span class="font-medium text-gray-900 dark:text-white" x-text="selectedNode?.label"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">IP</span>
+                            <span class="font-mono text-gray-900 dark:text-white" x-text="selectedNode?.ip"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Risk</span>
+                            <span class="px-2 py-0.5 rounded text-xs font-medium"
+                                  :class="getRiskBadgeClass(selectedNode?.risk_level)"
+                                  x-text="selectedNode?.risk_level || 'none'"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Connection</span>
+                            <span class="text-gray-900 dark:text-white" x-text="selectedNode?.connection_type || 'unknown'"></span>
+                        </div>
+                        <a :href="'/devices/' + selectedNode?.id"
+                           class="block mt-3 text-center py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg transition-colors">
+                            View Details
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Risk Heat Map Tab -->
+    <!-- ==================== RISK HEATMAP TAB ==================== -->
     <div x-show="activeTab === 'heatmap'" x-cloak>
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-medium text-gray-900 dark:text-white">Risk Heat Map</h2>
-                <!-- Summary Stats -->
-                <div class="flex items-center space-x-4 text-sm">
-                    <span class="px-2 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Risk Heat Map</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Devices colored by security risk level</p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span class="px-3 py-1.5 bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 rounded-lg text-sm font-medium">
                         Critical: <span x-text="heatmapData.summary?.critical || 0"></span>
                     </span>
-                    <span class="px-2 py-1 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded">
+                    <span class="px-3 py-1.5 bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 rounded-lg text-sm font-medium">
                         High: <span x-text="heatmapData.summary?.high || 0"></span>
                     </span>
-                    <span class="px-2 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded">
+                    <span class="px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200 rounded-lg text-sm font-medium">
                         Medium: <span x-text="heatmapData.summary?.medium || 0"></span>
                     </span>
-                    <span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">
-                        Low: <span x-text="heatmapData.summary?.low || 0"></span>
+                    <span class="px-3 py-1.5 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded-lg text-sm font-medium">
+                        Safe: <span x-text="(heatmapData.summary?.low || 0) + (heatmapData.summary?.none || 0)"></span>
                     </span>
                 </div>
             </div>
 
-            <!-- Heat Map Grid -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 <template x-for="device in heatmapData.devices" :key="device.id">
                     <a :href="'/devices/' + device.id"
-                       class="heatmap-cell p-3 rounded-lg border-2 relative"
+                       class="heatmap-cell p-4 rounded-xl border-2 relative group"
                        :class="getHeatmapCellClass(device.risk_level)">
-                        <div class="flex items-start justify-between mb-1">
-                            <span class="text-gray-400 dark:text-gray-500" x-html="getDeviceIconSvg(device.icon_type)" :title="device.device_type_label"></span>
-                            <!-- Trusted badge -->
-                            <div x-show="device.is_trusted">
-                                <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                        <div class="flex items-start justify-between mb-2">
+                            <span class="text-gray-500 dark:text-gray-400" x-html="getDeviceIconSvg(device.icon_type)"></span>
+                            <div x-show="device.is_trusted" class="text-green-500">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                                 </svg>
                             </div>
                         </div>
-                        <div class="text-sm font-medium truncate" x-text="device.label"></div>
-                        <div class="text-xs text-gray-500 dark:text-gray-400 truncate" x-text="device.ip"></div>
-                        <div class="mt-2 flex items-center justify-between">
-                            <span class="text-xs" x-text="device.zone"></span>
-                            <span class="text-xs font-bold" x-text="device.risk_score"></span>
+                        <div class="text-sm font-semibold truncate text-gray-900 dark:text-white" x-text="device.label"></div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 truncate font-mono" x-text="device.ip"></div>
+                        <div class="mt-3 flex items-center justify-between">
+                            <span class="text-xs text-gray-500 dark:text-gray-400" x-text="device.zone || 'No zone'"></span>
+                            <span class="text-sm font-bold" :class="getRiskScoreColor(device.risk_score)" x-text="device.risk_score"></span>
+                        </div>
+                        <!-- Hover arrow -->
+                        <div class="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
                         </div>
                     </a>
                 </template>
             </div>
 
-            <div x-show="!heatmapData.devices || heatmapData.devices.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
-                No devices found. Run a scan to populate this view.
+            <div x-show="!heatmapData.devices || heatmapData.devices.length === 0" class="text-center py-16 text-gray-500 dark:text-gray-400">
+                <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                <p class="text-lg font-medium">No devices found</p>
+                <p class="text-sm">Run a scan to populate this view</p>
             </div>
         </div>
     </div>
 
-    <!-- Port Matrix Tab -->
+    <!-- ==================== TRAFFIC TAB ==================== -->
+    <div x-show="activeTab === 'traffic'" x-cloak>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Top Traffic Consumers -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Top Traffic Consumers</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Devices with highest bandwidth usage (24h)</p>
+
+                <div class="space-y-4" x-show="insightsData.traffic_data && insightsData.traffic_data.length > 0">
+                    <template x-for="(device, idx) in insightsData.traffic_data.slice(0, 10)" :key="device.device_id">
+                        <div class="relative">
+                            <div class="flex items-center justify-between mb-1">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xs font-medium text-gray-400 w-5" x-text="idx + 1"></span>
+                                    <a :href="'/devices/' + device.device_id" class="text-sm font-medium text-gray-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 truncate max-w-[200px]" x-text="device.label"></a>
+                                    <span x-show="!device.is_online" class="px-1.5 py-0.5 text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">Offline</span>
+                                </div>
+                                <span class="text-sm font-medium text-gray-600 dark:text-gray-300" x-text="formatBytes(device.total_bytes)"></span>
+                            </div>
+                            <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                <div class="traffic-bar h-full rounded-full"
+                                     :style="'width: ' + getTrafficPercentage(device.total_bytes) + '%; background: linear-gradient(90deg, #6366f1, #8b5cf6);'"></div>
+                            </div>
+                            <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                <span>↑ <span x-text="formatBytes(device.tx_bytes)"></span></span>
+                                <span>↓ <span x-text="formatBytes(device.rx_bytes)"></span></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div x-show="!insightsData.traffic_data || insightsData.traffic_data.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
+                    <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+                    </svg>
+                    <p>No traffic data available</p>
+                    <p class="text-xs mt-1">Requires UniFi integration</p>
+                </div>
+            </div>
+
+            <!-- Traffic Distribution Chart -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Traffic Distribution</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Bandwidth share by device</p>
+                <div class="chart-container">
+                    <canvas id="trafficDistributionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Upload vs Download -->
+            <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Upload vs Download</h2>
+                <div class="chart-container">
+                    <canvas id="uploadDownloadChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== WIRELESS TAB ==================== -->
+    <div x-show="activeTab === 'wireless'" x-cloak>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Signal Strength List -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">WiFi Signal Strength</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Devices sorted by signal quality (weakest first)</p>
+
+                <div class="space-y-3" x-show="insightsData.signal_strength && insightsData.signal_strength.length > 0">
+                    <template x-for="device in insightsData.signal_strength" :key="device.device_id">
+                        <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <a :href="'/devices/' + device.device_id" class="text-sm font-medium text-gray-900 dark:text-white hover:text-indigo-600 truncate max-w-[200px]" x-text="device.label"></a>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xs px-2 py-0.5 rounded-full"
+                                          :class="getSignalClass(device.signal)"
+                                          x-text="device.signal + ' dBm'"></span>
+                                    <div class="flex items-end space-x-0.5 h-4">
+                                        <div class="w-1 rounded-full" :class="device.signal > -80 ? 'bg-current h-1' : 'bg-gray-300 dark:bg-gray-600 h-1'" :style="'color: ' + getSignalColor(device.signal)"></div>
+                                        <div class="w-1 rounded-full" :class="device.signal > -70 ? 'bg-current h-2' : 'bg-gray-300 dark:bg-gray-600 h-2'" :style="'color: ' + getSignalColor(device.signal)"></div>
+                                        <div class="w-1 rounded-full" :class="device.signal > -60 ? 'bg-current h-3' : 'bg-gray-300 dark:bg-gray-600 h-3'" :style="'color: ' + getSignalColor(device.signal)"></div>
+                                        <div class="w-1 rounded-full" :class="device.signal > -50 ? 'bg-current h-4' : 'bg-gray-300 dark:bg-gray-600 h-4'" :style="'color: ' + getSignalColor(device.signal)"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                <span x-text="device.ssid"></span>
+                                <span>Ch <span x-text="device.channel"></span> · <span x-text="device.radio?.toUpperCase()"></span></span>
+                            </div>
+                            <div class="mt-2 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                                <div class="signal-bar h-full rounded-full"
+                                     :style="'width: ' + getSignalPercentage(device.signal) + '%; background-color: ' + getSignalColor(device.signal)"></div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div x-show="!insightsData.signal_strength || insightsData.signal_strength.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
+                    <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
+                    </svg>
+                    <p>No wireless devices found</p>
+                    <p class="text-xs mt-1">Requires UniFi integration</p>
+                </div>
+            </div>
+
+            <!-- Access Points -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Access Points / SSIDs</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Wireless networks and connected clients</p>
+
+                <div class="space-y-4" x-show="insightsData.topology_enhanced?.access_points?.length > 0">
+                    <template x-for="ap in insightsData.topology_enhanced.access_points" :key="ap.ssid">
+                        <div class="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center space-x-3">
+                                    <div class="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
+                                        <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-gray-900 dark:text-white" x-text="ap.ssid"></div>
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                                            Channel <span x-text="ap.channel"></span> · <span x-text="ap.radio?.toUpperCase()"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm font-medium">
+                                    <span x-text="ap.devices.length"></span> clients
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-sm" x-show="ap.devices.length > 0">
+                                <template x-for="dev in ap.devices.slice(0, 6)" :key="dev.id">
+                                    <div class="flex items-center justify-between text-xs p-1.5 bg-gray-50 dark:bg-gray-700/50 rounded">
+                                        <span class="truncate text-gray-600 dark:text-gray-400" x-text="dev.label"></span>
+                                        <span :class="getSignalClass(dev.signal)" x-text="dev.signal + ' dBm'"></span>
+                                    </div>
+                                </template>
+                            </div>
+                            <div x-show="ap.devices.length > 6" class="mt-2 text-xs text-center text-gray-500 dark:text-gray-400">
+                                + <span x-text="ap.devices.length - 6"></span> more devices
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div x-show="!insightsData.topology_enhanced?.access_points?.length" class="text-center py-12 text-gray-500 dark:text-gray-400">
+                    <p>No access points detected</p>
+                </div>
+            </div>
+
+            <!-- Signal Distribution Chart -->
+            <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Signal Quality Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="signalDistributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== DNS TAB ==================== -->
+    <div x-show="activeTab === 'dns'" x-cloak>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <!-- DNS Stats Cards -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Total Queries (24h)</p>
+                        <p class="text-2xl font-bold text-gray-900 dark:text-white" x-text="formatNumber(insightsData.dns_analysis?.total_queries || 0)"></p>
+                    </div>
+                    <div class="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
+                        <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Blocked Queries</p>
+                        <p class="text-2xl font-bold text-red-600 dark:text-red-400" x-text="formatNumber(insightsData.dns_analysis?.total_blocked || 0)"></p>
+                    </div>
+                    <div class="p-3 bg-red-100 dark:bg-red-900/50 rounded-lg">
+                        <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Block Rate</p>
+                        <p class="text-2xl font-bold text-gray-900 dark:text-white" x-text="getBlockRate() + '%'"></p>
+                    </div>
+                    <div class="p-3 bg-green-100 dark:bg-green-900/50 rounded-lg">
+                        <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Devices Tracked</p>
+                        <p class="text-2xl font-bold text-gray-900 dark:text-white" x-text="insightsData.dns_analysis?.devices_with_dns || 0"></p>
+                    </div>
+                    <div class="p-3 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
+                        <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Top Domains -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Top Queried Domains</h2>
+                <div class="space-y-3" x-show="Object.keys(insightsData.dns_analysis?.top_domains || {}).length > 0">
+                    <template x-for="(count, domain) in insightsData.dns_analysis?.top_domains" :key="domain">
+                        <div class="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg">
+                            <span class="text-sm text-gray-700 dark:text-gray-300 font-mono truncate" x-text="domain"></span>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white" x-text="formatNumber(count)"></span>
+                        </div>
+                    </template>
+                </div>
+                <div x-show="Object.keys(insightsData.dns_analysis?.top_domains || {}).length === 0" class="text-center py-8 text-gray-500">
+                    No DNS data available
+                </div>
+            </div>
+
+            <!-- Blocked Domains -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Top Blocked Domains</h2>
+                <div class="space-y-3" x-show="Object.keys(insightsData.dns_analysis?.top_blocked || {}).length > 0">
+                    <template x-for="(count, domain) in insightsData.dns_analysis?.top_blocked" :key="domain">
+                        <div class="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg">
+                            <div class="flex items-center space-x-2">
+                                <svg class="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                                </svg>
+                                <span class="text-sm text-gray-700 dark:text-gray-300 font-mono truncate" x-text="domain"></span>
+                            </div>
+                            <span class="text-sm font-medium text-red-600 dark:text-red-400" x-text="formatNumber(count)"></span>
+                        </div>
+                    </template>
+                </div>
+                <div x-show="Object.keys(insightsData.dns_analysis?.top_blocked || {}).length === 0" class="text-center py-8 text-gray-500">
+                    No blocked domains
+                </div>
+            </div>
+
+            <!-- Query Types -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Query Types</h2>
+                <div class="chart-container-sm">
+                    <canvas id="queryTypesChart"></canvas>
+                </div>
+            </div>
+
+            <!-- DNS Risk Scores -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Highest DNS Risk Devices</h2>
+                <div class="space-y-3" x-show="insightsData.dns_analysis?.risk_scores?.length > 0">
+                    <template x-for="device in insightsData.dns_analysis?.risk_scores" :key="device.device_id">
+                        <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <a :href="'/devices/' + device.device_id" class="text-sm text-gray-700 dark:text-gray-300 hover:text-indigo-600 truncate" x-text="device.label"></a>
+                            <span class="px-2 py-1 text-xs font-medium rounded"
+                                  :class="device.score > 70 ? 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200' : device.score > 40 ? 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200' : 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200'"
+                                  x-text="device.score"></span>
+                        </div>
+                    </template>
+                </div>
+                <div x-show="!insightsData.dns_analysis?.risk_scores?.length" class="text-center py-8 text-gray-500">
+                    No risk data available
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== PORT MATRIX TAB ==================== -->
     <div x-show="activeTab === 'matrix'" x-cloak>
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-medium text-gray-900 dark:text-white">Port/Service Matrix</h2>
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Port/Service Matrix</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Open ports across all devices</p>
+                </div>
                 <span class="text-sm text-gray-500 dark:text-gray-400" x-text="`${matrixData.ports?.length || 0} unique ports across ${matrixData.matrix?.length || 0} devices`"></span>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700" x-show="matrixData.matrix && matrixData.matrix.length > 0">
+            <div class="overflow-x-auto" x-show="matrixData.matrix && matrixData.matrix.length > 0">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead class="bg-gray-50 dark:bg-gray-700">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky left-0 bg-gray-50 dark:bg-gray-700">
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky left-0 bg-gray-50 dark:bg-gray-700 z-10">
                                 Device
                             </th>
                             <template x-for="port in matrixData.ports" :key="port">
-                                <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" x-text="port"></th>
+                                <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300" x-text="port"></th>
                             </template>
                         </tr>
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         <template x-for="row in matrixData.matrix" :key="row.device_id">
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
-                                <td class="px-4 py-3 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-800">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                <td class="px-4 py-3 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-800 z-10">
                                     <a :href="'/devices/' + row.device_id" class="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline" x-text="row.device_label"></a>
-                                    <div class="text-xs text-gray-500 dark:text-gray-400" x-text="row.device_ip"></div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400 font-mono" x-text="row.device_ip"></div>
                                 </td>
                                 <template x-for="(portInfo, idx) in row.ports" :key="idx">
                                     <td class="px-2 py-3 text-center">
@@ -241,21 +643,28 @@
                 </table>
             </div>
 
-            <div x-show="!matrixData.matrix || matrixData.matrix.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
-                No port data found. Run a normal or intensive scan to detect open ports.
+            <div x-show="!matrixData.matrix || matrixData.matrix.length === 0" class="text-center py-16 text-gray-500 dark:text-gray-400">
+                <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+                <p class="text-lg font-medium">No port data found</p>
+                <p class="text-sm">Run a normal or intensive scan to detect open ports</p>
             </div>
         </div>
     </div>
 
-    <!-- Timeline Tab -->
+    <!-- ==================== TIMELINE TAB ==================== -->
     <div x-show="activeTab === 'timeline'" x-cloak>
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-medium text-gray-900 dark:text-white">Network Timeline</h2>
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Network Timeline</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Recent network events and changes</p>
+                </div>
                 <div class="flex items-center space-x-2">
-                    <label class="text-sm text-gray-500 dark:text-gray-400">Days:</label>
+                    <label class="text-sm text-gray-500 dark:text-gray-400">Time range:</label>
                     <select x-model="timelineDays" @change="loadTimeline()"
-                            class="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
+                            class="rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
                         <option value="7">7 days</option>
                         <option value="14">14 days</option>
                         <option value="30">30 days</option>
@@ -264,16 +673,12 @@
                 </div>
             </div>
 
-            <!-- Timeline -->
-            <div class="relative">
-                <!-- Vertical line -->
+            <div class="relative" x-show="timelineEvents.length > 0">
                 <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
 
-                <div class="space-y-6">
-                    <!-- Scan events -->
+                <div class="space-y-4">
                     <template x-for="event in timelineEvents" :key="event.id">
                         <div class="relative pl-10">
-                            <!-- Event dot -->
                             <div class="absolute left-2 w-5 h-5 rounded-full flex items-center justify-center"
                                  :class="getTimelineEventClass(event)">
                                 <template x-if="event.type === 'scan'">
@@ -303,27 +708,30 @@
                                 </template>
                             </div>
 
-                            <!-- Event card -->
-                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                                 <div class="flex justify-between items-start">
                                     <div>
                                         <span class="text-sm font-medium text-gray-900 dark:text-white" x-text="getEventTitle(event)"></span>
                                         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1" x-text="event.description || getEventDescription(event)"></p>
-                                        <div x-show="event.device_ip" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                        <div x-show="event.device_ip" class="text-xs text-gray-400 dark:text-gray-500 mt-1 font-mono">
                                             <span x-text="event.device_ip"></span>
-                                            <span x-show="event.port"> - Port <span x-text="event.port"></span></span>
+                                            <span x-show="event.port"> · Port <span x-text="event.port"></span></span>
                                         </div>
                                     </div>
-                                    <span class="text-xs text-gray-400 dark:text-gray-500" x-text="formatTimestamp(event.timestamp)"></span>
+                                    <span class="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap ml-4" x-text="formatTimestamp(event.timestamp)"></span>
                                 </div>
                             </div>
                         </div>
                     </template>
                 </div>
+            </div>
 
-                <div x-show="timelineEvents.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
-                    No events in the selected time range. Run scans to start tracking network changes.
-                </div>
+            <div x-show="timelineEvents.length === 0" class="text-center py-16 text-gray-500 dark:text-gray-400">
+                <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <p class="text-lg font-medium">No events found</p>
+                <p class="text-sm">Run scans to start tracking network changes</p>
             </div>
         </div>
     </div>
@@ -335,7 +743,7 @@
 <script>
 function visualizationApp() {
     return {
-        activeTab: 'heatmap',
+        activeTab: 'topology',
         selectedScanId: '',
         loading: false,
         selectedNode: null,
@@ -346,13 +754,27 @@ function visualizationApp() {
         timelineData: { changes: [], scans: [] },
         timelineEvents: [],
         timelineDays: 30,
+        insightsData: {
+            vendor_distribution: {},
+            connection_types: {},
+            traffic_data: [],
+            dns_analysis: {},
+            signal_strength: [],
+            topology_enhanced: { nodes: [], edges: [], switches: [], access_points: [] }
+        },
+        charts: {},
+        maxTraffic: 1,
 
         async init() {
             await this.loadData();
             this.$watch('activeTab', (tab) => {
                 if (tab === 'topology' && this.network) {
-                    this.$nextTick(() => this.network.fit());
+                    this.$nextTick(() => {
+                        this.network.fit();
+                        this.renderTopology();
+                    });
                 }
+                this.$nextTick(() => this.renderCharts());
             });
         },
 
@@ -361,18 +783,28 @@ function visualizationApp() {
             const scanParam = this.selectedScanId ? `?scan_id=${this.selectedScanId}` : '';
 
             try {
-                const [topology, heatmap, matrix] = await Promise.all([
+                const [topology, heatmap, matrix, insights] = await Promise.all([
                     fetch(`/api/visualization/topology${scanParam}`).then(r => r.json()),
                     fetch(`/api/visualization/heatmap${scanParam}`).then(r => r.json()),
-                    fetch(`/api/visualization/port-matrix${scanParam}`).then(r => r.json())
+                    fetch(`/api/visualization/port-matrix${scanParam}`).then(r => r.json()),
+                    fetch(`/api/visualization/network-insights${scanParam}`).then(r => r.json())
                 ]);
 
                 this.topologyData = topology;
                 this.heatmapData = heatmap;
                 this.matrixData = matrix;
+                this.insightsData = insights;
+
+                // Calculate max traffic for percentage bars
+                if (insights.traffic_data && insights.traffic_data.length > 0) {
+                    this.maxTraffic = Math.max(...insights.traffic_data.map(d => d.total_bytes));
+                }
 
                 await this.loadTimeline();
-                this.renderTopology();
+                this.$nextTick(() => {
+                    this.renderTopology();
+                    this.renderCharts();
+                });
             } catch (e) {
                 console.error('Failed to load visualization data:', e);
             } finally {
@@ -391,12 +823,10 @@ function visualizationApp() {
         },
 
         buildTimelineEvents() {
-            // Combine changes and scans into a single timeline
             const events = [
                 ...this.timelineData.changes.map(c => ({...c, source: 'change'})),
                 ...this.timelineData.scans.map(s => ({...s, source: 'scan'}))
             ];
-            // Sort by timestamp descending
             events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             this.timelineEvents = events;
         },
@@ -405,60 +835,287 @@ function visualizationApp() {
             const container = document.getElementById('topology-container');
             if (!container) return;
 
-            const nodes = new vis.DataSet(this.topologyData.nodes.map(n => ({
-                id: n.id,
-                label: n.label,
-                color: { background: n.color, border: n.color },
-                size: n.size || 20,
-                title: `${n.label}\n${n.ip}\nRisk: ${n.risk_level || 'none'}`,
-                font: { color: '#ffffff' },
-                data: n
-            })));
+            const isDark = document.documentElement.classList.contains('dark');
 
-            const edges = new vis.DataSet(this.topologyData.edges.map(e => ({
+            // Use enhanced topology if available
+            const topoData = this.insightsData.topology_enhanced?.nodes?.length > 0
+                ? this.insightsData.topology_enhanced
+                : this.topologyData;
+
+            const nodes = new vis.DataSet(topoData.nodes.map(n => {
+                let shape = 'dot';
+                let color = this.getRiskColorHex(n.risk_level);
+                let size = 15;
+
+                // Infrastructure nodes
+                if (n.type === 'gateway' || n.type === 'Router') {
+                    shape = 'diamond';
+                    color = '#6366f1';
+                    size = 30;
+                } else if (n.type === 'switch') {
+                    shape = 'square';
+                    color = '#06b6d4';
+                    size = 25;
+                } else if (n.type === 'access_point') {
+                    shape = 'triangle';
+                    color = '#a855f7';
+                    size = 25;
+                } else {
+                    size = 12 + (n.risk_score || 0) / 10;
+                }
+
+                return {
+                    id: n.id,
+                    label: n.label,
+                    color: { background: color, border: color, highlight: { background: color, border: '#fff' } },
+                    shape: shape,
+                    size: size,
+                    title: `${n.label}\n${n.ip || ''}\nRisk: ${n.risk_level || 'none'}`,
+                    font: { color: isDark ? '#e5e7eb' : '#374151', size: 11 },
+                    data: n
+                };
+            }));
+
+            const edges = new vis.DataSet(topoData.edges.map(e => ({
                 from: e.from,
                 to: e.to,
-                color: { color: e.color || '#4b5563' }
+                color: {
+                    color: e.type === 'wireless' ? '#a855f7' : e.type === 'wired' ? '#06b6d4' : '#6b7280',
+                    opacity: 0.6
+                },
+                dashes: e.type === 'wireless',
+                width: e.type === 'wired' ? 2 : 1,
+                smooth: { type: 'continuous' }
             })));
 
             const options = {
                 nodes: {
-                    shape: 'dot',
                     borderWidth: 2,
-                    shadow: true
+                    shadow: { enabled: true, size: 5 }
                 },
                 edges: {
-                    width: 1,
-                    smooth: {
-                        type: 'continuous'
-                    }
+                    smooth: { type: 'continuous', roundness: 0.5 }
                 },
                 physics: {
-                    stabilization: {
-                        iterations: 100
-                    },
+                    enabled: true,
+                    stabilization: { iterations: 150 },
                     barnesHut: {
-                        gravitationalConstant: -3000,
-                        springLength: 150
+                        gravitationalConstant: -4000,
+                        springLength: 120,
+                        springConstant: 0.04,
+                        damping: 0.3
                     }
                 },
                 interaction: {
                     hover: true,
-                    tooltipDelay: 200
+                    tooltipDelay: 100,
+                    zoomView: true,
+                    dragView: true
+                },
+                layout: {
+                    improvedLayout: true
                 }
             };
+
+            if (this.network) {
+                this.network.destroy();
+            }
 
             this.network = new vis.Network(container, { nodes, edges }, options);
 
             this.network.on('click', (params) => {
                 if (params.nodes.length > 0) {
                     const nodeId = params.nodes[0];
-                    const node = this.topologyData.nodes.find(n => n.id === nodeId);
+                    const node = topoData.nodes.find(n => n.id === nodeId);
                     this.selectedNode = node;
                 } else {
                     this.selectedNode = null;
                 }
             });
+        },
+
+        renderCharts() {
+            // Destroy existing charts
+            Object.values(this.charts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            this.charts = {};
+
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#9ca3af' : '#6b7280';
+
+            // Connection Types Chart
+            const connCtx = document.getElementById('connectionTypesChart');
+            if (connCtx && this.activeTab === 'topology') {
+                const connData = this.insightsData.connection_types || {};
+                this.charts.connections = new Chart(connCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Wired', 'Wireless', 'Unknown'],
+                        datasets: [{
+                            data: [connData.wired || 0, connData.wireless || 0, connData.unknown || 0],
+                            backgroundColor: ['#06b6d4', '#a855f7', '#6b7280'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '65%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12, padding: 10, font: { size: 11 } } }
+                        }
+                    }
+                });
+            }
+
+            // Traffic Distribution Chart
+            const trafficCtx = document.getElementById('trafficDistributionChart');
+            if (trafficCtx && this.activeTab === 'traffic' && this.insightsData.traffic_data?.length > 0) {
+                const trafficData = this.insightsData.traffic_data.slice(0, 8);
+                this.charts.traffic = new Chart(trafficCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: trafficData.map(d => d.label),
+                        datasets: [{
+                            data: trafficData.map(d => d.total_bytes),
+                            backgroundColor: ['#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#f97316', '#eab308'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '50%',
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => `${ctx.label}: ${this.formatBytes(ctx.raw)}`
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Upload/Download Chart
+            const upDownCtx = document.getElementById('uploadDownloadChart');
+            if (upDownCtx && this.activeTab === 'traffic' && this.insightsData.traffic_data?.length > 0) {
+                const trafficData = this.insightsData.traffic_data.slice(0, 10);
+                this.charts.upDown = new Chart(upDownCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: trafficData.map(d => d.label.substring(0, 15)),
+                        datasets: [
+                            {
+                                label: 'Upload',
+                                data: trafficData.map(d => d.tx_bytes),
+                                backgroundColor: '#6366f1',
+                                borderRadius: 4
+                            },
+                            {
+                                label: 'Download',
+                                data: trafficData.map(d => d.rx_bytes),
+                                backgroundColor: '#a855f7',
+                                borderRadius: 4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        plugins: {
+                            legend: { position: 'top', labels: { color: textColor } },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => `${ctx.dataset.label}: ${this.formatBytes(ctx.raw)}`
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: {
+                                    color: textColor,
+                                    callback: (val) => this.formatBytes(val)
+                                },
+                                grid: { color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }
+                            },
+                            y: {
+                                ticks: { color: textColor },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Signal Distribution Chart
+            const signalCtx = document.getElementById('signalDistributionChart');
+            if (signalCtx && this.activeTab === 'wireless' && this.insightsData.signal_strength?.length > 0) {
+                // Group by signal ranges
+                const signalRanges = { 'Excellent (>-50)': 0, 'Good (-50 to -60)': 0, 'Fair (-60 to -70)': 0, 'Poor (<-70)': 0 };
+                this.insightsData.signal_strength.forEach(d => {
+                    if (d.signal > -50) signalRanges['Excellent (>-50)']++;
+                    else if (d.signal > -60) signalRanges['Good (-50 to -60)']++;
+                    else if (d.signal > -70) signalRanges['Fair (-60 to -70)']++;
+                    else signalRanges['Poor (<-70)']++;
+                });
+
+                this.charts.signal = new Chart(signalCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(signalRanges),
+                        datasets: [{
+                            label: 'Devices',
+                            data: Object.values(signalRanges),
+                            backgroundColor: ['#16a34a', '#84cc16', '#eab308', '#dc2626'],
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: { ticks: { color: textColor }, grid: { display: false } },
+                            y: {
+                                ticks: { color: textColor, stepSize: 1 },
+                                grid: { color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' },
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Query Types Chart
+            const queryCtx = document.getElementById('queryTypesChart');
+            if (queryCtx && this.activeTab === 'dns' && this.insightsData.dns_analysis?.query_types) {
+                const queryTypes = this.insightsData.dns_analysis.query_types;
+                this.charts.query = new Chart(queryCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(queryTypes),
+                        datasets: [{
+                            data: Object.values(queryTypes),
+                            backgroundColor: ['#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '60%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12 } }
+                        }
+                    }
+                });
+            }
         },
 
         resetTopology() {
@@ -467,12 +1124,17 @@ function visualizationApp() {
             }
         },
 
+        // Utility functions
+        getRiskColorHex(risk) {
+            return { critical: '#dc2626', high: '#ea580c', medium: '#ca8a04', low: '#16a34a', none: '#6b7280' }[risk] || '#6b7280';
+        },
+
         getRiskBadgeClass(risk) {
             const classes = {
-                'critical': 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200',
-                'high': 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200',
-                'medium': 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200',
-                'low': 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
+                'critical': 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
+                'high': 'bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200',
+                'medium': 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200',
+                'low': 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200',
                 'none': 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
             };
             return classes[risk] || classes['none'];
@@ -480,13 +1142,64 @@ function visualizationApp() {
 
         getHeatmapCellClass(risk) {
             const classes = {
-                'critical': 'bg-red-50 dark:bg-red-900/30 border-red-500 hover:bg-red-100 dark:hover:bg-red-900/50',
-                'high': 'bg-orange-50 dark:bg-orange-900/30 border-orange-500 hover:bg-orange-100 dark:hover:bg-orange-900/50',
-                'medium': 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900/50',
-                'low': 'bg-green-50 dark:bg-green-900/30 border-green-500 hover:bg-green-100 dark:hover:bg-green-900/50',
-                'none': 'bg-gray-50 dark:bg-gray-700/30 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50'
+                'critical': 'bg-red-50 dark:bg-red-900/20 border-red-400 hover:border-red-500',
+                'high': 'bg-orange-50 dark:bg-orange-900/20 border-orange-400 hover:border-orange-500',
+                'medium': 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400 hover:border-yellow-500',
+                'low': 'bg-green-50 dark:bg-green-900/20 border-green-400 hover:border-green-500',
+                'none': 'bg-gray-50 dark:bg-gray-700/20 border-gray-300 dark:border-gray-600 hover:border-gray-400'
             };
             return classes[risk] || classes['none'];
+        },
+
+        getRiskScoreColor(score) {
+            if (score >= 70) return 'text-red-600 dark:text-red-400';
+            if (score >= 40) return 'text-orange-600 dark:text-orange-400';
+            if (score >= 20) return 'text-yellow-600 dark:text-yellow-400';
+            return 'text-green-600 dark:text-green-400';
+        },
+
+        getSignalColor(signal) {
+            if (signal > -50) return '#16a34a';
+            if (signal > -60) return '#84cc16';
+            if (signal > -70) return '#eab308';
+            return '#dc2626';
+        },
+
+        getSignalClass(signal) {
+            if (signal > -50) return 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200';
+            if (signal > -60) return 'bg-lime-100 dark:bg-lime-900/50 text-lime-800 dark:text-lime-200';
+            if (signal > -70) return 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200';
+            return 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200';
+        },
+
+        getSignalPercentage(signal) {
+            // -30 is best, -90 is worst
+            return Math.max(0, Math.min(100, ((signal + 90) / 60) * 100));
+        },
+
+        getTrafficPercentage(bytes) {
+            return this.maxTraffic > 0 ? Math.round((bytes / this.maxTraffic) * 100) : 0;
+        },
+
+        getBlockRate() {
+            const total = this.insightsData.dns_analysis?.total_queries || 0;
+            const blocked = this.insightsData.dns_analysis?.total_blocked || 0;
+            return total > 0 ? ((blocked / total) * 100).toFixed(1) : '0';
+        },
+
+        formatBytes(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        },
+
+        formatNumber(num) {
+            if (!num) return '0';
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
         },
 
         getDeviceIconSvg(iconType) {
@@ -498,14 +1211,12 @@ function visualizationApp() {
                 'phone': '<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>',
                 'tablet': '<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>',
                 'tv': '<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>',
-                'gaming': '<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
                 'iot': '<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>',
                 'printer': '<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>',
                 'nas': '<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>',
                 'camera': '<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>',
                 'smart_home': '<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>',
                 'access_point': '<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg>',
-                'switch': '<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>',
                 'unknown': '<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>'
             };
             return icons[iconType] || icons['unknown'];
@@ -533,9 +1244,7 @@ function visualizationApp() {
         },
 
         getEventDescription(event) {
-            if (event.type === 'scan') {
-                return `Found ${event.devices_found} devices (${event.profile} scan)`;
-            }
+            if (event.type === 'scan') return `Found ${event.devices_found} devices (${event.profile} scan)`;
             return event.description || '';
         },
 
@@ -544,19 +1253,9 @@ function visualizationApp() {
             const date = new Date(ts);
             const now = new Date();
             const diff = now - date;
-
-            if (diff < 3600000) {
-                const mins = Math.floor(diff / 60000);
-                return `${mins} min ago`;
-            }
-            if (diff < 86400000) {
-                const hours = Math.floor(diff / 3600000);
-                return `${hours} hours ago`;
-            }
-            if (diff < 604800000) {
-                const days = Math.floor(diff / 86400000);
-                return `${days} days ago`;
-            }
+            if (diff < 3600000) return `${Math.floor(diff / 60000)} min ago`;
+            if (diff < 86400000) return `${Math.floor(diff / 3600000)} hours ago`;
+            if (diff < 604800000) return `${Math.floor(diff / 86400000)} days ago`;
             return date.toLocaleDateString();
         }
     };

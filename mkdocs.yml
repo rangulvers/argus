@@ -113,6 +113,7 @@ nav:
     - First Scan: getting-started/first-scan.md
   - User Guide:
     - Dashboard: guide/dashboard.md
+    - Visualization: guide/visualization.md
     - Devices: guide/devices.md
     - Scans: guide/scans.md
     - Integrations:

@@ -55,6 +55,21 @@ Your home network is growing. Smart TVs, IoT devices, phones, computers - it's h
 - Real-time scan progress
 - Mobile-friendly tables
 
+### Network Visualization
+- **Interactive Topology Map** - See your network structure with device connections
+- **Risk Heat Map** - Visual overview of device risk levels
+- **Traffic Analysis** - Monitor bandwidth usage per device (requires UniFi)
+- **Wireless Insights** - Signal strength and AP distribution (requires UniFi)
+- **DNS Analytics** - Query patterns and blocked domains (requires Pi-hole/AdGuard)
+- **Port Matrix** - See all open ports across devices at a glance
+- **Timeline** - Track network changes over time
+
+### Integrations
+- **UniFi Network** - Pull device details, traffic stats, and wireless data
+- **Pi-hole** - DNS query analytics and blocking statistics
+- **AdGuard Home** - Alternative DNS filtering integration
+- **CVE Database** - Match services against known vulnerabilities
+
 ### Security
 - Session-based authentication
 - Single admin user setup on first run

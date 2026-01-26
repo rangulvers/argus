@@ -23,7 +23,33 @@ Overview of your network's current state at a glance.
 
 ---
 
-## Charts
+## Network Overview Charts
+
+Real-time charts showing current network composition:
+
+| Chart | Type | What it Shows |
+|-------|------|---------------|
+| :material-chart-donut: **Risk Distribution** | Doughnut | Device counts by risk level |
+| :material-chart-donut: **Device Types** | Doughnut | Breakdown by vendor/category |
+| :material-chart-pie: **Top Open Ports** | Polar Area | Most commonly open ports |
+| :material-radar: **Security Posture** | Radar | Multi-dimensional security score |
+
+### Security Posture Metrics
+
+The radar chart evaluates five key areas:
+
+- **Device Security** - Percentage of devices at low/safe risk
+- **Trust Coverage** - Percentage of devices marked as trusted
+- **Port Exposure** - Inverse of average open ports (fewer = better)
+- **Network Stability** - Based on recent change activity
+- **Monitoring** - Scan frequency and coverage
+
+!!! tip "Target Scores"
+    Aim for all metrics above 70% for a healthy security posture.
+
+---
+
+## Historical Trend Charts
 
 Historical data with selectable time range (7d, 30d, 90d, 1y):
 
