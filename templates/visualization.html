@@ -3,17 +3,20 @@
 {% block title %}Network Visualization - Argus{% endblock %}
 
 {% block extra_head %}
-<!-- vis.js for network topology -->
-<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<!-- Graphology and Sigma.js for network topology (must load graphology first) -->
+<script src="https://cdn.jsdelivr.net/npm/graphology@0.25.4/dist/graphology.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/graphology-layout-forceatlas2@0.10.1/dist/graphology-layout-forceatlas2.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sigma@3.0.0-beta.29/dist/sigma.min.js"></script>
 <!-- Chart.js for charts -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
     #topology-container {
         width: 100%;
-        height: 600px;
+        height: 700px;
         border: 1px solid #374151;
         border-radius: 0.5rem;
         background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        position: relative;
     }
     .light #topology-container {
         background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
@@ -186,8 +189,8 @@
                         <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-yellow-500 mr-1"></span> Medium</span>
                         <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-green-500 mr-1"></span> Low/Safe</span>
                         <span class="border-l border-gray-300 dark:border-gray-600 pl-4 font-medium text-gray-600 dark:text-gray-400">Connection:</span>
-                        <span class="flex items-center"><span class="w-4 h-0.5 bg-cyan-500 mr-1"></span> Wired</span>
-                        <span class="flex items-center"><span class="w-4 h-0.5 bg-purple-500 mr-1 border-dashed border-t-2 border-purple-500"></span> Wireless</span>
+                        <span class="flex items-center"><span class="w-6 h-1 bg-cyan-500 mr-1 rounded"></span> Wired</span>
+                        <span class="flex items-center"><span class="w-6 h-0.5 bg-purple-500 mr-1 rounded"></span> Wireless</span>
                     </div>
                 </div>
             </div>
@@ -766,15 +769,53 @@ function visualizationApp() {
         maxTraffic: 1,
 
         async init() {
+            // Wait for libraries to load
+            await this.waitForLibraries();
+
             await this.loadData();
             this.$watch('activeTab', (tab) => {
-                if (tab === 'topology' && this.network) {
-                    this.$nextTick(() => {
-                        this.network.fit();
+                this.$nextTick(() => {
+                    if (tab === 'topology') {
+                        // Re-render topology when switching to topology tab
                         this.renderTopology();
-                    });
+                    }
+                    // Render charts for the active tab
+                    this.renderCharts();
+                });
+            });
+        },
+
+        async waitForLibraries() {
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds max
+
+            while (attempts < maxAttempts) {
+                const Graph = window.graphology?.Graph || window.Graph;
+                const Sigma = window.Sigma;
+                const Chart = window.Chart;
+
+                // Core libraries must be loaded
+                if (Graph && Sigma && Chart) {
+                    console.log('Core libraries loaded successfully');
+
+                    // Check for optional ForceAtlas2
+                    const ForceAtlas2 = window.graphologyLayoutForceAtlas2?.default || window.forceAtlas2;
+                    if (!ForceAtlas2) {
+                        console.warn('ForceAtlas2 layout not loaded, will use hierarchical layout only');
+                    } else {
+                        console.log('ForceAtlas2 layout loaded');
+                    }
+                    return;
                 }
-                this.$nextTick(() => this.renderCharts());
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            console.error('Required libraries failed to load:', {
+                graphology: !!(window.graphology?.Graph || window.Graph),
+                sigma: !!window.Sigma,
+                chart: !!window.Chart
             });
         },
 
@@ -833,7 +874,17 @@ function visualizationApp() {
 
         renderTopology() {
             const container = document.getElementById('topology-container');
-            if (!container) return;
+            if (!container) {
+                console.error('Topology container not found');
+                return;
+            }
+
+            // Ensure container is visible and has dimensions
+            if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+                console.warn('Topology container has no dimensions, deferring render');
+                setTimeout(() => this.renderTopology(), 100);
+                return;
+            }
 
             const isDark = document.documentElement.classList.contains('dark');
 
@@ -842,96 +893,232 @@ function visualizationApp() {
                 ? this.insightsData.topology_enhanced
                 : this.topologyData;
 
-            const nodes = new vis.DataSet(topoData.nodes.map(n => {
-                let shape = 'dot';
+            // Destroy existing network
+            if (this.network) {
+                this.network.kill();
+                this.network = null;
+            }
+
+            // Clear container
+            container.innerHTML = '';
+
+            // Check graphology library
+            const Graph = window.graphology?.Graph || window.Graph;
+            if (!Graph) {
+                console.error('graphology library not loaded! Check CDN links.');
+                console.error('Available globals:', Object.keys(window).filter(k => k.toLowerCase().includes('graph')));
+                container.innerHTML = '<div style="color: red; padding: 20px; text-align: center;">Error: graphology library not loaded. Please refresh the page.</div>';
+                return;
+            }
+
+            // Create graphology graph
+            const graph = new Graph();
+
+            // Add nodes with styling
+            topoData.nodes.forEach(n => {
                 let color = this.getRiskColorHex(n.risk_level);
                 let size = 15;
 
-                // Infrastructure nodes
+                // Infrastructure nodes - different styling (using color and size for differentiation)
+                // Note: Custom shapes (diamond, square, triangle) require custom WebGL renderers
+                // For now, we use circles with distinct colors and sizes
                 if (n.type === 'gateway' || n.type === 'Router') {
-                    shape = 'diamond';
-                    color = '#6366f1';
+                    color = '#6366f1'; // Indigo for gateways
                     size = 30;
                 } else if (n.type === 'switch') {
-                    shape = 'square';
-                    color = '#06b6d4';
+                    color = '#06b6d4'; // Cyan for switches
                     size = 25;
                 } else if (n.type === 'access_point') {
-                    shape = 'triangle';
-                    color = '#a855f7';
+                    color = '#a855f7'; // Purple for access points
                     size = 25;
                 } else {
+                    // Regular devices - size based on risk score
                     size = 12 + (n.risk_score || 0) / 10;
                 }
 
-                return {
-                    id: n.id,
+                graph.addNode(n.id, {
                     label: n.label,
-                    color: { background: color, border: color, highlight: { background: color, border: '#fff' } },
-                    shape: shape,
                     size: size,
-                    title: `${n.label}\n${n.ip || ''}\nRisk: ${n.risk_level || 'none'}`,
-                    font: { color: isDark ? '#e5e7eb' : '#374151', size: 11 },
-                    data: n
-                };
-            }));
+                    color: color,
+                    x: Math.random() * 100,
+                    y: Math.random() * 100,
+                    // Store original data for click events
+                    originalData: n
+                });
+            });
 
-            const edges = new vis.DataSet(topoData.edges.map(e => ({
-                from: e.from,
-                to: e.to,
-                color: {
-                    color: e.type === 'wireless' ? '#a855f7' : e.type === 'wired' ? '#06b6d4' : '#6b7280',
-                    opacity: 0.6
-                },
-                dashes: e.type === 'wireless',
-                width: e.type === 'wired' ? 2 : 1,
-                smooth: { type: 'continuous' }
-            })));
+            // Add edges with styling
+            topoData.edges.forEach((e, index) => {
+                try {
+                    // Use different colors and sizes for wireless vs wired
+                    // Sigma v3 doesn't support "dashed" type by default, so we use visual differences
+                    const edgeColor = e.type === 'wireless' ? '#a855f7' :
+                                     e.type === 'wired' ? '#06b6d4' : '#6b7280';
 
-            const options = {
-                nodes: {
-                    borderWidth: 2,
-                    shadow: { enabled: true, size: 5 }
-                },
-                edges: {
-                    smooth: { type: 'continuous', roundness: 0.5 }
-                },
-                physics: {
-                    enabled: true,
-                    stabilization: { iterations: 150 },
-                    barnesHut: {
-                        gravitationalConstant: -4000,
-                        springLength: 120,
-                        springConstant: 0.04,
-                        damping: 0.3
-                    }
-                },
-                interaction: {
-                    hover: true,
-                    tooltipDelay: 100,
-                    zoomView: true,
-                    dragView: true
-                },
-                layout: {
-                    improvedLayout: true
-                }
-            };
-
-            if (this.network) {
-                this.network.destroy();
-            }
-
-            this.network = new vis.Network(container, { nodes, edges }, options);
-
-            this.network.on('click', (params) => {
-                if (params.nodes.length > 0) {
-                    const nodeId = params.nodes[0];
-                    const node = topoData.nodes.find(n => n.id === nodeId);
-                    this.selectedNode = node;
-                } else {
-                    this.selectedNode = null;
+                    graph.addEdge(e.from, e.to, {
+                        color: edgeColor,
+                        size: e.type === 'wireless' ? 1 : 2, // Thinner for wireless, thicker for wired
+                        type: 'line', // Use standard line type
+                        originalType: e.type
+                    });
+                } catch (error) {
+                    console.warn(`Failed to add edge ${e.from} -> ${e.to}:`, error);
                 }
             });
+
+            // Apply hierarchical layout with gateway/router at center
+            this.applyHierarchicalLayout(graph, topoData);
+
+            // Create Sigma renderer
+            const Sigma = window.Sigma;
+            if (!Sigma) {
+                console.error('Sigma.js library not loaded! Check CDN links.');
+                console.error('Available window properties:', Object.keys(window).filter(k => k.includes('Sigma') || k.includes('sigma')));
+                container.innerHTML = '<div style="color: red; padding: 20px; text-align: center;">Error: Sigma.js library not loaded. Please refresh the page.</div>';
+                return;
+            }
+
+            console.log('Sigma.js loaded successfully');
+
+            try {
+                this.network = new Sigma(graph, container, {
+                    // Rendering settings
+                    renderEdgeLabels: false,
+                    renderLabels: true,
+                    enableEdgeEvents: false,
+
+                    // Default colors
+                    defaultNodeColor: isDark ? '#9ca3af' : '#6b7280',
+                    defaultEdgeColor: isDark ? '#4b5563' : '#9ca3af',
+
+                    // Label settings
+                    labelColor: { color: isDark ? '#e5e7eb' : '#374151' },
+                    labelSize: 12,
+                    labelWeight: '600',
+                    labelRenderedSizeThreshold: 6,
+
+                    // Label visibility
+                    labelDensity: 0.5,
+                    labelGridCellSize: 150,
+
+                    // Node settings
+                    minCameraRatio: 0.1,
+                    maxCameraRatio: 10,
+
+                    // Edge settings
+                    defaultEdgeType: 'line',
+                    edgeLabelSize: 10,
+
+                    // Performance
+                    hideEdgesOnMove: false,
+                    hideLabelsOnMove: false,
+
+                    // Interaction
+                    allowInvalidContainer: false,
+                    enableEdgeClickEvents: false,
+                    enableEdgeWheelEvents: false,
+                    enableEdgeHoverEvents: false
+                });
+
+                console.log('Sigma.js renderer created successfully');
+
+                // Adjust camera to fit all nodes
+                setTimeout(() => {
+                    if (this.network) {
+                        try {
+                            this.network.getCamera().animatedReset({ duration: 500 });
+                        } catch (e) {
+                            console.warn('Could not reset camera:', e);
+                        }
+                    }
+                }, 100);
+
+            } catch (error) {
+                console.error('Failed to create Sigma renderer:', error);
+                container.innerHTML = '<div style="color: red; padding: 20px; text-align: center;">Error initializing network visualization: ' + error.message + '</div>';
+                return;
+            }
+
+            // State for hover effects
+            let hoveredNode = null;
+
+            // Add click interaction
+            this.network.on('clickNode', ({ node }) => {
+                const nodeData = graph.getNodeAttributes(node);
+                this.selectedNode = nodeData.originalData;
+            });
+
+            // Add hover interaction - highlight node and its neighbors
+            this.network.on('enterNode', ({ node }) => {
+                container.style.cursor = 'pointer';
+                hoveredNode = node;
+
+                // Highlight the node and its neighbors
+                const neighbors = new Set(graph.neighbors(node));
+
+                graph.forEachNode((n, attributes) => {
+                    if (n === node || neighbors.has(n)) {
+                        // Keep highlighted nodes at full opacity
+                        graph.setNodeAttribute(n, 'highlighted', true);
+                    } else {
+                        // Dim other nodes
+                        graph.setNodeAttribute(n, 'highlighted', false);
+                    }
+                });
+
+                // Highlight connected edges
+                graph.forEachEdge((edge, attributes, source, target) => {
+                    if (source === node || target === node) {
+                        graph.setEdgeAttribute(edge, 'highlighted', true);
+                    } else {
+                        graph.setEdgeAttribute(edge, 'highlighted', false);
+                    }
+                });
+
+                this.network.refresh();
+            });
+
+            this.network.on('leaveNode', () => {
+                container.style.cursor = 'default';
+                hoveredNode = null;
+
+                // Reset all nodes and edges
+                graph.forEachNode((n) => {
+                    graph.setNodeAttribute(n, 'highlighted', true);
+                });
+                graph.forEachEdge((edge) => {
+                    graph.setEdgeAttribute(edge, 'highlighted', true);
+                });
+
+                this.network.refresh();
+            });
+
+            // Click on background to deselect
+            this.network.on('clickStage', () => {
+                this.selectedNode = null;
+            });
+
+            // Apply hover reducer to dim non-highlighted elements
+            this.network.setSetting('nodeReducer', (node, data) => {
+                const res = { ...data };
+                if (hoveredNode && !data.highlighted) {
+                    res.color = isDark ? '#374151' : '#d1d5db';
+                    res.label = '';
+                }
+                return res;
+            });
+
+            this.network.setSetting('edgeReducer', (edge, data) => {
+                const res = { ...data };
+                if (hoveredNode && !data.highlighted) {
+                    res.color = isDark ? '#1f2937' : '#e5e7eb';
+                    res.size = data.size * 0.5;
+                }
+                return res;
+            });
+
+            // Store graph reference for potential updates
+            this.graphInstance = graph;
         },
 
         renderCharts() {
@@ -941,12 +1128,18 @@ function visualizationApp() {
             });
             this.charts = {};
 
+            // Check if Chart.js is loaded
+            if (typeof Chart === 'undefined') {
+                console.error('Chart.js not loaded');
+                return;
+            }
+
             const isDark = document.documentElement.classList.contains('dark');
             const textColor = isDark ? '#9ca3af' : '#6b7280';
 
             // Connection Types Chart
             const connCtx = document.getElementById('connectionTypesChart');
-            if (connCtx && this.activeTab === 'topology') {
+            if (connCtx && connCtx.getContext && this.activeTab === 'topology' && connCtx.offsetParent !== null) {
                 const connData = this.insightsData.connection_types || {};
                 this.charts.connections = new Chart(connCtx, {
                     type: 'doughnut',
@@ -971,7 +1164,7 @@ function visualizationApp() {
 
             // Traffic Distribution Chart
             const trafficCtx = document.getElementById('trafficDistributionChart');
-            if (trafficCtx && this.activeTab === 'traffic' && this.insightsData.traffic_data?.length > 0) {
+            if (trafficCtx && trafficCtx.getContext && this.activeTab === 'traffic' && trafficCtx.offsetParent !== null && this.insightsData.traffic_data?.length > 0) {
                 const trafficData = this.insightsData.traffic_data.slice(0, 8);
                 this.charts.traffic = new Chart(trafficCtx, {
                     type: 'doughnut',
@@ -1001,7 +1194,7 @@ function visualizationApp() {
 
             // Upload/Download Chart
             const upDownCtx = document.getElementById('uploadDownloadChart');
-            if (upDownCtx && this.activeTab === 'traffic' && this.insightsData.traffic_data?.length > 0) {
+            if (upDownCtx && upDownCtx.getContext && this.activeTab === 'traffic' && upDownCtx.offsetParent !== null && this.insightsData.traffic_data?.length > 0) {
                 const trafficData = this.insightsData.traffic_data.slice(0, 10);
                 this.charts.upDown = new Chart(upDownCtx, {
                     type: 'bar',
@@ -1053,7 +1246,7 @@ function visualizationApp() {
 
             // Signal Distribution Chart
             const signalCtx = document.getElementById('signalDistributionChart');
-            if (signalCtx && this.activeTab === 'wireless' && this.insightsData.signal_strength?.length > 0) {
+            if (signalCtx && signalCtx.getContext && this.activeTab === 'wireless' && signalCtx.offsetParent !== null && this.insightsData.signal_strength?.length > 0) {
                 // Group by signal ranges
                 const signalRanges = { 'Excellent (>-50)': 0, 'Good (-50 to -60)': 0, 'Fair (-60 to -70)': 0, 'Poor (<-70)': 0 };
                 this.insightsData.signal_strength.forEach(d => {
@@ -1094,7 +1287,7 @@ function visualizationApp() {
 
             // Query Types Chart
             const queryCtx = document.getElementById('queryTypesChart');
-            if (queryCtx && this.activeTab === 'dns' && this.insightsData.dns_analysis?.query_types) {
+            if (queryCtx && queryCtx.getContext && this.activeTab === 'dns' && queryCtx.offsetParent !== null && this.insightsData.dns_analysis?.query_types) {
                 const queryTypes = this.insightsData.dns_analysis.query_types;
                 this.charts.query = new Chart(queryCtx, {
                     type: 'doughnut',
@@ -1118,9 +1311,120 @@ function visualizationApp() {
             }
         },
 
+        applyHierarchicalLayout(graph, topoData) {
+            const containerWidth = 600;
+            const containerHeight = 600;
+
+            // Identify the gateway/router node (should be at the center)
+            let gatewayNode = null;
+            topoData.nodes.forEach(n => {
+                if (n.type === 'gateway' || n.type === 'Router' || n.label.toLowerCase().includes('gateway') || n.label.toLowerCase().includes('router')) {
+                    gatewayNode = n.id;
+                }
+            });
+
+            // If no gateway found, use the node with most connections
+            if (!gatewayNode) {
+                let maxDegree = 0;
+                graph.forEachNode((node) => {
+                    const degree = graph.degree(node);
+                    if (degree > maxDegree) {
+                        maxDegree = degree;
+                        gatewayNode = node;
+                    }
+                });
+            }
+
+            // Create layers based on distance from gateway
+            const layers = new Map();
+            const visited = new Set();
+            const queue = [[gatewayNode, 0]];
+
+            while (queue.length > 0) {
+                const [node, layer] = queue.shift();
+                if (visited.has(node)) continue;
+
+                visited.add(node);
+                if (!layers.has(layer)) layers.set(layer, []);
+                layers.get(layer).push(node);
+
+                // Add neighbors to queue
+                try {
+                    graph.forEachNeighbor(node, (neighbor) => {
+                        if (!visited.has(neighbor)) {
+                            queue.push([neighbor, layer + 1]);
+                        }
+                    });
+                } catch (e) {
+                    // Node might not have neighbors
+                }
+            }
+
+            // Position nodes in layers
+            const maxLayer = Math.max(...Array.from(layers.keys()));
+            layers.forEach((nodes, layer) => {
+                const radius = (layer === 0) ? 0 : (layer * 150);
+                const angleStep = (2 * Math.PI) / Math.max(nodes.length, 1);
+
+                nodes.forEach((node, index) => {
+                    if (layer === 0) {
+                        // Center position for gateway
+                        graph.setNodeAttribute(node, 'x', 0);
+                        graph.setNodeAttribute(node, 'y', 0);
+                    } else {
+                        // Arrange in concentric circles
+                        const angle = index * angleStep;
+                        graph.setNodeAttribute(node, 'x', radius * Math.cos(angle));
+                        graph.setNodeAttribute(node, 'y', radius * Math.sin(angle));
+                    }
+                });
+            });
+
+            // Apply ForceAtlas2 for natural spring layout (optional enhancement)
+            try {
+                // Try multiple ways to access ForceAtlas2
+                const ForceAtlas2 = window.graphologyLayoutForceAtlas2?.default ||
+                                   window.graphologyLayoutForceAtlas2 ||
+                                   window.forceAtlas2;
+
+                if (ForceAtlas2 && typeof ForceAtlas2.assign === 'function') {
+                    // Run ForceAtlas2 layout algorithm for a few iterations
+                    const settings = {
+                        iterations: 100,
+                        settings: {
+                            barnesHutOptimize: true,
+                            barnesHutTheta: 0.5,
+                            scalingRatio: 10,
+                            strongGravityMode: true,
+                            gravity: 0.05,
+                            slowDown: 1,
+                            linLogMode: false
+                        }
+                    };
+                    ForceAtlas2.assign(graph, settings);
+                    console.log('ForceAtlas2 physics layout applied');
+                } else {
+                    console.log('ForceAtlas2 not available, using hierarchical layout only');
+                }
+            } catch (error) {
+                console.log('ForceAtlas2 failed, using hierarchical layout:', error.message);
+            }
+        },
+
         resetTopology() {
             if (this.network) {
-                this.network.fit();
+                try {
+                    // Reset camera to show all nodes (Sigma v3 API)
+                    const camera = this.network.getCamera();
+                    if (camera && typeof camera.setState === 'function') {
+                        camera.setState({ x: 0.5, y: 0.5, ratio: 1 });
+                    } else {
+                        // Fallback: use animatedReset if available
+                        this.network.getCamera().animatedReset();
+                    }
+                } catch (error) {
+                    console.warn('Could not reset camera:', error);
+                }
             }
         },
 
