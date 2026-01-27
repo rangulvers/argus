@@ -22,9 +22,42 @@ SESSION_MAX_AGE = 60 * 60 * 24 * 7  # 7 days in seconds
 
 
 def get_secret_key() -> str:
-    """Get or generate a secret key for session signing"""
+    """Get or generate a secret key for session signing
+    
+    Priority order:
+    1. ARGUS_SESSION_SECRET environment variable (recommended for production)
+    2. File-based secret (./data/.session_secret) - development only
+    
+    Raises:
+        RuntimeError: If no secret available in production mode
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Priority 1: Environment variable (recommended for production)
+    env_secret = os.environ.get("ARGUS_SESSION_SECRET")
+    if env_secret:
+        if len(env_secret) < 32:
+            logger.warning("ARGUS_SESSION_SECRET is too short (< 32 chars), consider using a longer secret")
+        return env_secret
+    
+    # Priority 2: File-based secret (development only)
     secret_file = "./data/.session_secret"
-
+    
+    # Check if we're in production mode
+    is_production = os.environ.get("ARGUS_ENVIRONMENT", "").lower() == "production"
+    
+    if is_production:
+        raise RuntimeError(
+            "ARGUS_SESSION_SECRET environment variable is required in production mode. "
+            "Generate a secure secret with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+        )
+    
+    # Development mode: use file-based secret
+    logger.warning(
+        "Using file-based session secret. For production, set ARGUS_SESSION_SECRET environment variable."
+    )
+    
     # Create data directory if it doesn't exist
     os.makedirs("./data", exist_ok=True)
 
@@ -33,6 +66,7 @@ def get_secret_key() -> str:
             return f.read().strip()
 
     # Generate new secret key
+    logger.info("Generating new session secret file")
     secret = secrets.token_urlsafe(32)
     with open(secret_file, "w") as f:
         f.write(secret)

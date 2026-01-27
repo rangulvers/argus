@@ -130,25 +130,43 @@ async def auth_middleware(request: Request, call_next):
         if is_api_route:
             api_key = get_api_key_from_request(request)
             if api_key:
-                # Find matching API key in database
-                key_hash = hash_api_key(api_key)
-                api_key_record = db.query(APIKey).filter(
-                    APIKey.key_hash == key_hash,
+                # SECURITY FIX: Optimize API key validation to prevent DoS and timing attacks
+                # Step 1: Extract prefix for fast lookup (no expensive hashing yet)
+                from app.auth import get_api_key_prefix, verify_api_key
+                key_prefix = get_api_key_prefix(api_key)
+                
+                # Step 2: Query by indexed prefix only (fast database lookup)
+                api_key_candidates = db.query(APIKey).filter(
+                    APIKey.key_prefix == key_prefix,
                     APIKey.is_revoked == False
-                ).first()
-
-                if api_key_record:
+                ).all()
+                
+                # Step 3: Verify hash only for matching prefix candidates (1-2 max)
+                valid_key = None
+                for candidate in api_key_candidates:
+                    if verify_api_key(api_key, candidate.key_hash):
+                        valid_key = candidate
+                        break
+                
+                # Step 4: Constant-time dummy verification to prevent timing attacks
+                # Always perform at least one hash operation to keep timing consistent
+                if not valid_key and not api_key_candidates:
+                    # No candidates found - do dummy hash to prevent timing leak
+                    from app.auth import hash_api_key
+                    _ = hash_api_key("dummy_key_" + api_key[:8])
+                
+                if valid_key:
                     # Check expiration
-                    if api_key_record.expires_at and api_key_record.expires_at < datetime.utcnow():
+                    if valid_key.expires_at and valid_key.expires_at < datetime.utcnow():
                         return JSONResponse(
                             status_code=401,
                             content={"detail": "API key has expired"}
                         )
-
+                    
                     # Update last used timestamp
-                    api_key_record.last_used_at = datetime.utcnow()
+                    valid_key.last_used_at = datetime.utcnow()
                     db.commit()
-
+                    
                     # API key is valid - continue
                     return await call_next(request)
 

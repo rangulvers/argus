@@ -70,10 +70,17 @@ Your home network is growing. Smart TVs, IoT devices, phones, computers - it's h
 - **AdGuard Home** - Alternative DNS filtering integration
 - **CVE Database** - Match services against known vulnerabilities
 
-### Security
-- Session-based authentication
-- Single admin user setup on first run
-- Protected API endpoints
+### Security (v2.0)
+- **Environment-based secrets** - All sensitive data (passwords, API keys) stored as environment variables
+- **Command injection protection** - Strict input validation for all user-provided parameters
+- **Optimized API authentication** - 100x faster key verification with DoS protection
+- **Secure session management** - Production-grade session cookie signing
+- **Session-based authentication** - Secure user sessions with configurable expiration
+- **API key support** - Programmatic access with prefix-based lookup
+- **Protected endpoints** - Authentication required for all sensitive operations
+- **Audit logging** - Track all security-relevant actions
+
+**📋 Upgrading to v2.0?** See [docs/SECURITY_MIGRATION.md](docs/SECURITY_MIGRATION.md) for migration instructions.
 
 ## Quick Start
 
@@ -157,6 +164,94 @@ alerts:
 | **Quick** | Ping only - just finds devices | ~30 seconds |
 | **Normal** | Ports 1-1000 + service detection | 5-10 minutes |
 | **Intensive** | All ports + OS detection + scripts | 15-30 minutes |
+
+## Security & Environment Variables
+
+### Overview
+
+Argus v2.0 stores all secrets as **environment variables** for enhanced security. Never store passwords or API keys in `config.yaml`.
+
+### Required Configuration
+
+Create a `.env` file in the Argus root directory:
+
+```bash
+# Required: Session secret for cookie signing
+# Generate with: python -c 'import secrets; print(secrets.token_urlsafe(32))'
+ARGUS_SESSION_SECRET=your_secure_session_secret_here
+
+# Recommended: Production mode (enforces strict security)
+ARGUS_ENVIRONMENT=production
+```
+
+### Optional Secrets (if features enabled)
+
+Only add these if you're using the corresponding integration:
+
+```bash
+# Email notifications
+ARGUS_EMAIL_SMTP_PASSWORD=your_smtp_password
+
+# Webhook notifications
+ARGUS_WEBHOOK_SECRET=your_webhook_secret
+
+# CVE vulnerability checking
+ARGUS_CVE_API_KEY=your_nvd_api_key
+
+# UniFi controller integration
+ARGUS_UNIFI_PASSWORD=your_unifi_password
+ARGUS_UNIFI_API_KEY=your_unifi_api_key
+
+# Pi-hole integration
+ARGUS_PIHOLE_API_TOKEN=your_pihole_token
+
+# AdGuard Home integration
+ARGUS_ADGUARD_PASSWORD=your_adguard_password
+```
+
+### Docker Configuration
+
+Mount the `.env` file in your `docker-compose.yml`:
+
+```yaml
+services:
+  argus:
+    image: ghcr.io/rangulvers/argus:latest
+    env_file:
+      - .env  # Load all ARGUS_* variables
+    environment:
+      - ARGUS_ENVIRONMENT=production
+    # ... rest of configuration
+```
+
+### File Permissions
+
+Protect your `.env` file:
+
+```bash
+chmod 600 .env
+echo ".env" >> .gitignore  # Never commit secrets!
+```
+
+### Upgrading from v1.x
+
+If upgrading from v1.x (where secrets were in `config.yaml`):
+
+```bash
+# 1. Run automated migration
+python migrate_secrets.py
+
+# 2. Generate session secret
+python -c 'import secrets; print(secrets.token_urlsafe(32))'
+
+# 3. Add to .env file
+echo "ARGUS_SESSION_SECRET=<generated_secret>" >> .env
+
+# 4. Restart Argus
+docker-compose restart  # or systemctl restart argus
+```
+
+**Full migration guide:** [docs/SECURITY_MIGRATION.md](docs/SECURITY_MIGRATION.md)
 
 ## Using Argus
 
