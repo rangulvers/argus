@@ -160,6 +160,48 @@ class NetworkScanner:
 
         return scan
 
+    def _validate_port_range(self, port_range: str) -> str:
+        """
+        Validate and sanitize port range input to prevent command injection.
+        
+        Args:
+            port_range: Port range string (e.g., "80", "1-1000", "80,443,8080", "common", "all")
+            
+        Returns:
+            Validated port range string
+            
+        Raises:
+            ValueError: If port range format is invalid or ports are out of range
+        """
+        import re
+        
+        # Allow special keywords
+        if port_range in ["common", "all"]:
+            return port_range
+        
+        # Strict whitelist: only digits, hyphens, and commas allowed
+        if not re.match(r'^[0-9,\-]+$', port_range):
+            raise ValueError(
+                f"Invalid port range format: {port_range}. "
+                "Only digits, hyphens, and commas are allowed."
+            )
+        
+        # Validate individual port numbers are in valid range (1-65535)
+        # Split by comma and hyphen to get individual port numbers
+        parts = port_range.replace(',', '-').split('-')
+        for part in parts:
+            if part:  # Skip empty strings from consecutive delimiters
+                try:
+                    port_num = int(part)
+                    if port_num < 1 or port_num > 65535:
+                        raise ValueError(
+                            f"Port {part} out of valid range (1-65535)"
+                        )
+                except ValueError:
+                    raise ValueError(f"Invalid port number: {part}")
+        
+        return port_range
+
     def _build_nmap_args(
         self,
         scan_profile: str,
@@ -185,7 +227,8 @@ class NetworkScanner:
             elif port_range == "all":
                 args.append("-p-")
             else:
-                args.append(f"-p {port_range}")
+                validated_port_range = self._validate_port_range(port_range)
+                args.append(f"-p {validated_port_range}")
         else:  # normal
             args.append("-T3")
             # Port range
@@ -194,7 +237,8 @@ class NetworkScanner:
             elif port_range == "all":
                 args.append("-p-")
             else:
-                args.append(f"-p {port_range}")
+                validated_port_range = self._validate_port_range(port_range)
+                args.append(f"-p {validated_port_range}")
             if enable_service_detection:
                 args.append("-sV")  # Version detection
             if enable_os_detection:

@@ -3,6 +3,8 @@
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from contextlib import contextmanager
+from typing import Dict, Any
 import os
 import logging
 
@@ -30,6 +32,69 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+@contextmanager
+def get_middleware_db():
+    """
+    Context manager for middleware database sessions.
+    
+    This ensures proper session cleanup even if exceptions occur
+    during middleware processing. Unlike get_db() which uses yield,
+    this uses a try/finally context manager pattern.
+    
+    Usage:
+        with get_middleware_db() as db:
+            # Use db session
+            user = db.query(User).first()
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def get_engine():
+    """Get the database engine instance"""
+    return engine
+
+
+def get_pool_status() -> Dict[str, Any]:
+    """
+    Get connection pool statistics for monitoring.
+    
+    Returns:
+        Dict containing pool size, checked out connections,
+        overflow connections, and other pool metrics.
+        
+    Note:
+        For SQLite, pool statistics are limited as it uses
+        a NullPool or StaticPool by default.
+    """
+    pool = engine.pool
+    
+    try:
+        # Try to get pool statistics - handle both properties and methods
+        pool_size = pool.size if isinstance(pool.size, int) else pool.size()
+        checked_out = pool.checkedout() if callable(pool.checkedout) else getattr(pool, "checkedout", 0)
+        
+        return {
+            "pool_size": pool_size,
+            "checked_out": checked_out,
+            "overflow": pool.overflow() if hasattr(pool, "overflow") and callable(pool.overflow) else 0,
+            "checked_in": pool_size - checked_out,
+            "pool_class": pool.__class__.__name__,
+            "database_url": DATABASE_URL.split("://")[0] + "://***",  # Hide credentials
+        }
+    except (AttributeError, TypeError) as e:
+        # Some pool types (NullPool, StaticPool) don't have all methods
+        logger.debug(f"Pool statistics not fully available: {e}")
+        return {
+            "pool_class": pool.__class__.__name__,
+            "database_url": DATABASE_URL.split("://")[0] + "://***",
+            "note": "Full pool statistics not available for this pool type"
+        }
 
 
 def run_migrations():
