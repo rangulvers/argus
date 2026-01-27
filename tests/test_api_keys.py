@@ -49,11 +49,13 @@ class TestAPIKeyHashing:
         assert isinstance(hashed, str)
 
     def test_hash_api_key_deterministic(self):
-        """Test same key produces same hash"""
+        """Test same key can be verified (passlib uses random salts)"""
         key = generate_api_key()
         hash1 = hash_api_key(key)
         hash2 = hash_api_key(key)
-        assert hash1 == hash2
+        # Hashes will differ due to random salts, but both should verify
+        assert verify_api_key(key, hash1)
+        assert verify_api_key(key, hash2)
 
     def test_hash_api_key_different_keys(self):
         """Test different keys produce different hashes"""
@@ -64,10 +66,12 @@ class TestAPIKeyHashing:
         assert hash1 != hash2
 
     def test_hash_length(self):
-        """Test hash is SHA-256 (64 hex chars)"""
+        """Test hash is in passlib format (not raw SHA-256)"""
         key = generate_api_key()
         hashed = hash_api_key(key)
-        assert len(hashed) == 64
+        # Passlib pbkdf2_sha256 format: $pbkdf2-sha256$rounds$salt$hash
+        assert hashed.startswith('$pbkdf2-sha256$')
+        assert len(hashed) > 64  # Full passlib format is longer than raw hash
 
 
 class TestAPIKeyVerification:
