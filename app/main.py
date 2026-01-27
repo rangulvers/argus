@@ -35,6 +35,26 @@ from app.utils.device_icons import detect_device_type, get_device_icon_info
 from app.update_checker import get_update_checker
 from pydantic import BaseModel
 
+# Import validation schemas
+from app.schemas import (
+    DeviceUpdate,
+    ScanRequest,
+    SingleDeviceScanRequest,
+    NetworkConfigUpdate,
+    ScanningConfigUpdate,
+    ConfigUpdate,
+    CVEIntegrationUpdate,
+    UniFiIntegrationUpdate,
+    PiHoleIntegrationUpdate,
+    AdGuardIntegrationUpdate,
+    APIKeyCreateRequest,
+    ScheduleJobCreate,
+    ScheduleJobUpdate,
+    ScanResponse,
+    PortResponse,
+    APIKeyCreatedResponse
+)
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -213,101 +233,9 @@ async def security_headers_middleware(request: Request, call_next):
     return response
 
 
-# Pydantic models for API
-class ScanRequest(BaseModel):
-    subnet: Optional[str] = None
-    scan_profile: Optional[str] = "normal"
-    port_range: Optional[str] = None
-    detect_changes: bool = True
-
-
-class ScheduleJobCreate(BaseModel):
-    name: str
-    cron: str
-    profile: str = "normal"
-    enabled: bool = True
-
-
-class ScheduleJobUpdate(BaseModel):
-    name: str
-    cron: str
-    profile: str = "normal"
-    enabled: bool = True
-
-
-class NetworkConfigUpdate(BaseModel):
-    subnet: str
-    scan_profile: str
-
-
-class ScanningConfigUpdate(BaseModel):
-    port_range: str
-    enable_os_detection: bool
-
-
-class ConfigUpdate(BaseModel):
-    network: NetworkConfigUpdate
-    scanning: ScanningConfigUpdate
-
-
-class CVEIntegrationUpdate(BaseModel):
-    enabled: bool
-    api_key: Optional[str] = None
-    cache_hours: int = 24
-
-
-class UniFiIntegrationUpdate(BaseModel):
-    enabled: bool
-    controller_url: str = ""
-    controller_type: str = "udm"
-    username: Optional[str] = None
-    password: Optional[str] = None
-    api_key: Optional[str] = None
-    site_id: str = "default"
-    verify_ssl: bool = False
-    cache_seconds: int = 60
-    sync_on_scan: bool = True
-    include_offline_clients: bool = False
-
-
-class PiHoleIntegrationUpdate(BaseModel):
-    enabled: bool
-    pihole_url: str = ""
-    api_token: Optional[str] = None
-    verify_ssl: bool = False
-    cache_seconds: int = 60
-    sync_on_scan: bool = True
-
-
-class AdGuardIntegrationUpdate(BaseModel):
-    enabled: bool
-    adguard_url: str = ""
-    username: Optional[str] = None
-    password: Optional[str] = None
-    verify_ssl: bool = False
-    cache_seconds: int = 60
-    sync_on_scan: bool = True
-
-
-class DeviceUpdate(BaseModel):
-    label: Optional[str] = None
-    notes: Optional[str] = None
-    is_trusted: Optional[bool] = None
-    zone: Optional[str] = None
-
-
-class ScanResponse(BaseModel):
-    id: int
-    started_at: datetime
-    completed_at: Optional[datetime]
-    status: str
-    subnet: str
-    devices_found: int
-    scan_profile: str
-
-    class Config:
-        from_attributes = True
-
+# ============================================================================
+# Response Schemas (not in schemas.py - used only internally)
+# ============================================================================
 
 class DeviceResponse(BaseModel):
     id: int
@@ -318,17 +246,6 @@ class DeviceResponse(BaseModel):
     os_name: Optional[str]
     status: str
     port_count: int
-
-    class Config:
-        from_attributes = True
-
-
-class PortResponse(BaseModel):
-    port_number: int
-    protocol: str
-    state: str
-    service_name: Optional[str]
-    service_version: Optional[str]
 
     class Config:
         from_attributes = True
@@ -349,11 +266,6 @@ class ChangeResponse(BaseModel):
         from_attributes = True
 
 
-class APIKeyCreate(BaseModel):
-    name: str
-    expires_in_days: Optional[int] = None  # None = never expires
-
-
 class APIKeyResponse(BaseModel):
     id: int
     name: str
@@ -365,16 +277,6 @@ class APIKeyResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-class APIKeyCreatedResponse(BaseModel):
-    id: int
-    name: str
-    key: str  # Full key - only shown once!
-    key_prefix: str
-    created_at: datetime
-    expires_at: Optional[datetime]
-    message: str = "Save this key now. It will not be shown again."
 
 
 class AuditLogResponse(BaseModel):
@@ -2744,7 +2646,7 @@ async def list_api_keys(request: Request, db: Session = Depends(get_db)):
 
 @app.post("/api/keys", response_model=APIKeyCreatedResponse)
 async def create_api_key(
-    key_data: APIKeyCreate,
+    key_data: APIKeyCreateRequest,
     request: Request,
     db: Session = Depends(get_db)
 ):
