@@ -128,83 +128,92 @@ async def auth_middleware(request: Request, call_next):
     if not requires_auth(path):
         return await call_next(request)
 
-    # Get database session to check for users
-    from app.database import SessionLocal
-    db = SessionLocal()
+    # SECURITY FIX: Use context manager to prevent database session leaks
+    # Session is created inside try block to ensure cleanup even on early exceptions
+    from app.database import get_middleware_db
+    
     try:
-        # Check if any users exist
-        user_count = db.query(User).count()
+        with get_middleware_db() as db:
+            # Check if any users exist
+            user_count = db.query(User).count()
 
-        if user_count == 0:
-            # No users - redirect to setup (except for setup page itself)
-            if path != "/setup":
+            if user_count == 0:
+                # No users - redirect to setup (except for setup page itself)
+                if path != "/setup":
+                    if is_api_route:
+                        return JSONResponse(
+                            status_code=401,
+                            content={"detail": "No users configured. Please complete setup."}
+                        )
+                    return RedirectResponse(url="/setup", status_code=302)
+                return await call_next(request)
+
+            # For API routes, also check for API key authentication
+            if is_api_route:
+                api_key = get_api_key_from_request(request)
+                if api_key:
+                    # SECURITY FIX: Optimize API key validation to prevent DoS and timing attacks
+                    # Step 1: Extract prefix for fast lookup (no expensive hashing yet)
+                    from app.auth import get_api_key_prefix, verify_api_key
+                    key_prefix = get_api_key_prefix(api_key)
+                    
+                    # Step 2: Query by indexed prefix only (fast database lookup)
+                    api_key_candidates = db.query(APIKey).filter(
+                        APIKey.key_prefix == key_prefix,
+                        APIKey.is_revoked == False
+                    ).all()
+                    
+                    # Step 3: Verify hash only for matching prefix candidates (1-2 max)
+                    valid_key = None
+                    for candidate in api_key_candidates:
+                        if verify_api_key(api_key, candidate.key_hash):
+                            valid_key = candidate
+                            break
+                    
+                    # Step 4: Constant-time dummy verification to prevent timing attacks
+                    # Always perform at least one hash operation to keep timing consistent
+                    if not valid_key and not api_key_candidates:
+                        # No candidates found - do dummy hash to prevent timing leak
+                        from app.auth import hash_api_key
+                        _ = hash_api_key("dummy_key_" + api_key[:8])
+                    
+                    if valid_key:
+                        # Check expiration
+                        if valid_key.expires_at and valid_key.expires_at < datetime.utcnow():
+                            return JSONResponse(
+                                status_code=401,
+                                content={"detail": "API key has expired"}
+                            )
+                        
+                        # Update last used timestamp
+                        valid_key.last_used_at = datetime.utcnow()
+                        db.commit()
+                        
+                        # API key is valid - continue
+                        return await call_next(request)
+
+            # Check if user is authenticated via session
+            current_user = get_current_user(request)
+            if not current_user:
+                # Not logged in
                 if is_api_route:
                     return JSONResponse(
                         status_code=401,
-                        content={"detail": "No users configured. Please complete setup."}
+                        content={"detail": "Authentication required. Use session cookie or API key."}
                     )
-                return RedirectResponse(url="/setup", status_code=302)
+                return RedirectResponse(url="/login", status_code=302)
+
+            # User is authenticated - continue
             return await call_next(request)
-
-        # For API routes, also check for API key authentication
+    except Exception as e:
+        # Log any unexpected errors during authentication
+        logger.error(f"Error in auth_middleware: {e}", exc_info=True)
         if is_api_route:
-            api_key = get_api_key_from_request(request)
-            if api_key:
-                # SECURITY FIX: Optimize API key validation to prevent DoS and timing attacks
-                # Step 1: Extract prefix for fast lookup (no expensive hashing yet)
-                from app.auth import get_api_key_prefix, verify_api_key
-                key_prefix = get_api_key_prefix(api_key)
-                
-                # Step 2: Query by indexed prefix only (fast database lookup)
-                api_key_candidates = db.query(APIKey).filter(
-                    APIKey.key_prefix == key_prefix,
-                    APIKey.is_revoked == False
-                ).all()
-                
-                # Step 3: Verify hash only for matching prefix candidates (1-2 max)
-                valid_key = None
-                for candidate in api_key_candidates:
-                    if verify_api_key(api_key, candidate.key_hash):
-                        valid_key = candidate
-                        break
-                
-                # Step 4: Constant-time dummy verification to prevent timing attacks
-                # Always perform at least one hash operation to keep timing consistent
-                if not valid_key and not api_key_candidates:
-                    # No candidates found - do dummy hash to prevent timing leak
-                    from app.auth import hash_api_key
-                    _ = hash_api_key("dummy_key_" + api_key[:8])
-                
-                if valid_key:
-                    # Check expiration
-                    if valid_key.expires_at and valid_key.expires_at < datetime.utcnow():
-                        return JSONResponse(
-                            status_code=401,
-                            content={"detail": "API key has expired"}
-                        )
-                    
-                    # Update last used timestamp
-                    valid_key.last_used_at = datetime.utcnow()
-                    db.commit()
-                    
-                    # API key is valid - continue
-                    return await call_next(request)
-
-        # Check if user is authenticated via session
-        current_user = get_current_user(request)
-        if not current_user:
-            # Not logged in
-            if is_api_route:
-                return JSONResponse(
-                    status_code=401,
-                    content={"detail": "Authentication required. Use session cookie or API key."}
-                )
-            return RedirectResponse(url="/login", status_code=302)
-
-        # User is authenticated - continue
-        return await call_next(request)
-    finally:
-        db.close()
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "Internal server error during authentication"}
+            )
+        return RedirectResponse(url="/login", status_code=302)
 
 
 # Security headers middleware
