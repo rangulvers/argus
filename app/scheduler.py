@@ -248,8 +248,40 @@ def get_all_schedules() -> List[Dict[str, Any]]:
     return result
 
 
+def migrate_legacy_schedule():
+    """Migrate legacy network.scan_schedule to schedule.jobs if no jobs exist."""
+    jobs = load_schedule_config()
+    if jobs:
+        return  # Already has jobs, nothing to migrate
+
+    try:
+        if CONFIG_PATH.exists():
+            with open(CONFIG_PATH, 'r') as f:
+                config = yaml.safe_load(f) or {}
+
+            legacy_cron = config.get("network", {}).get("scan_schedule")
+            legacy_profile = config.get("network", {}).get("scan_profile", "normal")
+
+            if legacy_cron:
+                new_job = {
+                    "id": str(uuid.uuid4())[:8],
+                    "name": "Scheduled Scan (migrated)",
+                    "cron": legacy_cron,
+                    "profile": legacy_profile,
+                    "enabled": True,
+                }
+                save_schedule_config([new_job])
+                logger.info(
+                    f"Migrated legacy scan_schedule '{legacy_cron}' (profile: {legacy_profile}) "
+                    f"to schedule.jobs as '{new_job['name']}' (id: {new_job['id']})"
+                )
+    except Exception as e:
+        logger.error(f"Failed to migrate legacy schedule: {e}")
+
+
 def init_scheduler():
     """Initialize scheduler with saved configuration"""
+    migrate_legacy_schedule()
     get_scheduler()
     sync_scheduler_jobs()
     jobs = load_schedule_config()

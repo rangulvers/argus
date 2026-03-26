@@ -219,8 +219,8 @@ def reload_config():
 
 def save_config(config_obj: Config, yaml_path: str = "config.yaml"):
     """
-    Save configuration to YAML file.
-    
+    Save configuration to YAML file, preserving the schedule section.
+
     NOTE: Sensitive fields (passwords, API keys, tokens) are redacted in the YAML file.
     Set these via environment variables instead:
     - ARGUS_EMAIL_SMTP_PASSWORD
@@ -231,7 +231,23 @@ def save_config(config_obj: Config, yaml_path: str = "config.yaml"):
     - ARGUS_PIHOLE_API_TOKEN
     - ARGUS_ADGUARD_PASSWORD
     """
-    # Convert Config object to dict
+    # Read existing config to preserve schedule jobs
+    existing_schedule = {}
+    if os.path.exists(yaml_path):
+        with open(yaml_path, "r") as f:
+            existing = yaml.safe_load(f) or {}
+            existing_schedule = existing.get("schedule", {})
+
+    # Also include schedule from config object if it has jobs
+    if config_obj.schedule.jobs:
+        schedule_jobs = []
+        for job in config_obj.schedule.jobs:
+            if isinstance(job, dict):
+                schedule_jobs.append(job)
+            else:
+                schedule_jobs.append(dict(job) if hasattr(job, '__dict__') else job)
+        existing_schedule["jobs"] = schedule_jobs
+
     config_dict = {
         "network": {
             "subnet": config_obj.network.subnet,
@@ -324,6 +340,10 @@ def save_config(config_obj: Config, yaml_path: str = "config.yaml"):
             },
         },
     }
+
+    # Preserve schedule section
+    if existing_schedule:
+        config_dict["schedule"] = existing_schedule
 
     with open(yaml_path, "w") as f:
         yaml.dump(config_dict, f, default_flow_style=False, sort_keys=False)
