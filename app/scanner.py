@@ -584,38 +584,44 @@ class NetworkScanner:
             return []
 
     def _enrich_with_integrations(self, scan_id: int) -> None:
-        """Enrich devices with data from enabled integrations"""
+        """Run async enrichment methods safely from any context (sync or async)."""
+        import concurrent.futures
+
         config = get_config()
 
-        # Check if UniFi integration is enabled and sync_on_scan is True
-        if (config.integrations.unifi.enabled and
-                config.integrations.unifi.sync_on_scan):
-            try:
+        async def _run_all():
+            tasks = []
+            labels = []
+            if config.integrations.unifi.enabled and config.integrations.unifi.sync_on_scan:
                 print("\nEnriching devices with UniFi data...")
-                asyncio.run(self._enrich_with_unifi(scan_id))
-            except Exception as e:
-                logger.warning(f"UniFi enrichment failed: {e}")
-                print(f"  Warning: UniFi enrichment failed: {e}")
-
-        # Check if Pi-hole integration is enabled and sync_on_scan is True
-        if (config.integrations.pihole.enabled and
-                config.integrations.pihole.sync_on_scan):
-            try:
+                tasks.append(self._enrich_with_unifi(scan_id))
+                labels.append("UniFi")
+            if config.integrations.pihole.enabled and config.integrations.pihole.sync_on_scan:
                 print("\nEnriching devices with Pi-hole DNS data...")
-                asyncio.run(self._enrich_with_pihole(scan_id))
-            except Exception as e:
-                logger.warning(f"Pi-hole enrichment failed: {e}")
-                print(f"  Warning: Pi-hole enrichment failed: {e}")
-
-        # Check if AdGuard Home integration is enabled and sync_on_scan is True
-        if (config.integrations.adguard.enabled and
-                config.integrations.adguard.sync_on_scan):
-            try:
+                tasks.append(self._enrich_with_pihole(scan_id))
+                labels.append("Pi-hole")
+            if config.integrations.adguard.enabled and config.integrations.adguard.sync_on_scan:
                 print("\nEnriching devices with AdGuard Home DNS data...")
-                asyncio.run(self._enrich_with_adguard(scan_id))
-            except Exception as e:
-                logger.warning(f"AdGuard Home enrichment failed: {e}")
-                print(f"  Warning: AdGuard Home enrichment failed: {e}")
+                tasks.append(self._enrich_with_adguard(scan_id))
+                labels.append("AdGuard Home")
+            if tasks:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for label, r in zip(labels, results):
+                    if isinstance(r, Exception):
+                        logger.warning("%s enrichment failed: %s", label, r)
+                        print(f"  Warning: {label} enrichment failed: {r}")
+
+        try:
+            loop = asyncio.get_running_loop()
+            # Already inside a running loop (FastAPI background task) — run in a thread
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(asyncio.run, _run_all())
+                future.result(timeout=60)
+        except RuntimeError:
+            # No running loop — safe to call directly
+            asyncio.run(_run_all())
+        except Exception as e:
+            logger.error("Enrichment failed: %s", e, exc_info=True)
 
     async def _enrich_with_unifi(self, scan_id: int) -> None:
         """Enrich devices with UniFi controller data"""
