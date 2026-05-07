@@ -4,7 +4,7 @@ from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request, F
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import desc
 from typing import List, Optional
 from datetime import datetime
@@ -332,10 +332,16 @@ async def get_stats(db: Session = Depends(get_db)):
     total_devices = db.query(DeviceHistory).count()
 
     # Get the latest completed network scan (not single-device scans) - matches dashboard logic
-    latest_scan = db.query(Scan).filter(
-        Scan.status == "completed",
-        Scan.scan_type == "network"
-    ).order_by(desc(Scan.started_at)).first()
+    latest_scan = (
+        db.query(Scan)
+        .options(selectinload(Scan.devices))
+        .filter(
+            Scan.status == "completed",
+            Scan.scan_type == "network"
+        )
+        .order_by(desc(Scan.started_at))
+        .first()
+    )
 
     # Calculate risk stats from the latest scan's devices
     devices_at_risk = 0
@@ -379,11 +385,17 @@ async def get_trend_data(
     cutoff_date = datetime.utcnow() - timedelta(days=days)
 
     # Get completed network scans within the time range
-    scans = db.query(Scan).filter(
-        Scan.status == "completed",
-        Scan.scan_type == "network",
-        Scan.started_at >= cutoff_date
-    ).order_by(Scan.started_at).all()
+    scans = (
+        db.query(Scan)
+        .options(selectinload(Scan.devices).selectinload(Device.ports))
+        .filter(
+            Scan.status == "completed",
+            Scan.scan_type == "network",
+            Scan.started_at >= cutoff_date
+        )
+        .order_by(Scan.started_at)
+        .all()
+    )
 
     # Build trend data
     trend_data = {
@@ -462,7 +474,12 @@ async def get_dashboard_distributions(db: Session = Depends(get_db)):
             "has_data": False
         }
 
-    devices = db.query(Device).filter(Device.scan_id == latest_scan.id).all()
+    devices = (
+        db.query(Device)
+        .options(selectinload(Device.ports))
+        .filter(Device.scan_id == latest_scan.id)
+        .all()
+    )
 
     # Risk distribution
     risk_distribution = {
@@ -976,7 +993,12 @@ async def get_topology_data(
     if not scan:
         return {"nodes": [], "edges": [], "groups": {}}
 
-    devices = db.query(Device).filter(Device.scan_id == scan.id).all()
+    devices = (
+        db.query(Device)
+        .options(selectinload(Device.ports))
+        .filter(Device.scan_id == scan.id)
+        .all()
+    )
 
     # Build nodes and group by zone/subnet
     nodes = []
@@ -1064,7 +1086,12 @@ async def get_heatmap_data(
     if not scan:
         return {"devices": [], "summary": {}}
 
-    devices = db.query(Device).filter(Device.scan_id == scan.id).all()
+    devices = (
+        db.query(Device)
+        .options(selectinload(Device.ports))
+        .filter(Device.scan_id == scan.id)
+        .all()
+    )
 
     # Group by risk level
     risk_summary = {"critical": 0, "high": 0, "medium": 0, "low": 0, "none": 0}
@@ -1127,7 +1154,12 @@ async def get_port_matrix_data(
     if not scan:
         return {"devices": [], "ports": [], "matrix": []}
 
-    devices = db.query(Device).filter(Device.scan_id == scan.id).all()
+    devices = (
+        db.query(Device)
+        .options(selectinload(Device.ports))
+        .filter(Device.scan_id == scan.id)
+        .all()
+    )
 
     # Collect all unique ports
     all_ports = set()
@@ -1619,8 +1651,18 @@ async def compare_scans(
     db: Session = Depends(get_db)
 ):
     """Compare two scans"""
-    current_scan = db.query(Scan).filter(Scan.id == current_id).first()
-    previous_scan = db.query(Scan).filter(Scan.id == previous_id).first()
+    current_scan = (
+        db.query(Scan)
+        .options(selectinload(Scan.devices))
+        .filter(Scan.id == current_id)
+        .first()
+    )
+    previous_scan = (
+        db.query(Scan)
+        .options(selectinload(Scan.devices))
+        .filter(Scan.id == previous_id)
+        .first()
+    )
 
     if not current_scan or not previous_scan:
         raise HTTPException(status_code=404, detail="Scan not found")
@@ -1677,10 +1719,16 @@ async def get_device_history(db: Session = Depends(get_db)):
 async def dashboard(request: Request, db: Session = Depends(get_db)):
     """Dashboard home page"""
     # Get latest network scan (not single-device scans)
-    latest_scan = db.query(Scan).filter(
-        Scan.status == "completed",
-        Scan.scan_type == "network"
-    ).order_by(desc(Scan.started_at)).first()
+    latest_scan = (
+        db.query(Scan)
+        .options(selectinload(Scan.devices).selectinload(Device.ports))
+        .filter(
+            Scan.status == "completed",
+            Scan.scan_type == "network"
+        )
+        .order_by(desc(Scan.started_at))
+        .first()
+    )
 
     # Get devices from latest scan
     devices = []
@@ -1740,9 +1788,19 @@ async def devices_page(request: Request, scan_id: Optional[int] = None, db: Sess
 
     # Get selected scan or latest network scan
     if scan_id:
-        current_scan = db.query(Scan).filter(Scan.id == scan_id).first()
+        current_scan = (
+            db.query(Scan)
+            .options(selectinload(Scan.devices).selectinload(Device.ports))
+            .filter(Scan.id == scan_id)
+            .first()
+        )
     else:
-        current_scan = scans[0] if scans else None
+        current_scan = (
+            db.query(Scan)
+            .options(selectinload(Scan.devices).selectinload(Device.ports))
+            .filter(Scan.id == scans[0].id)
+            .first()
+        ) if scans else None
 
     devices = current_scan.devices if current_scan else []
     selected_scan_id = current_scan.id if current_scan else None
