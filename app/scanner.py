@@ -130,32 +130,44 @@ class NetworkScanner:
         )
 
         try:
-            # Build nmap arguments based on profile and options
-            nmap_args = self._build_nmap_args(
+            # Build per-host port scan args (no host discovery — we do that separately)
+            port_scan_args = self._build_nmap_args(
                 scan_profile, port_range, enable_os_detection, enable_service_detection
             )
+            # For non-quick scans: strip host discovery flags so we can control it ourselves
+            # nmap -Pn tells nmap to skip ping and just scan (host already known live)
+            per_host_args = port_scan_args if scan_profile == "quick" else port_scan_args + " -Pn"
 
-            logger.info(f"Nmap arguments: {nmap_args}")
+            logger.info(f"Nmap arguments: {port_scan_args}")
 
-            # Scan each subnet sequentially, collecting all live hosts
-            collected_hosts: List[str] = []
+            # Phase 1: ping sweep all subnets to discover live hosts (fast, gives us total count)
+            all_live_hosts: List[tuple] = []  # (subnet, host_ip)
             for sn in subnets_to_scan:
-                logger.info(f"Running nmap on subnet: {sn}")
+                logger.info(f"Ping sweep: {sn}")
                 _update_progress(phase="discovery", current_subnet=sn)
-                self.nm.scan(hosts=sn, arguments=nmap_args)
-                hosts_in_subnet = [h for h in self.nm.all_hosts() if self.nm[h].state() == "up"]
-                logger.info(f"Subnet {sn}: found {len(hosts_in_subnet)} live host(s)")
-                _update_progress(
-                    phase="port_scan",
-                    hosts_found=_scan_progress["hosts_found"] + len(hosts_in_subnet),
-                    hosts_total=_scan_progress["hosts_total"] + len(hosts_in_subnet),
-                )
-                # _process_host reads self.nm[host], so process immediately while nm has this subnet's data
-                for host in hosts_in_subnet:
-                    collected_hosts.append(host)
-                    _update_progress(phase="processing", current_host=host)
-                    self._process_host(scan.id, host, scan_profile)
-                    _update_progress(hosts_processed=_scan_progress["hosts_processed"] + 1)
+                ping_nm = nmap.PortScanner()
+                ping_nm.scan(hosts=sn, arguments="-sn -T4")
+                hosts_in_subnet = [h for h in ping_nm.all_hosts() if ping_nm[h].state() == "up"]
+                logger.info(f"Subnet {sn}: {len(hosts_in_subnet)} live hosts")
+                for h in hosts_in_subnet:
+                    all_live_hosts.append((sn, h))
+
+            total = len(all_live_hosts)
+            _update_progress(
+                phase="port_scan",
+                hosts_found=total,
+                hosts_total=total,
+                hosts_processed=0,
+            )
+            logger.info(f"Discovery complete: {total} live hosts across {len(subnets_to_scan)} subnet(s)")
+
+            # Phase 2: full scan per host — updates progress after each one
+            for idx, (sn, host) in enumerate(all_live_hosts):
+                logger.info(f"Scanning host {host} ({idx+1}/{total})")
+                _update_progress(phase="port_scan", current_host=host, current_subnet=sn)
+                self.nm.scan(hosts=host, arguments=per_host_args)
+                self._process_host(scan.id, host, scan_profile)
+                _update_progress(hosts_processed=idx + 1, current_host=host)
 
             logger.info("Scan complete! Processing results...")
 
