@@ -63,6 +63,15 @@ from app.schemas import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+def error_response(status_code: int, message: str, detail: str = None) -> JSONResponse:
+    """Return a structured JSON error response."""
+    content = {"error": message}
+    if detail:
+        content["detail"] = detail
+    return JSONResponse(status_code=status_code, content=content)
+
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Argus",

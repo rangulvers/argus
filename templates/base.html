@@ -357,5 +357,24 @@
     </script>
 
     {% block extra_js %}{% endblock %}
+
+    <!-- Global toast notifications -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+    <script>
+    function showGlobalToast(message, type) {
+        type = type || 'info';
+        var colors = {info: 'bg-blue-600', success: 'bg-green-600', error: 'bg-red-600', warning: 'bg-yellow-600'};
+        var toast = document.createElement('div');
+        toast.className = (colors[type] || colors.info) + ' text-white px-4 py-3 rounded-lg shadow-lg text-sm max-w-sm pointer-events-auto';
+        toast.style.opacity = '1';
+        toast.style.transition = 'opacity 300ms';
+        toast.textContent = message;
+        document.getElementById('toast-container').appendChild(toast);
+        setTimeout(function() {
+            toast.style.opacity = '0';
+            setTimeout(function() { toast.remove(); }, 300);
+        }, 4000);
+    }
+    </script>
 </body>
 </html>

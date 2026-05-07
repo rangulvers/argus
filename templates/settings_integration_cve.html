@@ -223,7 +223,7 @@ function cveSettings() {
                 if (data.status === 'connected') {
                     this.showMessage('NVD API accessible' + (data.details?.has_api_key ? ' (with API key)' : ' (rate limited)'), 'success');
                 } else {
-                    this.showMessage(data.error_message || 'API test failed', 'error');
+                    this.showMessage(data.error_message || data.error || data.detail || 'API test failed', 'error');
                 }
             } catch (error) {
                 this.showMessage('Test failed: ' + error.message, 'error');

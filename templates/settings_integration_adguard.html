@@ -219,7 +219,7 @@ function adguardSettings() {
                     }
                     this.showMessage(msg, 'success');
                 } else {
-                    this.showMessage(data.error_message || 'Connection test failed', 'error');
+                    this.showMessage(data.error_message || data.error || data.detail || 'Connection test failed', 'error');
                 }
             } catch (error) {
                 this.showMessage('Test failed: ' + error.message, 'error');
