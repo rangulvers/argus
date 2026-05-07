@@ -31,30 +31,77 @@
                 Welcome to Argus
             </h2>
             <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-                Create your admin account to get started
+                Complete setup to get started
             </p>
         </div>
 
-        <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-            <div class="bg-white dark:bg-gray-800 py-8 px-4 shadow dark:shadow-gray-700 sm:rounded-lg sm:px-10">
-                <!-- Info box -->
-                <div class="mb-6 rounded-md bg-blue-50 dark:bg-blue-900/30 p-4">
-                    <div class="flex">
-                        <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                        </svg>
-                        <div class="ml-3">
-                            <p class="text-sm text-blue-700 dark:text-blue-200">
-                                This is a one-time setup. Your admin account will be used to access the Argus dashboard.
-                            </p>
-                        </div>
+        <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md"
+             x-data="setupWizard()"
+             x-cloak>
+
+            <!-- Step indicator -->
+            <div class="mb-6 flex items-center justify-center space-x-4">
+                <!-- Step 1 -->
+                <div class="flex items-center">
+                    <div class="flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all duration-200"
+                         :class="step > 1 ? 'bg-green-500 text-white' : step === 1 ? 'bg-indigo-600 text-white' : 'border-2 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'">
+                        <template x-if="step > 1">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        </template>
+                        <template x-if="step <= 1">
+                            <span>1</span>
+                        </template>
                     </div>
+                    <span class="ml-2 text-xs font-medium"
+                          :class="step === 1 ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'">
+                        Admin
+                    </span>
                 </div>
+
+                <div class="w-8 h-px bg-gray-300 dark:bg-gray-600"></div>
+
+                <!-- Step 2 -->
+                <div class="flex items-center">
+                    <div class="flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all duration-200"
+                         :class="step > 2 ? 'bg-green-500 text-white' : step === 2 ? 'bg-indigo-600 text-white' : 'border-2 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'">
+                        <template x-if="step > 2">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        </template>
+                        <template x-if="step <= 2">
+                            <span>2</span>
+                        </template>
+                    </div>
+                    <span class="ml-2 text-xs font-medium"
+                          :class="step === 2 ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'">
+                        Network
+                    </span>
+                </div>
+
+                <div class="w-8 h-px bg-gray-300 dark:bg-gray-600"></div>
+
+                <!-- Step 3 -->
+                <div class="flex items-center">
+                    <div class="flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all duration-200"
+                         :class="step === 3 ? 'bg-indigo-600 text-white' : 'border-2 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'">
+                        <span>3</span>
+                    </div>
+                    <span class="ml-2 text-xs font-medium"
+                          :class="step === 3 ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'">
+                        Quick Start
+                    </span>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 py-8 px-4 shadow dark:shadow-gray-700 sm:rounded-lg sm:px-10">
 
                 {% if error %}
                 <div class="mb-4 rounded-md bg-red-50 dark:bg-red-900/30 p-4">
                     <div class="flex">
-                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <svg class="h-5 w-5 text-red-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
                         </svg>
                         <div class="ml-3">
@@ -64,71 +111,239 @@
                 </div>
                 {% endif %}
 
-                <form method="POST" action="/setup" class="space-y-6" x-data="{ password: '', confirmPassword: '' }">
-                    <div>
-                        <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Username
-                        </label>
-                        <div class="mt-1">
-                            <input id="username" name="username" type="text" autocomplete="username" required
-                                   minlength="3" maxlength="50"
-                                   class="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                   placeholder="admin"
-                                   {% if username %}value="{{ username }}"{% endif %}>
+                <form method="POST" action="/setup" class="space-y-6" @submit.prevent="submitForm($event)">
+
+                    <!-- ===== STEP 1: Create Admin Account ===== -->
+                    <div x-show="step === 1">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Create Admin Account</h3>
+
+                        <!-- Info box -->
+                        <div class="mb-6 rounded-md bg-blue-50 dark:bg-blue-900/30 p-4">
+                            <div class="flex">
+                                <svg class="h-5 w-5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                </svg>
+                                <div class="ml-3">
+                                    <p class="text-sm text-blue-700 dark:text-blue-200">
+                                        This is a one-time setup. Your admin account will be used to access the Argus dashboard.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">3-50 characters</p>
-                    </div>
 
-                    <div>
-                        <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Password
-                        </label>
-                        <div class="mt-1">
-                            <input id="password" name="password" type="password" autocomplete="new-password" required
-                                   minlength="8"
-                                   x-model="password"
-                                   class="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <div class="space-y-5">
+                            <div>
+                                <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Username
+                                </label>
+                                <div class="mt-1">
+                                    <input id="username" name="username" type="text" autocomplete="username"
+                                           minlength="3" maxlength="50"
+                                           x-model="username"
+                                           class="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                           placeholder="admin"
+                                           {% if username %}value="{{ username }}"{% endif %}>
+                                </div>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">3-50 characters</p>
+                            </div>
+
+                            <div>
+                                <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Password
+                                </label>
+                                <div class="mt-1">
+                                    <input id="password" name="password" type="password" autocomplete="new-password"
+                                           minlength="8"
+                                           x-model="password"
+                                           class="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Minimum 8 characters</p>
+                            </div>
+
+                            <div>
+                                <label for="confirm_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Confirm Password
+                                </label>
+                                <div class="mt-1">
+                                    <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password"
+                                           minlength="8"
+                                           x-model="confirmPassword"
+                                           class="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+                                <p x-show="confirmPassword && password !== confirmPassword"
+                                   class="mt-1 text-xs text-red-600 dark:text-red-400">
+                                    Passwords do not match
+                                </p>
+                                <p x-show="step1Error" x-text="step1Error"
+                                   class="mt-1 text-xs text-red-600 dark:text-red-400"></p>
+                            </div>
                         </div>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Minimum 8 characters</p>
-                    </div>
 
-                    <div>
-                        <label for="confirm_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Confirm Password
-                        </label>
-                        <div class="mt-1">
-                            <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required
-                                   minlength="8"
-                                   x-model="confirmPassword"
-                                   class="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <div class="mt-6 flex items-center justify-between">
+                            <!-- Dark mode toggle -->
+                            <button type="button" @click="$root.__x.$data.darkMode = !$root.__x.$data.darkMode; localStorage.setItem('darkMode', $root.__x.$data.darkMode)"
+                                    class="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                                </svg>
+                            </button>
+
+                            <button type="button" @click="goToStep2()"
+                                    class="flex justify-center py-2 px-6 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800">
+                                Next
+                            </button>
                         </div>
-                        <p x-show="confirmPassword && password !== confirmPassword"
-                           class="mt-1 text-xs text-red-600 dark:text-red-400">
-                            Passwords do not match
-                        </p>
                     </div>
 
-                    <div class="flex items-center justify-end">
-                        <!-- Dark mode toggle -->
-                        <button type="button" @click="toggleDarkMode()"
-                                class="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none"
-                                :title="darkMode ? 'Switch to light mode' : 'Switch to dark mode'">
-                            <svg x-show="darkMode" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-                            </svg>
-                            <svg x-show="!darkMode" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-                            </svg>
-                        </button>
+                    <!-- ===== STEP 2: Network Configuration ===== -->
+                    <div x-show="step === 2">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Network Configuration</h3>
+
+                        <!-- Info box -->
+                        <div class="mb-6 rounded-md bg-blue-50 dark:bg-blue-900/30 p-4">
+                            <div class="flex">
+                                <svg class="h-5 w-5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                </svg>
+                                <div class="ml-3">
+                                    <p class="text-sm text-blue-700 dark:text-blue-200">
+                                        Your subnet is usually <code class="font-mono">192.168.1.0/24</code> or <code class="font-mono">10.0.0.0/24</code>.
+                                        Argus will scan all devices on this network.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label for="subnet" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Subnet (CIDR notation)
+                                </label>
+                                <div class="mt-1 flex rounded-md shadow-sm">
+                                    <input id="subnet" name="subnet" type="text"
+                                           x-model="subnet"
+                                           placeholder="192.168.1.0/24"
+                                           class="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-l-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono">
+                                    <button type="button" @click="autodetectSubnet()"
+                                            :disabled="detecting"
+                                            class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 dark:border-gray-600 rounded-r-md bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
+                                        <template x-if="detecting">
+                                            <svg class="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                        </template>
+                                        Autodetect
+                                    </button>
+                                </div>
+
+                                <!-- Detected info -->
+                                <div x-show="detectedInfo" class="mt-2 text-xs text-green-600 dark:text-green-400" x-text="detectedInfo"></div>
+                                <div x-show="detectError" class="mt-2 text-xs text-red-600 dark:text-red-400" x-text="detectError"></div>
+                                <p x-show="step2Error" x-text="step2Error"
+                                   class="mt-1 text-xs text-red-600 dark:text-red-400"></p>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 flex items-center justify-between">
+                            <button type="button" @click="step = 1"
+                                    class="flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800">
+                                Back
+                            </button>
+                            <button type="button" @click="goToStep3()"
+                                    class="flex justify-center py-2 px-6 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800">
+                                Next
+                            </button>
+                        </div>
                     </div>
 
-                    <div>
-                        <button type="submit"
-                                :disabled="password !== confirmPassword || password.length < 8"
-                                class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
-                            Create Account
-                        </button>
+                    <!-- ===== STEP 3: Quick Start ===== -->
+                    <div x-show="step === 3">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Start</h3>
+
+                        <div class="space-y-6">
+                            <!-- Run scan toggle -->
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    <button type="button" @click="runScan = !runScan"
+                                            class="relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800"
+                                            :class="runScan ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-600'">
+                                        <span class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200"
+                                              :class="runScan ? 'translate-x-5' : 'translate-x-0'"></span>
+                                    </button>
+                                </div>
+                                <div class="ml-3">
+                                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer" @click="runScan = !runScan">
+                                        Run a scan immediately after setup
+                                    </label>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                        Discovers all devices on your network right away
+                                    </p>
+                                </div>
+                            </div>
+
+                            <input type="hidden" name="run_scan_now" :value="runScan ? 'true' : 'false'">
+
+                            <!-- Schedule quick-picks -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Scan Schedule
+                                </label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button type="button"
+                                            @click="scanSchedule = '0 */6 * * *'"
+                                            :class="scanSchedule === '0 */6 * * *' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'"
+                                            class="px-3 py-2 border rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors">
+                                        Every 6h
+                                    </button>
+                                    <button type="button"
+                                            @click="scanSchedule = '0 */12 * * *'"
+                                            :class="scanSchedule === '0 */12 * * *' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'"
+                                            class="px-3 py-2 border rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors">
+                                        Every 12h
+                                    </button>
+                                    <button type="button"
+                                            @click="scanSchedule = '0 2 * * *'"
+                                            :class="scanSchedule === '0 2 * * *' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'"
+                                            class="px-3 py-2 border rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors">
+                                        Daily (2 AM)
+                                    </button>
+                                    <button type="button"
+                                            @click="scanSchedule = '0 2 * * 0'"
+                                            :class="scanSchedule === '0 2 * * 0' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'"
+                                            class="px-3 py-2 border rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors">
+                                        Weekly (Sun)
+                                    </button>
+                                </div>
+
+                                <!-- Custom cron input -->
+                                <div class="mt-3">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">Custom cron expression</span>
+                                        <span class="text-xs font-mono text-indigo-600 dark:text-indigo-400" x-text="scanSchedule"></span>
+                                    </div>
+                                    <input type="text"
+                                           x-model="scanSchedule"
+                                           placeholder="0 2 * * 0"
+                                           class="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono">
+                                </div>
+
+                                <input type="hidden" name="scan_schedule" :value="scanSchedule">
+                            </div>
+                        </div>
+
+                        <div class="mt-6 flex items-center justify-between">
+                            <button type="button" @click="step = 2"
+                                    class="flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800">
+                                Back
+                            </button>
+                            <button type="submit"
+                                    class="flex justify-center py-2 px-6 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800">
+                                Create Account &amp; Start
+                            </button>
+                        </div>
                     </div>
+
                 </form>
             </div>
         </div>
@@ -143,6 +358,83 @@
                 toggleDarkMode() {
                     this.darkMode = !this.darkMode;
                     localStorage.setItem('darkMode', this.darkMode);
+                }
+            }
+        }
+
+        function setupWizard() {
+            return {
+                step: 1,
+
+                // Step 1 fields
+                username: '{{ username or "" }}',
+                password: '',
+                confirmPassword: '',
+                step1Error: '',
+
+                // Step 2 fields
+                subnet: '192.168.1.0/24',
+                detecting: false,
+                detectedInfo: '',
+                detectError: '',
+                step2Error: '',
+
+                // Step 3 fields
+                runScan: true,
+                scanSchedule: '0 2 * * 0',
+
+                goToStep2() {
+                    this.step1Error = '';
+                    if (!this.username || this.username.length < 3) {
+                        this.step1Error = 'Username must be at least 3 characters';
+                        return;
+                    }
+                    if (!this.password || this.password.length < 8) {
+                        this.step1Error = 'Password must be at least 8 characters';
+                        return;
+                    }
+                    if (this.password !== this.confirmPassword) {
+                        this.step1Error = 'Passwords do not match';
+                        return;
+                    }
+                    this.step = 2;
+                },
+
+                goToStep3() {
+                    this.step2Error = '';
+                    if (!this.subnet || this.subnet.trim() === '') {
+                        this.step2Error = 'Please enter a valid subnet';
+                        return;
+                    }
+                    this.step = 3;
+                },
+
+                async autodetectSubnet() {
+                    this.detecting = true;
+                    this.detectedInfo = '';
+                    this.detectError = '';
+                    try {
+                        const res = await fetch('/api/setup/detect-subnet');
+                        const data = await res.json();
+                        if (data.suggested) {
+                            this.subnet = data.suggested;
+                        }
+                        if (data.subnets && data.subnets.length > 0) {
+                            const s = data.subnets[0];
+                            this.detectedInfo = `Detected: ${s.interface} — ${s.ip} (${s.subnet})`;
+                        } else {
+                            this.detectError = 'No interfaces detected. Enter subnet manually.';
+                        }
+                    } catch (e) {
+                        this.detectError = 'Detection failed. Enter subnet manually.';
+                    } finally {
+                        this.detecting = false;
+                    }
+                },
+
+                submitForm(event) {
+                    // Allow native form submission
+                    event.target.submit();
                 }
             }
         }

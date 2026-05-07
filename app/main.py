@@ -677,9 +677,13 @@ async def setup_page(request: Request, db: Session = Depends(get_db)):
 @app.post("/setup", response_class=HTMLResponse)
 async def setup_submit(
     request: Request,
+    background_tasks: BackgroundTasks,
     username: str = Form(...),
     password: str = Form(...),
     confirm_password: str = Form(...),
+    subnet: str = Form("192.168.1.0/24"),
+    scan_schedule: str = Form("0 2 * * 0"),
+    run_scan_now: str = Form("false"),
     db: Session = Depends(get_db)
 ):
     """Process setup form"""
@@ -721,6 +725,12 @@ async def setup_submit(
 
     logger.info(f"Created admin user: {username}")
 
+    # Save network config from setup wizard
+    cfg = get_config()
+    cfg.network.subnet = subnet
+    cfg.network.scan_schedule = scan_schedule
+    save_config(cfg)
+
     # Log setup completion
     log_action(
         db=db,
@@ -733,10 +743,81 @@ async def setup_submit(
         request=request
     )
 
+    # Optionally trigger an immediate scan in the background
+    if run_scan_now.lower() == "true":
+        config = get_config()
+
+        def run_scan():
+            from app.database import SessionLocal
+            db_session = SessionLocal()
+            try:
+                scanner = NetworkScanner(db_session)
+                scan = scanner.perform_scan(
+                    subnet=config.network.subnet,
+                    scan_profile=config.network.scan_profile,
+                    port_range=config.scanning.port_range,
+                    enable_os_detection=config.scanning.enable_os_detection,
+                    enable_service_detection=config.scanning.enable_service_detection,
+                )
+                if scan.status == "completed":
+                    detector = ChangeDetector(db_session)
+                    detector.detect_changes(scan.id)
+            finally:
+                db_session.close()
+
+        background_tasks.add_task(run_scan)
+        logger.info(f"Setup: triggering initial scan on {config.network.subnet}")
+
     # Create response with session cookie (auto-login)
     response = RedirectResponse(url="/", status_code=302)
     set_session_cookie(response, user.id, user.username, remember=True)
     return response
+
+
+@app.get("/api/setup/detect-subnet")
+async def detect_subnet():
+    """Detect local subnets from network interfaces."""
+    import ipaddress
+    import socket
+    subnets = []
+
+    # Try using netifaces if available, fallback to socket
+    try:
+        import netifaces
+        for iface in netifaces.interfaces():
+            if iface.startswith("lo"):
+                continue
+            addrs = netifaces.ifaddresses(iface).get(netifaces.AF_INET, [])
+            for addr in addrs:
+                ip = addr.get("addr", "")
+                netmask = addr.get("netmask", "")
+                if ip and netmask and not ip.startswith("127."):
+                    try:
+                        network = ipaddress.IPv4Network(f"{ip}/{netmask}", strict=False)
+                        subnets.append({
+                            "interface": iface,
+                            "ip": ip,
+                            "subnet": str(network),
+                        })
+                    except ValueError:
+                        pass
+    except ImportError:
+        # Fallback: try hostname resolution
+        try:
+            hostname = socket.gethostname()
+            local_ip = socket.gethostbyname(hostname)
+            if not local_ip.startswith("127."):
+                # Guess /24
+                parts = local_ip.rsplit(".", 1)
+                subnets.append({
+                    "interface": "eth0",
+                    "ip": local_ip,
+                    "subnet": parts[0] + ".0/24",
+                })
+        except Exception:
+            pass
+
+    return {"subnets": subnets, "suggested": subnets[0]["subnet"] if subnets else "192.168.1.0/24"}
 
 
 # API Endpoints
