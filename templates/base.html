@@ -10,6 +10,19 @@
     <script>
         tailwind.config = {
             darkMode: 'class',
+            theme: {
+                extend: {
+                    keyframes: {
+                        slide: {
+                            '0%':   { transform: 'translateX(-100%)' },
+                            '100%': { transform: 'translateX(400%)' },
+                        }
+                    },
+                    animation: {
+                        'slide': 'slide 1.5s ease-in-out infinite',
+                    }
+                }
+            }
         }
     </script>
 
@@ -168,15 +181,41 @@
                         </div>
                         {% endif %}
                         <!-- Scan Status Indicator -->
+                        <!-- Live scan progress pill -->
                         <div x-data="scanStatus()" x-init="init()"
                              x-show="status.scanning"
                              x-cloak
-                             class="flex items-center px-3 py-1.5 bg-amber-100 text-amber-800 rounded-md text-sm font-medium">
-                            <svg class="animate-spin h-4 w-4 mr-2 text-amber-600" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <span x-text="displayText()"></span>
+                             class="flex flex-col min-w-[220px] px-3 py-2 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 text-amber-900 dark:text-amber-200 rounded-lg text-xs">
+                            <!-- Top row: spinner + phase label + elapsed -->
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-1.5">
+                                    <svg class="animate-spin h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span class="font-semibold" x-text="phaseLabel()"></span>
+                                </div>
+                                <span class="tabular-nums text-amber-600 dark:text-amber-400" x-text="elapsed()"></span>
+                            </div>
+                            <!-- Stats row: hosts found / processed -->
+                            <div class="flex items-center gap-3 mt-1 text-amber-700 dark:text-amber-300">
+                                <span x-show="hostsFound() > 0">
+                                    <span class="font-medium" x-text="hostsFound()"></span> hosts found
+                                </span>
+                                <span x-show="hostsProcessed() > 0 && hostsTotal() > 0">
+                                    · <span x-text="hostsProcessed() + '/' + hostsTotal()"></span> processed
+                                </span>
+                                <span x-show="currentHost()" class="truncate max-w-[120px]" x-text="currentHost()"></span>
+                            </div>
+                            <!-- Progress bar -->
+                            <div x-show="hostsTotal() > 0" class="mt-1.5 h-1 w-full bg-amber-200 dark:bg-amber-800 rounded-full overflow-hidden">
+                                <div class="h-full bg-amber-500 dark:bg-amber-400 rounded-full transition-all duration-500"
+                                     :style="'width:' + Math.min(100, Math.round(hostsProcessed()/hostsTotal()*100)) + '%'"></div>
+                            </div>
+                            <!-- Indeterminate bar during discovery/enrichment -->
+                            <div x-show="hostsTotal() === 0" class="mt-1.5 h-1 w-full bg-amber-200 dark:bg-amber-800 rounded-full overflow-hidden">
+                                <div class="h-full w-1/3 bg-amber-500 dark:bg-amber-400 rounded-full animate-[slide_1.5s_ease-in-out_infinite]"></div>
+                            </div>
                         </div>
 
                         <!-- Scan button with dropdown -->
@@ -281,23 +320,33 @@
         // Global scan status checker
         function scanStatus() {
             return {
-                status: { scanning: false, subnet: '', profile: '' },
+                status: { scanning: false, subnet: '', profile: '', progress: {} },
                 async checkStatus() {
                     try {
                         const res = await fetch('/api/scan/status');
                         this.status = await res.json();
+                        if (!this.status.progress) this.status.progress = {};
                     } catch (e) { }
                 },
-                displayText() {
-                    if (!this.status.scanning) return '';
+                phaseLabel() {
+                    const p = this.status.progress || {};
+                    if (p.phase_label) return p.phase_label;
                     const subnet = this.status.subnet || '';
-                    const profile = this.status.profile || 'normal';
-                    // Check if single device scan (/32)
-                    if (subnet.endsWith('/32')) {
-                        const ip = subnet.replace('/32', '');
-                        return `Scanning ${ip} (${profile})...`;
-                    }
-                    return `Scanning ${subnet} (${profile})...`;
+                    if (subnet.endsWith('/32')) return 'Scanning device';
+                    return 'Scanning network';
+                },
+                hostsFound()     { return (this.status.progress || {}).hosts_found || 0; },
+                hostsProcessed() { return (this.status.progress || {}).hosts_processed || 0; },
+                hostsTotal()     { return (this.status.progress || {}).hosts_total || 0; },
+                currentHost() {
+                    const h = (this.status.progress || {}).current_host || '';
+                    return h && this.hostsTotal() > 0 ? h : '';
+                },
+                elapsed() {
+                    const s = (this.status.progress || {}).elapsed_seconds || 0;
+                    if (!s) return '';
+                    if (s < 60) return s + 's';
+                    return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
                 },
                 init() {
                     this.checkStatus();

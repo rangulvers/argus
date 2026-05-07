@@ -15,6 +15,46 @@ from app.config import get_config
 
 logger = logging.getLogger(__name__)
 
+# Module-level scan progress — written by scanner, read by /api/scan/status
+_scan_progress: dict = {
+    "phase": "",
+    "phase_label": "",
+    "hosts_found": 0,
+    "hosts_processed": 0,
+    "hosts_total": 0,
+    "current_host": "",
+    "current_subnet": "",
+    "elapsed_seconds": 0,
+    "scan_start": None,
+}
+
+_PHASE_LABELS = {
+    "discovery":  "Discovering hosts",
+    "port_scan":  "Scanning ports",
+    "processing": "Processing host",
+    "enrichment": "Enriching data",
+    "saving":     "Saving results",
+}
+
+def _update_progress(**kwargs):
+    _scan_progress.update(kwargs)
+    if _scan_progress.get("scan_start"):
+        _scan_progress["elapsed_seconds"] = int(
+            (datetime.utcnow() - _scan_progress["scan_start"]).total_seconds()
+        )
+    _scan_progress["phase_label"] = _PHASE_LABELS.get(_scan_progress.get("phase", ""), "")
+
+def get_scan_progress() -> dict:
+    return dict(_scan_progress)
+
+def reset_scan_progress():
+    _scan_progress.update({
+        "phase": "", "phase_label": "", "hosts_found": 0,
+        "hosts_processed": 0, "hosts_total": 0,
+        "current_host": "", "current_subnet": "",
+        "elapsed_seconds": 0, "scan_start": None,
+    })
+
 
 class NetworkScanner:
     """Network scanner using nmap"""
@@ -82,6 +122,13 @@ class NetworkScanner:
         self.db.commit()
         self.db.refresh(scan)
 
+        _update_progress(
+            scan_start=datetime.utcnow(),
+            phase="discovery",
+            current_subnet=display_subnet,
+            hosts_found=0, hosts_processed=0, hosts_total=0, current_host="",
+        )
+
         try:
             # Build nmap arguments based on profile and options
             nmap_args = self._build_nmap_args(
@@ -94,13 +141,21 @@ class NetworkScanner:
             collected_hosts: List[str] = []
             for sn in subnets_to_scan:
                 logger.info(f"Running nmap on subnet: {sn}")
+                _update_progress(phase="discovery", current_subnet=sn)
                 self.nm.scan(hosts=sn, arguments=nmap_args)
                 hosts_in_subnet = [h for h in self.nm.all_hosts() if self.nm[h].state() == "up"]
                 logger.info(f"Subnet {sn}: found {len(hosts_in_subnet)} live host(s)")
+                _update_progress(
+                    phase="port_scan",
+                    hosts_found=_scan_progress["hosts_found"] + len(hosts_in_subnet),
+                    hosts_total=_scan_progress["hosts_total"] + len(hosts_in_subnet),
+                )
                 # _process_host reads self.nm[host], so process immediately while nm has this subnet's data
                 for host in hosts_in_subnet:
                     collected_hosts.append(host)
+                    _update_progress(phase="processing", current_host=host)
                     self._process_host(scan.id, host, scan_profile)
+                    _update_progress(hosts_processed=_scan_progress["hosts_processed"] + 1)
 
             logger.info("Scan complete! Processing results...")
 
@@ -108,7 +163,9 @@ class NetworkScanner:
             devices_found = self.db.query(Device).filter(Device.scan_id == scan.id).count()
 
             # Enrich devices with integration data (UniFi, etc.)
+            _update_progress(phase="enrichment", current_host="")
             self._enrich_with_integrations(scan.id)
+            _update_progress(phase="saving")
 
             # Update scan status
             scan.status = "completed"
@@ -148,6 +205,8 @@ class NetworkScanner:
             scan.status = "failed"
             scan.error_message = str(e)
             scan.completed_at = datetime.utcnow()
+        finally:
+            reset_scan_progress()
 
         self.db.commit()
         self.db.refresh(scan)

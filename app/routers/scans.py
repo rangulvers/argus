@@ -10,7 +10,7 @@ from sqlalchemy import desc
 from app.database import get_db
 from app.models import Scan, Device
 from app.config import get_config
-from app.scanner import NetworkScanner
+from app.scanner import NetworkScanner, get_scan_progress
 from app.utils.change_detector import ChangeDetector
 from app.audit import log_from_request, AuditAction, ResourceType
 from app.schemas import ScanRequest, ScanResponse, DeviceUpdate
@@ -163,17 +163,28 @@ async def list_scan_devices(scan_id: int, db: Session = Depends(get_db)):
 
 @router.get("/api/scan/status")
 async def get_scan_status(db: Session = Depends(get_db)):
-    """Check if there are any running scans"""
+    """Check if there are any running scans, with live progress details."""
     running_scan = db.query(Scan).filter(Scan.status == "running").first()
 
     if running_scan:
+        progress = get_scan_progress()
         return {
             "scanning": True,
             "scan_id": running_scan.id,
             "scan_type": running_scan.scan_type,
             "subnet": running_scan.subnet,
             "profile": running_scan.scan_profile,
-            "started_at": running_scan.started_at.isoformat()
+            "started_at": running_scan.started_at.isoformat(),
+            "progress": {
+                "phase": progress.get("phase", ""),
+                "phase_label": progress.get("phase_label", ""),
+                "hosts_found": progress.get("hosts_found", 0),
+                "hosts_processed": progress.get("hosts_processed", 0),
+                "hosts_total": progress.get("hosts_total", 0),
+                "current_host": progress.get("current_host", ""),
+                "current_subnet": progress.get("current_subnet", ""),
+                "elapsed_seconds": progress.get("elapsed_seconds", 0),
+            }
         }
     return {"scanning": False}
 
