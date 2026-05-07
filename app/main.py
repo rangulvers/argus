@@ -26,7 +26,7 @@ from app.utils.change_detector import ChangeDetector
 from app.config import get_config, save_config, reload_config
 from app.scheduler import (
     init_scheduler, get_all_schedules, add_schedule_job,
-    update_schedule_job, delete_schedule_job
+    update_schedule_job, delete_schedule_job, run_retention_cleanup
 )
 from app.auth import (
     hash_password, verify_password, set_session_cookie,
@@ -2863,6 +2863,57 @@ async def restore_backup(request: Request, db: Session = Depends(get_db)):
         return {"success": True, "restored": names}
     except zipfile.BadZipFile:
         return JSONResponse(status_code=400, content={"error": "Invalid backup file"})
+
+
+@app.post("/api/retention/cleanup")
+async def trigger_retention_cleanup(request: Request, db: Session = Depends(get_db)):
+    """Manually trigger retention cleanup."""
+    import asyncio
+    import os
+    from concurrent.futures import ThreadPoolExecutor
+
+    current_user = get_current_user(request)
+    if not current_user:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+
+    config = get_config()
+
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor() as pool:
+        deleted = await loop.run_in_executor(
+            pool,
+            run_retention_cleanup,
+            config.database.path,
+            config.database.retention_days,
+        )
+
+    logger.info("Manual retention cleanup: deleted %d scans", deleted)
+    return {"success": True, "deleted_scans": deleted}
+
+
+@app.get("/api/stats/db")
+async def get_db_stats(request: Request, db: Session = Depends(get_db)):
+    """Get database size and scan count stats."""
+    import os
+
+    current_user = get_current_user(request)
+    if not current_user:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+
+    config = get_config()
+    db_path = config.database.path
+    db_size_bytes = os.path.getsize(db_path) if os.path.exists(db_path) else 0
+
+    total_scans = db.query(Scan).count()
+    total_devices = db.query(Device).count()
+
+    return {
+        "db_size_bytes": db_size_bytes,
+        "db_size_mb": round(db_size_bytes / (1024 * 1024), 2),
+        "total_scans": total_scans,
+        "total_devices": total_devices,
+        "retention_days": config.database.retention_days,
+    }
 
 
 # CSV / JSON Export Endpoints

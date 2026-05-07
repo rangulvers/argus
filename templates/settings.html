@@ -504,6 +504,47 @@
                 </label>
                 <p x-show="message" x-text="message" class="text-sm mt-2 text-gray-700 dark:text-gray-300"></p>
             </div>
+
+            <!-- DB Stats & Retention -->
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-4"
+                 x-data="{ stats: null, cleaning: false, cleanMsg: '' }"
+                 x-init="fetch('/api/stats/db').then(r => r.json()).then(d => stats = d)">
+
+                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Database</h4>
+
+                <template x-if="stats">
+                    <div class="grid grid-cols-3 gap-3 mb-4">
+                        <div class="text-center">
+                            <div class="text-lg font-semibold text-gray-900 dark:text-white" x-text="stats.db_size_mb + ' MB'"></div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">DB Size</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-lg font-semibold text-gray-900 dark:text-white" x-text="stats.total_scans"></div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Total Scans</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-lg font-semibold text-gray-900 dark:text-white" x-text="stats.retention_days + 'd'"></div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Retention</div>
+                        </div>
+                    </div>
+                </template>
+
+                <button
+                    @click="async () => {
+                        cleaning = true; cleanMsg = '';
+                        const r = await fetch('/api/retention/cleanup', {method:'POST'});
+                        const d = await r.json();
+                        cleanMsg = d.success ? 'Cleaned up ' + d.deleted_scans + ' old scans.' : (d.error || 'Cleanup failed');
+                        cleaning = false;
+                        fetch('/api/stats/db').then(r => r.json()).then(d => stats = d);
+                    }"
+                    :disabled="cleaning"
+                    class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none disabled:opacity-50">
+                    <span x-show="!cleaning">Clean Up Old Scans</span>
+                    <span x-show="cleaning">Cleaning...</span>
+                </button>
+                <p x-show="cleanMsg" x-text="cleanMsg" class="text-sm text-gray-500 dark:text-gray-400 mt-2"></p>
+            </div>
         </div>
     </div>
 

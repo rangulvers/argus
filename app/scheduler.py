@@ -279,11 +279,75 @@ def migrate_legacy_schedule():
         logger.error(f"Failed to migrate legacy schedule: {e}")
 
 
+def run_retention_cleanup(db_path: str, retention_days: int) -> int:
+    """Delete scans older than retention_days and their related data."""
+    import sqlite3
+    from datetime import datetime, timedelta
+
+    cutoff = datetime.utcnow() - timedelta(days=retention_days)
+    logger.info(f"Running retention cleanup: deleting scans older than {cutoff.isoformat()} ({retention_days} days)")
+
+    with sqlite3.connect(db_path) as conn:
+        # Keep at least the most recent scan
+        newest_scan_id = conn.execute("SELECT MAX(id) FROM scans").fetchone()[0]
+
+        old_scan_ids = [
+            r[0] for r in conn.execute(
+                "SELECT id FROM scans WHERE started_at < ?", (cutoff.isoformat(),)
+            ).fetchall()
+        ]
+
+        # Never delete the newest scan
+        if newest_scan_id is not None:
+            old_scan_ids = [sid for sid in old_scan_ids if sid != newest_scan_id]
+
+        if not old_scan_ids:
+            logger.info("Retention cleanup: no scans to delete")
+            return 0
+
+        placeholders = ",".join("?" * len(old_scan_ids))
+
+        # Delete in FK-safe order: alerts → changes → ports → devices → scans
+        conn.execute(
+            f"DELETE FROM alerts WHERE change_id IN "
+            f"(SELECT id FROM changes WHERE scan_id IN ({placeholders}))",
+            old_scan_ids,
+        )
+        conn.execute(f"DELETE FROM changes WHERE scan_id IN ({placeholders})", old_scan_ids)
+        conn.execute(
+            f"DELETE FROM ports WHERE device_id IN "
+            f"(SELECT id FROM devices WHERE scan_id IN ({placeholders}))",
+            old_scan_ids,
+        )
+        conn.execute(f"DELETE FROM devices WHERE scan_id IN ({placeholders})", old_scan_ids)
+        conn.execute(f"DELETE FROM scans WHERE id IN ({placeholders})", old_scan_ids)
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+
+        logger.info(f"Retention cleanup: deleted {len(old_scan_ids)} old scans")
+        return len(old_scan_ids)
+
+
 def init_scheduler():
     """Initialize scheduler with saved configuration"""
+    from app.config import get_config
+
     migrate_legacy_schedule()
-    get_scheduler()
+    scheduler = get_scheduler()
     sync_scheduler_jobs()
+
+    # Weekly retention cleanup — runs every Sunday at 3 AM
+    config = get_config()
+    scheduler.add_job(
+        lambda: run_retention_cleanup(config.database.path, config.database.retention_days),
+        trigger="cron",
+        day_of_week="sun",
+        hour=3,
+        minute=0,
+        id="retention_cleanup",
+        replace_existing=True,
+    )
+    logger.info("Retention cleanup job scheduled (weekly, Sunday 03:00)")
+
     jobs = load_schedule_config()
     enabled_count = sum(1 for j in jobs if j.get("enabled", False))
     logger.info(f"Scheduler initialized with {enabled_count} active jobs")
