@@ -33,22 +33,28 @@ class NetworkScanner:
         enable_os_detection: bool = True,
         enable_service_detection: bool = True,
         scan_type: str = "network",
+        subnets: Optional[List[str]] = None,
     ) -> Scan:
         """
         Perform a network scan
 
         Args:
-            subnet: Network subnet to scan (e.g., "192.168.1.0/24")
+            subnet: Primary network subnet to scan (e.g., "192.168.1.0/24")
             scan_profile: Scan intensity (quick, normal, intensive)
             port_range: Port range to scan (e.g., "1-1000", "common", "all")
             enable_os_detection: Enable OS fingerprinting
             enable_service_detection: Enable service/version detection
             scan_type: Type of scan ("network" for full subnet, "device" for single device)
+            subnets: Optional list of subnets; when provided, all are scanned and results merged.
 
         Returns:
             Scan object with results
         """
-        logger.info(f"Starting scan of {subnet} with profile {scan_profile}")
+        # Resolve the full list of subnets to scan
+        subnets_to_scan: List[str] = subnets if subnets else [subnet]
+        display_subnet = ", ".join(subnets_to_scan)
+
+        logger.info(f"Starting scan of {display_subnet} with profile {scan_profile}")
 
         # Estimate scan time
         time_estimates = {
@@ -59,18 +65,18 @@ class NetworkScanner:
         estimated_time = time_estimates.get(scan_profile, "5-15 minutes")
 
         logger.info(
-            f"Starting network scan: subnet={subnet}, profile={scan_profile}, estimated={estimated_time}"
+            f"Starting network scan: subnets={display_subnet}, profile={scan_profile}, estimated={estimated_time}"
         )
         if scan_profile != "quick":
             logger.info(f"Port range: {port_range}")
 
-        # Create scan record
+        # Create scan record — store first (primary) subnet for DB compat
         scan = Scan(
             started_at=datetime.utcnow(),
             status="running",
             scan_type=scan_type,
             scan_profile=scan_profile,
-            subnet=subnet,
+            subnet=subnets_to_scan[0],
         )
         self.db.add(scan)
         self.db.commit()
@@ -83,24 +89,23 @@ class NetworkScanner:
             )
 
             logger.info(f"Nmap arguments: {nmap_args}")
-            logger.info(f"Running nmap with arguments: {nmap_args}")
 
-            # Perform the scan
-            self.nm.scan(hosts=subnet, arguments=nmap_args)
+            # Scan each subnet sequentially, collecting all live hosts
+            collected_hosts: List[str] = []
+            for sn in subnets_to_scan:
+                logger.info(f"Running nmap on subnet: {sn}")
+                self.nm.scan(hosts=sn, arguments=nmap_args)
+                hosts_in_subnet = [h for h in self.nm.all_hosts() if self.nm[h].state() == "up"]
+                logger.info(f"Subnet {sn}: found {len(hosts_in_subnet)} live host(s)")
+                # _process_host reads self.nm[host], so process immediately while nm has this subnet's data
+                for host in hosts_in_subnet:
+                    collected_hosts.append(host)
+                    self._process_host(scan.id, host, scan_profile)
 
             logger.info("Scan complete! Processing results...")
 
-            # Process results
-            devices_found = 0
-            all_hosts = self.nm.all_hosts()
-            total_hosts = len(all_hosts)
-
-            for i, host in enumerate(all_hosts, 1):
-                if self.nm[host].state() == "up":
-                    logger.debug(f"Processing host {i}/{total_hosts}: {host}")
-                    device = self._process_host(scan.id, host, scan_profile)
-                    if device:
-                        devices_found += 1
+            # Count devices saved during per-subnet scans above
+            devices_found = self.db.query(Device).filter(Device.scan_id == scan.id).count()
 
             # Enrich devices with integration data (UniFi, etc.)
             self._enrich_with_integrations(scan.id)

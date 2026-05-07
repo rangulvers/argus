@@ -6,7 +6,7 @@ providing input sanitization, type checking, and security controls.
 """
 
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 import html
 import re
@@ -114,19 +114,38 @@ class SingleDeviceScanRequest(BaseModel):
 
 class NetworkConfigUpdate(BaseModel):
     """Schema for network configuration updates"""
-    subnet: str = Field(..., max_length=50)
+    subnets: Optional[List[str]] = None
+    subnet: Optional[str] = Field(None, max_length=50)  # kept for backward compat
     scan_profile: str = Field(..., pattern=r'^(quick|normal|intensive)$')
-    
+
     @field_validator('subnet')
     @classmethod
     def validate_subnet(cls, v):
         """Validate subnet format"""
+        if v is None:
+            return v
         v = v.strip()
         try:
             ipaddress.ip_network(v, strict=False)
             return v
         except ValueError:
             raise ValueError("Invalid subnet format")
+
+    @field_validator('subnets')
+    @classmethod
+    def validate_subnets(cls, v):
+        """Validate each subnet in the list"""
+        if v is None:
+            return v
+        validated = []
+        for subnet in v:
+            subnet = subnet.strip()
+            try:
+                ipaddress.ip_network(subnet, strict=False)
+                validated.append(subnet)
+            except ValueError:
+                raise ValueError(f"Invalid subnet format: {subnet}")
+        return validated
 
 
 class ScanningConfigUpdate(BaseModel):

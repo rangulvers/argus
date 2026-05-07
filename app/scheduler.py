@@ -83,6 +83,7 @@ def run_scheduled_scan(profile: str, job_name: str):
         scanner = NetworkScanner(db)
         scan = scanner.perform_scan(
             subnet=config.network.subnet,
+            subnets=config.network.subnets,
             scan_profile=profile,
             port_range=config.scanning.port_range,
             enable_os_detection=config.scanning.enable_os_detection,

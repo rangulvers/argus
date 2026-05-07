@@ -9,9 +9,14 @@ import os
 
 class NetworkConfig(BaseSettings):
     """Network scanning configuration"""
-    subnet: str = "192.168.1.0/24"
+    subnets: List[str] = ["192.168.1.0/24"]
     scan_schedule: str = "0 2 * * 0"  # Cron format: 2 AM every Sunday
     scan_profile: str = "normal"  # quick, normal, intensive
+
+    @property
+    def subnet(self) -> str:
+        """Backward compat: return first subnet."""
+        return self.subnets[0] if self.subnets else "192.168.1.0/24"
 
 
 class ScanningConfig(BaseSettings):
@@ -190,6 +195,11 @@ class Config(BaseSettings):
         if yaml_data is None:
             return cls()
 
+        # Migrate old single-subnet config (subnet: str -> subnets: list)
+        if "network" in yaml_data and "subnet" in yaml_data["network"]:
+            old = yaml_data["network"].pop("subnet")
+            yaml_data["network"].setdefault("subnets", [old])
+
         # Convert nested dict to Config object
         return cls(**yaml_data)
 
@@ -247,7 +257,7 @@ def save_config(config_obj: Config, yaml_path: str = "config.yaml"):
 
     config_dict = {
         "network": {
-            "subnet": config_obj.network.subnet,
+            "subnets": config_obj.network.subnets,
             "scan_schedule": config_obj.network.scan_schedule,
             "scan_profile": config_obj.network.scan_profile,
         },

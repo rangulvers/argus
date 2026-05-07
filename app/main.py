@@ -727,7 +727,7 @@ async def setup_submit(
 
     # Save network config from setup wizard
     cfg = get_config()
-    cfg.network.subnet = subnet
+    cfg.network.subnets = [subnet]
     cfg.network.scan_schedule = scan_schedule
     save_config(cfg)
 
@@ -754,6 +754,7 @@ async def setup_submit(
                 scanner = NetworkScanner(db_session)
                 scan = scanner.perform_scan(
                     subnet=config.network.subnet,
+                    subnets=config.network.subnets,
                     scan_profile=config.network.scan_profile,
                     port_range=config.scanning.port_range,
                     enable_os_detection=config.scanning.enable_os_detection,
@@ -766,7 +767,7 @@ async def setup_submit(
                 db_session.close()
 
         background_tasks.add_task(run_scan)
-        logger.info(f"Setup: triggering initial scan on {config.network.subnet}")
+        logger.info(f"Setup: triggering initial scan on {config.network.subnets}")
 
     # Create response with session cookie (auto-login)
     response = RedirectResponse(url="/", status_code=302)
@@ -2059,6 +2060,7 @@ async def trigger_scan_htmx(
             scanner = NetworkScanner(db_session)
             scan = scanner.perform_scan(
                 subnet=config.network.subnet,
+                subnets=config.network.subnets,
                 scan_profile=scan_profile,
                 port_range=config.scanning.port_range,
                 enable_os_detection=config.scanning.enable_os_detection,
@@ -2148,15 +2150,19 @@ async def update_config(config_update: ConfigUpdate, request: Request, db: Sessi
 
         # Track changes for audit
         old_config = {
-            "subnet": config.network.subnet,
+            "subnets": config.network.subnets,
             "scan_profile": config.network.scan_profile,
             "port_range": config.scanning.port_range,
             "enable_os_detection": config.scanning.enable_os_detection
         }
 
-        # Update network settings
-        config.network.subnet = config_update.network.subnet
-        config.network.scan_profile = config_update.network.scan_profile
+        net = config_update.network
+        # Update network settings — subnets takes priority; fall back to single subnet for backward compat
+        if net.subnets is not None:
+            config.network.subnets = net.subnets
+        elif net.subnet is not None:
+            config.network.subnets = [net.subnet]
+        config.network.scan_profile = net.scan_profile
 
         # Update scanning settings
         config.scanning.port_range = config_update.scanning.port_range
@@ -2177,7 +2183,7 @@ async def update_config(config_update: ConfigUpdate, request: Request, db: Sessi
             details={
                 "old": old_config,
                 "new": {
-                    "subnet": config.network.subnet,
+                    "subnets": config.network.subnets,
                     "scan_profile": config.network.scan_profile,
                     "port_range": config.scanning.port_range,
                     "enable_os_detection": config.scanning.enable_os_detection
@@ -2190,6 +2196,7 @@ async def update_config(config_update: ConfigUpdate, request: Request, db: Sessi
             "message": "Configuration updated successfully",
             "config": {
                 "network": {
+                    "subnets": config.network.subnets,
                     "subnet": config.network.subnet,
                     "scan_profile": config.network.scan_profile
                 },
@@ -2210,6 +2217,7 @@ async def get_config_endpoint():
     config = get_config()
     return {
         "network": {
+            "subnets": config.network.subnets,
             "subnet": config.network.subnet,
             "scan_profile": config.network.scan_profile
         },
