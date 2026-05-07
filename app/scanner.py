@@ -58,17 +58,11 @@ class NetworkScanner:
         }
         estimated_time = time_estimates.get(scan_profile, "5-15 minutes")
 
-        # Print progress info to console
-        print(f"\n{'='*60}")
-        print(f"Starting network scan...")
-        print(f"  Subnet: {subnet}")
-        print(f"  Profile: {scan_profile}")
+        logger.info(
+            f"Starting network scan: subnet={subnet}, profile={scan_profile}, estimated={estimated_time}"
+        )
         if scan_profile != "quick":
-            print(f"  Ports: {port_range}")
-        print(f"  Estimated time: {estimated_time}")
-        print(f"{'='*60}")
-        print(f"\nPlease wait while nmap scans your network...")
-        print(f"(The scan is running - no output means it's still working)\n")
+            logger.info(f"Port range: {port_range}")
 
         # Create scan record
         scan = Scan(
@@ -89,13 +83,12 @@ class NetworkScanner:
             )
 
             logger.info(f"Nmap arguments: {nmap_args}")
-            print(f"Running nmap with arguments: {nmap_args}")
-            print(f"Scanning... (this is the slow part)\n")
+            logger.info(f"Running nmap with arguments: {nmap_args}")
 
             # Perform the scan
             self.nm.scan(hosts=subnet, arguments=nmap_args)
 
-            print(f"\nScan complete! Processing results...")
+            logger.info("Scan complete! Processing results...")
 
             # Process results
             devices_found = 0
@@ -104,7 +97,7 @@ class NetworkScanner:
 
             for i, host in enumerate(all_hosts, 1):
                 if self.nm[host].state() == "up":
-                    print(f"  Processing host {i}/{total_hosts}: {host}")
+                    logger.debug(f"Processing host {i}/{total_hosts}: {host}")
                     device = self._process_host(scan.id, host, scan_profile)
                     if device:
                         devices_found += 1
@@ -131,21 +124,17 @@ class NetworkScanner:
                 Device.risk_level == "high"
             ).count()
 
-            print(f"\n{'='*60}")
-            print(f"Scan finished!")
-            print(f"  Devices found: {devices_found}")
-            print(f"  Duration: {(scan.completed_at - scan.started_at).seconds} seconds")
+            duration = (scan.completed_at - scan.started_at).seconds
+            logger.info(
+                f"Scan finished: devices_found={devices_found}, duration={duration}s"
+            )
             if devices_with_threats > 0:
-                print(f"\n  ⚠️  SECURITY SUMMARY:")
-                print(f"  Devices with threats: {devices_with_threats}")
-                if critical_count:
-                    print(f"    - Critical risk: {critical_count}")
-                if high_count:
-                    print(f"    - High risk: {high_count}")
-                print(f"\n  View details at http://localhost:8080/devices")
+                logger.warning(
+                    f"Security summary: {devices_with_threats} device(s) with threats "
+                    f"(critical={critical_count}, high={high_count})"
+                )
             else:
-                print(f"\n  ✓ No significant threats detected")
-            print(f"{'='*60}\n")
+                logger.info("No significant threats detected")
 
             logger.info(f"Scan completed. Found {devices_found} devices")
 
@@ -155,42 +144,37 @@ class NetworkScanner:
             scan.error_message = str(e)
             scan.completed_at = datetime.utcnow()
 
-        try:
-            self.db.commit()
-            self.db.refresh(scan)
-        except Exception as e:
-            self.db.rollback()
-            logger.error("Scan write failed — DB rolled back: %s", e, exc_info=True)
-            raise
+        self.db.commit()
+        self.db.refresh(scan)
 
         return scan
 
     def _validate_port_range(self, port_range: str) -> str:
         """
         Validate and sanitize port range input to prevent command injection.
-        
+
         Args:
             port_range: Port range string (e.g., "80", "1-1000", "80,443,8080", "common", "all")
-            
+
         Returns:
             Validated port range string
-            
+
         Raises:
             ValueError: If port range format is invalid or ports are out of range
         """
         import re
-        
+
         # Allow special keywords
         if port_range in ["common", "all"]:
             return port_range
-        
+
         # Strict whitelist: only digits, hyphens, and commas allowed
         if not re.match(r'^[0-9,\-]+$', port_range):
             raise ValueError(
                 f"Invalid port range format: {port_range}. "
                 "Only digits, hyphens, and commas are allowed."
             )
-        
+
         # Validate individual port numbers are in valid range (1-65535)
         # Split by comma and hyphen to get individual port numbers
         parts = port_range.replace(',', '-').split('-')
@@ -204,7 +188,7 @@ class NetworkScanner:
                         )
                 except ValueError:
                     raise ValueError(f"Invalid port number: {part}")
-        
+
         return port_range
 
     def _build_nmap_args(
@@ -406,13 +390,8 @@ class NetworkScanner:
             )
 
             self.db.add(device)
-            try:
-                self.db.commit()
-                self.db.refresh(device)
-            except Exception as e:
-                self.db.rollback()
-                logger.error("Scan write failed — DB rolled back: %s", e, exc_info=True)
-                raise
+            self.db.commit()
+            self.db.refresh(device)
 
             # Process ports - behavior depends on scan profile
             ports_list = []
@@ -420,7 +399,9 @@ class NetworkScanner:
 
             if is_quick_scan and prev_device and prev_device.ports:
                 # Quick scan: carry forward ports from previous scan
-                print(f"    (Carrying forward {len(prev_device.ports)} ports from previous scan)")
+                logger.debug(
+                    f"Carrying forward {len(prev_device.ports)} ports from previous scan for {host}"
+                )
                 ports_list = self._copy_ports_from_device(prev_device, device.id)
                 # Also carry forward threat assessment
                 device.risk_level = prev_device.risk_level
@@ -520,9 +501,9 @@ class NetworkScanner:
                     }
                     self.db.commit()
 
-                    # Print threat warning if risky
+                    # Log threat warning if risky
                     if assessment.risk_level.value in ("high", "critical"):
-                        print(f"    ⚠️  THREAT DETECTED: {assessment.summary}")
+                        logger.warning(f"THREAT DETECTED on {host}: {assessment.summary}")
 
             # Update device history
             self._update_device_history(device)
@@ -563,12 +544,7 @@ class NetworkScanner:
             )
 
             self.db.add(port)
-            try:
-                self.db.commit()
-            except Exception as e:
-                self.db.rollback()
-                logger.error("Scan write failed — DB rolled back: %s", e, exc_info=True)
-                raise
+            self.db.commit()
 
             logger.debug(
                 f"Added port: {port_number}/{protocol} - {service_name} ({state})"
@@ -608,15 +584,15 @@ class NetworkScanner:
             tasks = []
             labels = []
             if config.integrations.unifi.enabled and config.integrations.unifi.sync_on_scan:
-                print("\nEnriching devices with UniFi data...")
+                logger.info("Enriching devices with UniFi data...")
                 tasks.append(self._enrich_with_unifi(scan_id))
                 labels.append("UniFi")
             if config.integrations.pihole.enabled and config.integrations.pihole.sync_on_scan:
-                print("\nEnriching devices with Pi-hole DNS data...")
+                logger.info("Enriching devices with Pi-hole DNS data...")
                 tasks.append(self._enrich_with_pihole(scan_id))
                 labels.append("Pi-hole")
             if config.integrations.adguard.enabled and config.integrations.adguard.sync_on_scan:
-                print("\nEnriching devices with AdGuard Home DNS data...")
+                logger.info("Enriching devices with AdGuard Home DNS data...")
                 tasks.append(self._enrich_with_adguard(scan_id))
                 labels.append("AdGuard Home")
             if tasks:
@@ -624,7 +600,6 @@ class NetworkScanner:
                 for label, r in zip(labels, results):
                     if isinstance(r, Exception):
                         logger.warning("%s enrichment failed: %s", label, r)
-                        print(f"  Warning: {label} enrichment failed: {r}")
 
         try:
             loop = asyncio.get_running_loop()
@@ -681,8 +656,7 @@ class NetworkScanner:
             by_ip = enrichment_result.get("by_ip", {})
 
             if not by_mac and not by_ip:
-                logger.info("No UniFi enrichment data returned")
-                print("  No matching devices found in UniFi")
+                logger.info("No UniFi enrichment data returned — no matching devices found")
                 return
 
             logger.info(f"UniFi enrichment: {len(by_mac)} by MAC, {len(by_ip)} by IP")
@@ -722,7 +696,6 @@ class NetworkScanner:
 
             self.db.commit()
             logger.info(f"Enriched {enriched_count} devices with UniFi data")
-            print(f"  Enriched {enriched_count} devices with UniFi data")
 
         except Exception as e:
             logger.error(f"Failed to enrich devices with UniFi data: {e}")
@@ -767,8 +740,7 @@ class NetworkScanner:
             by_ip = enrichment_result.get("by_ip", {})
 
             if not by_ip:
-                logger.info("No Pi-hole enrichment data returned")
-                print("  No matching devices found in Pi-hole")
+                logger.info("No Pi-hole enrichment data returned — no matching devices found")
                 return
 
             logger.info(f"Pi-hole enrichment: {len(by_ip)} devices")
@@ -801,7 +773,6 @@ class NetworkScanner:
 
             self.db.commit()
             logger.info(f"Enriched {enriched_count} devices with Pi-hole data")
-            print(f"  Enriched {enriched_count} devices with Pi-hole DNS data")
 
         except Exception as e:
             logger.error(f"Failed to enrich devices with Pi-hole data: {e}")
@@ -847,8 +818,7 @@ class NetworkScanner:
             by_ip = enrichment_result.get("by_ip", {})
 
             if not by_ip:
-                logger.info("No AdGuard Home enrichment data returned")
-                print("  No matching devices found in AdGuard Home")
+                logger.info("No AdGuard Home enrichment data returned — no matching devices found")
                 return
 
             logger.info(f"AdGuard Home enrichment: {len(by_ip)} devices")
@@ -881,7 +851,6 @@ class NetworkScanner:
 
             self.db.commit()
             logger.info(f"Enriched {enriched_count} devices with AdGuard Home data")
-            print(f"  Enriched {enriched_count} devices with AdGuard Home DNS data")
 
         except Exception as e:
             logger.error(f"Failed to enrich devices with AdGuard Home data: {e}")
