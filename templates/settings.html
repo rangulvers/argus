@@ -466,6 +466,47 @@
         </div>
     </div>
 
+    <!-- Data Management -->
+    <div class="bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-hidden">
+        <div class="px-4 py-5 sm:px-6 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Data Management</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Download or restore a backup of your database and configuration</p>
+        </div>
+        <div class="px-4 py-5 sm:p-6 space-y-6">
+            <!-- Backup -->
+            <div>
+                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-1">Backup</h4>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Downloads a zip file containing <code class="font-mono">argus.db</code> and <code class="font-mono">config.yaml</code>.</p>
+                <a href="/api/backup" download
+                   class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">
+                    Download Backup
+                </a>
+            </div>
+
+            <!-- Restore -->
+            <div x-data="{ uploading: false, message: '' }">
+                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-1">Restore</h4>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Upload a previously downloaded backup zip. The app will need to be restarted for a database restore to take full effect.</p>
+                <label class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer shadow-sm">
+                    <span x-show="!uploading">Restore from Backup</span>
+                    <span x-show="uploading">Uploading...</span>
+                    <input type="file" accept=".zip" class="hidden"
+                           @change="async (e) => {
+                             uploading = true;
+                             message = '';
+                             const file = e.target.files[0];
+                             const body = await file.arrayBuffer();
+                             const res = await fetch('/api/restore', {method: 'POST', body, headers: {'Content-Type': 'application/zip'}});
+                             const data = await res.json();
+                             message = data.success ? 'Restored successfully. Reload to see changes.' : (data.error || 'Restore failed');
+                             uploading = false;
+                           }">
+                </label>
+                <p x-show="message" x-text="message" class="text-sm mt-2 text-gray-700 dark:text-gray-300"></p>
+            </div>
+        </div>
+    </div>
+
     <!-- Audit Log -->
     <div class="bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-hidden" x-data="auditLogViewer()">
         <div class="px-4 py-5 sm:px-6 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center">

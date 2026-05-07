@@ -3,12 +3,16 @@
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import desc
 from typing import List, Optional
 from datetime import datetime
+from pathlib import Path
 import logging
+import io
+import zipfile
+import csv
 
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -2810,6 +2814,140 @@ async def revoke_api_key(
     )
 
     return {"status": "revoked", "id": key_id, "name": api_key.name}
+
+
+# Backup / Restore Endpoints
+@app.get("/api/backup")
+async def download_backup(request: Request, db: Session = Depends(get_db)):
+    """Download a zip containing the database and config."""
+    current_user = get_current_user(request)
+    if not current_user:
+        return RedirectResponse(url="/login")
+
+    db_path = Path("./data/argus.db")
+    config_path = Path("./config.yaml")
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        if db_path.exists():
+            zf.write(db_path, "argus.db")
+        if config_path.exists():
+            zf.write(config_path, "config.yaml")
+    buf.seek(0)
+
+    filename = f"argus-backup-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}.zip"
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@app.post("/api/restore")
+async def restore_backup(request: Request, db: Session = Depends(get_db)):
+    """Restore database and config from a backup zip."""
+    current_user = get_current_user(request)
+    if not current_user:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    body = await request.body()
+    try:
+        with zipfile.ZipFile(io.BytesIO(body)) as zf:
+            names = zf.namelist()
+            if "argus.db" in names:
+                Path("./data").mkdir(exist_ok=True)
+                zf.extract("argus.db", "./data/")
+                logger.info("Database restored from backup")
+            if "config.yaml" in names:
+                zf.extract("config.yaml", "./")
+                logger.info("Config restored from backup")
+        return {"success": True, "restored": names}
+    except zipfile.BadZipFile:
+        return JSONResponse(status_code=400, content={"error": "Invalid backup file"})
+
+
+# CSV / JSON Export Endpoints
+@app.get("/api/export/devices.csv")
+async def export_devices_csv(request: Request, db: Session = Depends(get_db)):
+    """Export all devices as CSV."""
+    current_user = get_current_user(request)
+    if not current_user:
+        return RedirectResponse(url="/login")
+
+    latest_scan = db.query(Scan).order_by(desc(Scan.id)).first()
+    if not latest_scan:
+        devices = []
+    else:
+        devices = (
+            db.query(Device)
+            .filter(Device.scan_id == latest_scan.id)
+            .options(selectinload(Device.ports))
+            .order_by(Device.ip_address)
+            .all()
+        )
+
+    buf = io.StringIO()
+    fieldnames = ["ip_address", "mac_address", "hostname", "vendor", "os_name", "risk_score", "is_trusted", "open_ports", "last_seen"]
+    writer = csv.DictWriter(buf, fieldnames=fieldnames)
+    writer.writeheader()
+    for d in devices:
+        writer.writerow({
+            "ip_address": d.ip_address,
+            "mac_address": d.mac_address or "",
+            "hostname": d.hostname or "",
+            "vendor": d.vendor or "",
+            "os_name": d.os_name or "",
+            "risk_score": d.risk_score or 0,
+            "is_trusted": d.is_trusted,
+            "open_ports": ",".join(str(p.port_number) for p in (d.ports or [])),
+            "last_seen": d.last_seen.isoformat() if d.last_seen else "",
+        })
+
+    content = buf.getvalue().encode("utf-8")
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=argus-devices.csv"},
+    )
+
+
+@app.get("/api/export/devices.json")
+async def export_devices_json(request: Request, db: Session = Depends(get_db)):
+    """Export all devices as JSON."""
+    current_user = get_current_user(request)
+    if not current_user:
+        return RedirectResponse(url="/login")
+
+    latest_scan = db.query(Scan).order_by(desc(Scan.id)).first()
+    if not latest_scan:
+        return JSONResponse(content=[])
+
+    devices = (
+        db.query(Device)
+        .filter(Device.scan_id == latest_scan.id)
+        .options(selectinload(Device.ports))
+        .order_by(Device.ip_address)
+        .all()
+    )
+
+    result = []
+    for d in devices:
+        result.append({
+            "ip_address": d.ip_address,
+            "mac_address": d.mac_address,
+            "hostname": d.hostname,
+            "vendor": d.vendor,
+            "os_name": d.os_name,
+            "risk_score": d.risk_score,
+            "is_trusted": d.is_trusted,
+            "device_type": d.device_type,
+            "open_ports": [{"port": p.port_number, "service": p.service_name, "protocol": p.protocol} for p in (d.ports or [])],
+            "last_seen": d.last_seen.isoformat() if d.last_seen else None,
+        })
+
+    return JSONResponse(
+        content=result,
+        headers={"Content-Disposition": "attachment; filename=argus-devices.json"},
+    )
 
 
 # Settings UI Page
