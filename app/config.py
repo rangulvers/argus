@@ -75,9 +75,6 @@ class WebConfig(BaseSettings):
     """Web server configuration"""
     host: str = "0.0.0.0"
     port: int = 8080
-    enable_auth: bool = False
-    username: Optional[str] = None
-    password: Optional[str] = None
 
 
 class ScheduleConfig(BaseSettings):
@@ -292,9 +289,6 @@ def save_config(config_obj: Config, yaml_path: str = "config.yaml"):
         "web": {
             "host": config_obj.web.host,
             "port": config_obj.web.port,
-            "enable_auth": config_obj.web.enable_auth,
-            "username": config_obj.web.username,
-            "password": config_obj.web.password,
         },
         "integrations": {
             "cve": {
