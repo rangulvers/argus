@@ -11,6 +11,7 @@ services:
     container_name: argus
 
     # Network configuration - use host network for nmap scanning
+    # Host networking is required so nmap can reach all devices on the local network.
     network_mode: host
 
     # Capabilities required for nmap
@@ -21,11 +22,9 @@ services:
     # Privileged mode (alternative to cap_add if needed)
     # privileged: true
 
-    # Volumes
-    volumes:
-      - ./data:/app/data              # Database storage
-      - ./config.yaml:/app/config.yaml  # Configuration (read-write for schedule updates)
-      - ./logs:/var/log                # Logs
+    # Load secrets from .env file (copy .env.example to .env and fill in values)
+    env_file:
+      - .env
 
     # Environment variables
     environment:
@@ -34,6 +33,21 @@ services:
 
     # Restart policy
     restart: unless-stopped
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '2'
+
+    # Volumes
+    # Host networking is required for nmap; data and config are mounted as volumes
+    # so they persist across container restarts and can be edited without rebuilding.
+    volumes:
+      - ./data:/app/data              # Database storage
+      - ./config.yaml:/app/config.yaml  # Configuration (read-write for schedule updates)
+      - ./logs:/var/log                # Logs
 
     # Logging
     logging:

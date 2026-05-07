@@ -165,6 +165,36 @@ alerts:
 | **Normal** | Ports 1-1000 + service detection | 5-10 minutes |
 | **Intensive** | All ports + OS detection + scripts | 15-30 minutes |
 
+## Secrets & Configuration
+
+All sensitive values (session key, passwords, API tokens) belong in `.env`, not in `config.yaml`.
+
+### Setup
+
+```bash
+# 1. Copy the example file
+cp .env.example .env
+
+# 2. Generate a session secret and paste it in
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+# Edit .env and set ARGUS_SESSION_SECRET=<output from above>
+
+# 3. Add integration credentials only for features you use
+# (UniFi, Pi-hole, AdGuard, CVE — see .env.example for all variables)
+```
+
+Never commit `.env` to git. It is already listed in `.gitignore`.
+
+### Docker
+
+The `docker-compose.yml` loads `.env` automatically via `env_file`. No extra steps needed.
+
+For bare-metal or `docker run`, pass the file explicitly:
+
+```bash
+docker run --env-file .env ...
+```
+
 ## Security & Environment Variables
 
 ### Overview
@@ -177,7 +207,7 @@ Create a `.env` file in the Argus root directory:
 
 ```bash
 # Required: Session secret for cookie signing
-# Generate with: python -c 'import secrets; print(secrets.token_urlsafe(32))'
+# Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
 ARGUS_SESSION_SECRET=your_secure_session_secret_here
 
 # Recommended: Production mode (enforces strict security)
@@ -209,28 +239,12 @@ ARGUS_PIHOLE_API_TOKEN=your_pihole_token
 ARGUS_ADGUARD_PASSWORD=your_adguard_password
 ```
 
-### Docker Configuration
-
-Mount the `.env` file in your `docker-compose.yml`:
-
-```yaml
-services:
-  argus:
-    image: ghcr.io/rangulvers/argus:latest
-    env_file:
-      - .env  # Load all ARGUS_* variables
-    environment:
-      - ARGUS_ENVIRONMENT=production
-    # ... rest of configuration
-```
-
 ### File Permissions
 
 Protect your `.env` file:
 
 ```bash
 chmod 600 .env
-echo ".env" >> .gitignore  # Never commit secrets!
 ```
 
 ### Upgrading from v1.x
@@ -242,7 +256,7 @@ If upgrading from v1.x (where secrets were in `config.yaml`):
 python migrate_secrets.py
 
 # 2. Generate session secret
-python -c 'import secrets; print(secrets.token_urlsafe(32))'
+python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 # 3. Add to .env file
 echo "ARGUS_SESSION_SECRET=<generated_secret>" >> .env
