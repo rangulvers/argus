@@ -155,8 +155,13 @@ class NetworkScanner:
             scan.error_message = str(e)
             scan.completed_at = datetime.utcnow()
 
-        self.db.commit()
-        self.db.refresh(scan)
+        try:
+            self.db.commit()
+            self.db.refresh(scan)
+        except Exception as e:
+            self.db.rollback()
+            logger.error("Scan write failed — DB rolled back: %s", e, exc_info=True)
+            raise
 
         return scan
 
@@ -401,8 +406,13 @@ class NetworkScanner:
             )
 
             self.db.add(device)
-            self.db.commit()
-            self.db.refresh(device)
+            try:
+                self.db.commit()
+                self.db.refresh(device)
+            except Exception as e:
+                self.db.rollback()
+                logger.error("Scan write failed — DB rolled back: %s", e, exc_info=True)
+                raise
 
             # Process ports - behavior depends on scan profile
             ports_list = []
@@ -553,7 +563,12 @@ class NetworkScanner:
             )
 
             self.db.add(port)
-            self.db.commit()
+            try:
+                self.db.commit()
+            except Exception as e:
+                self.db.rollback()
+                logger.error("Scan write failed — DB rolled back: %s", e, exc_info=True)
+                raise
 
             logger.debug(
                 f"Added port: {port_number}/{protocol} - {service_name} ({state})"
