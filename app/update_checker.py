@@ -61,8 +61,21 @@ class UpdateChecker:
         # Other formats - treat as dev build
         return (0, 0, 0)
 
+    def _is_dev_build(self, version_str: str) -> bool:
+        """Return True if this is a dev/CalVer/untagged build that tracks main."""
+        import re
+        v = version_str.lstrip('v')
+        if v in ('dev', 'unknown', ''):
+            return True
+        # CalVer: 2026.05.07-abc1234 — CI builds from main, always current
+        if re.match(r'^20\d{2}\.\d{2}\.\d{2}', v):
+            return True
+        return False
+
     def _is_newer_version(self, remote: str, local: str) -> bool:
-        """Check if remote version is newer than local"""
+        """Check if remote version is newer than local."""
+        if self._is_dev_build(local):
+            return False  # dev/CalVer builds track main — never show false update
         remote_parts = self._parse_version(remote)
         local_parts = self._parse_version(local)
         return remote_parts > local_parts
