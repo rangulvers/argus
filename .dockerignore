@@ -1,4 +1,7 @@
-# Git (keep .git for version detection during build)
+# Git
+.git
+.github
+scripts/dev_reset.py
 .gitignore
 
 # Python virtual environments
