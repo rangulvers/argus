@@ -1,960 +1,627 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Argus{% endblock %}
+{% block title %}Dashboard — ARGUS{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<!-- Threat Alert Banner (if threats detected) -->
+<div style="display:flex; flex-direction:column; gap:18px;">
+
+{# ── Security Alert Banner ── #}
 {% if stats.devices_at_risk > 0 %}
-<div class="mb-6 rounded-lg bg-red-50 p-4 border border-red-200">
-    <div class="flex">
-        <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-            </svg>
-        </div>
-        <div class="ml-3">
-            <h3 class="text-sm font-medium text-red-800">Security Alert</h3>
-            <div class="mt-2 text-sm text-red-700">
-                <p>
-                    <strong>{{ stats.devices_at_risk }} device(s)</strong> have potentially risky open ports.
-                    {% if stats.critical_devices > 0 %}
-                    <span class="font-semibold text-red-800">{{ stats.critical_devices }} critical!</span>
-                    {% endif %}
-                </p>
-            </div>
-            <div class="mt-3">
-                <a href="/devices" class="text-sm font-medium text-red-800 hover:text-red-600">
-                    View affected devices &rarr;
-                </a>
-            </div>
-        </div>
+<div class="card" style="padding:14px 18px; border-color:color-mix(in oklch,var(--crit) 35%,var(--line)); background:linear-gradient(180deg,color-mix(in oklch,var(--crit-bg) 80%,var(--bg-1)),var(--bg-1)); display:flex; align-items:center; justify-content:space-between; gap:16px;"
+     x-data="{gone:false}" x-show="!gone">
+  <div style="display:flex; align-items:center; gap:12px;">
+    <div style="width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:var(--crit-bg);color:var(--crit);border:1px solid color-mix(in oklch,var(--crit) 35%,transparent);flex-shrink:0;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 1.5 21h21z"/><path d="M12 10v5M12 18.5v.5"/></svg>
     </div>
+    <div>
+      <div style="font:600 13px/1.2 var(--font-sans);">{{ stats.devices_at_risk }} device{% if stats.devices_at_risk != 1 %}s{% endif %} need your attention</div>
+      <div style="font:500 12px/1.4 var(--font-sans);color:var(--text-2);margin-top:3px;">
+        {% if stats.critical_devices > 0 %}<strong style="color:var(--crit);">{{ stats.critical_devices }} critical</strong> with risky open ports · {% endif %}<strong style="color:var(--warn);">{{ stats.devices_at_risk }} flagged</strong> for review.
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-shrink:0;">
+    <button class="btn" style="color:var(--text-2);" @click="gone=true">Dismiss</button>
+    <a href="/devices?filter_risk=at_risk" class="btn" style="border-color:color-mix(in oklch,var(--crit) 50%,transparent);color:var(--crit);">Review →</a>
+  </div>
 </div>
 {% endif %}
 
-<!-- Stats overview -->
-<div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
-    <!-- Total Devices -->
-    <a href="/devices" class="group bg-white dark:bg-gray-800 overflow-hidden shadow dark:shadow-gray-700 rounded-lg hover:shadow-lg dark:hover:shadow-gray-600 hover:ring-2 hover:ring-indigo-500 transition-all duration-200 cursor-pointer">
-        <div class="p-5">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <div class="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 transition-colors">
-                        <svg class="h-6 w-6 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                        </svg>
-                    </div>
-                </div>
-                <div class="ml-4 w-0 flex-1">
-                    <dl>
-                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Devices</dt>
-                        <dd class="text-2xl font-semibold text-gray-900 dark:text-white">{{ stats.total_devices }}</dd>
-                    </dl>
-                </div>
-                <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                    </svg>
-                </div>
-            </div>
-        </div>
-    </a>
+{# ── Stat Row ── #}
+<div x-data="trendSpark()" style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;">
 
-    <!-- Devices at Risk -->
-    <a href="/devices?filter_risk=at_risk" class="group bg-white dark:bg-gray-800 overflow-hidden shadow dark:shadow-gray-700 rounded-lg hover:shadow-lg dark:hover:shadow-gray-600 transition-all duration-200 cursor-pointer {% if stats.devices_at_risk > 0 %}ring-2 ring-red-500 hover:ring-red-600{% else %}hover:ring-2 hover:ring-green-500{% endif %}">
-        <div class="p-5">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <div class="p-2 {% if stats.devices_at_risk > 0 %}bg-red-50 dark:bg-red-900/30 group-hover:bg-red-100 dark:group-hover:bg-red-900/50{% else %}bg-green-50 dark:bg-green-900/30 group-hover:bg-green-100 dark:group-hover:bg-green-900/50{% endif %} rounded-lg transition-colors">
-                        <svg class="h-6 w-6 {% if stats.devices_at_risk > 0 %}text-red-600 dark:text-red-400{% else %}text-green-600 dark:text-green-400{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            {% if stats.devices_at_risk > 0 %}
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                            {% else %}
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-                            {% endif %}
-                        </svg>
-                    </div>
-                </div>
-                <div class="ml-4 w-0 flex-1">
-                    <dl>
-                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">At Risk</dt>
-                        <dd class="text-2xl font-semibold {% if stats.devices_at_risk > 0 %}text-red-600 dark:text-red-400{% else %}text-green-600 dark:text-green-400{% endif %}">{{ stats.devices_at_risk }}</dd>
-                    </dl>
-                </div>
-                <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                    </svg>
-                </div>
-            </div>
+  <a href="/devices" class="card" style="padding:18px;display:flex;flex-direction:column;gap:14px;min-height:132px;text-decoration:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--bg-2);border:1px solid var(--line);color:var(--text-2);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
         </div>
-    </a>
+        <span style="font:500 12px/1 var(--font-sans);color:var(--text-3);letter-spacing:.02em;text-transform:uppercase;">Devices</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px;">
+      <div x-data="ticker({{ stats.total_devices }})">
+        <div style="font:600 32px/1 var(--font-sans);letter-spacing:-0.03em;" x-text="v">{{ stats.total_devices }}</div>
+      </div>
+      <svg x-show="sparkDevices.length > 1" viewBox="0 0 88 28" style="width:88px;height:28px;display:block;flex-shrink:0;">
+        <path :d="areaPath(sparkDevices,88,28)" fill="var(--accent)" fill-opacity="0.12"/>
+        <path :d="linePath(sparkDevices,88,28)" stroke="var(--accent)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </a>
 
-    <!-- Total Scans -->
-    <a href="/scans" class="group bg-white dark:bg-gray-800 overflow-hidden shadow dark:shadow-gray-700 rounded-lg hover:shadow-lg dark:hover:shadow-gray-600 hover:ring-2 hover:ring-blue-500 transition-all duration-200 cursor-pointer">
-        <div class="p-5">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <div class="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors">
-                        <svg class="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        </svg>
-                    </div>
-                </div>
-                <div class="ml-4 w-0 flex-1">
-                    <dl>
-                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Scans</dt>
-                        <dd class="text-2xl font-semibold text-gray-900 dark:text-white">{{ stats.total_scans }}</dd>
-                    </dl>
-                </div>
-                <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                    </svg>
-                </div>
-            </div>
+  <a href="/devices?filter_risk=at_risk" class="card" style="padding:18px;display:flex;flex-direction:column;gap:14px;min-height:132px;text-decoration:none;{% if stats.devices_at_risk > 0 %}border-color:color-mix(in oklch,var(--crit) 30%,var(--line));{% endif %}">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--crit-bg);border:1px solid color-mix(in oklch,var(--crit) 25%,transparent);color:var(--crit);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 1.5 21h21z"/><path d="M12 10v5M12 18.5v.5"/></svg>
         </div>
-    </a>
+        <span style="font:500 12px/1 var(--font-sans);color:var(--text-3);letter-spacing:.02em;text-transform:uppercase;">At risk</span>
+      </div>
+    </div>
+    <div>
+      <div x-data="ticker({{ stats.devices_at_risk }})">
+        <div style="font:600 32px/1 var(--font-sans);letter-spacing:-0.03em;{% if stats.devices_at_risk > 0 %}color:var(--crit);{% endif %}" x-text="v">{{ stats.devices_at_risk }}</div>
+      </div>
+      {% if stats.critical_devices > 0 %}
+      <div style="font:500 12px/1.4 var(--font-sans);color:var(--text-3);margin-top:6px;">{{ stats.critical_devices }} with active CVEs</div>
+      {% endif %}
+    </div>
+  </a>
 
-    <!-- Open Ports -->
-    <a href="/devices?filter_ports=has_ports" class="group bg-white dark:bg-gray-800 overflow-hidden shadow dark:shadow-gray-700 rounded-lg hover:shadow-lg dark:hover:shadow-gray-600 hover:ring-2 hover:ring-emerald-500 transition-all duration-200 cursor-pointer">
-        <div class="p-5">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <div class="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/50 transition-colors">
-                        <svg class="h-6 w-6 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                    </div>
-                </div>
-                <div class="ml-4 w-0 flex-1">
-                    <dl>
-                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Open Ports</dt>
-                        <dd class="text-2xl font-semibold text-gray-900 dark:text-white">{{ stats.total_ports }}</dd>
-                    </dl>
-                </div>
-                <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                    </svg>
-                </div>
-            </div>
-        </div>
-    </a>
+  <a href="/scans" class="card" style="padding:18px;display:flex;flex-direction:column;gap:14px;min-height:132px;text-decoration:none;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--bg-2);border:1px solid var(--line);color:var(--text-2);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg>
+      </div>
+      <span style="font:500 12px/1 var(--font-sans);color:var(--text-3);letter-spacing:.02em;text-transform:uppercase;">Scans</span>
+    </div>
+    <div>
+      <div x-data="ticker({{ stats.total_scans }})">
+        <div style="font:600 32px/1 var(--font-sans);letter-spacing:-0.03em;" x-text="v">{{ stats.total_scans }}</div>
+      </div>
+      {% if latest_scan %}
+      <div style="font:500 12px/1.4 var(--font-sans);color:var(--text-3);margin-top:6px;">last: {{ latest_scan.started_at.strftime('%H:%M') }}</div>
+      {% endif %}
+    </div>
+  </a>
 
-    <!-- Recent Changes -->
-    <a href="/changes" class="group bg-white dark:bg-gray-800 overflow-hidden shadow dark:shadow-gray-700 rounded-lg hover:shadow-lg dark:hover:shadow-gray-600 hover:ring-2 hover:ring-amber-500 transition-all duration-200 cursor-pointer">
-        <div class="p-5">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <div class="p-2 {% if stats.recent_changes > 0 %}bg-amber-50 dark:bg-amber-900/30 group-hover:bg-amber-100 dark:group-hover:bg-amber-900/50{% else %}bg-gray-50 dark:bg-gray-700 group-hover:bg-gray-100 dark:group-hover:bg-gray-600{% endif %} rounded-lg transition-colors">
-                        <svg class="h-6 w-6 {% if stats.recent_changes > 0 %}text-amber-600 dark:text-amber-400{% else %}text-gray-400 dark:text-gray-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                        </svg>
-                    </div>
-                </div>
-                <div class="ml-4 w-0 flex-1">
-                    <dl>
-                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Changes</dt>
-                        <dd class="text-2xl font-semibold {% if stats.recent_changes > 0 %}text-amber-600 dark:text-amber-400{% else %}text-gray-900 dark:text-white{% endif %}">{{ stats.recent_changes }}</dd>
-                    </dl>
-                </div>
-                <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                    </svg>
-                </div>
-            </div>
+  <a href="/devices?filter_ports=has_ports" class="card" style="padding:18px;display:flex;flex-direction:column;gap:14px;min-height:132px;text-decoration:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--warn-bg);border:1px solid color-mix(in oklch,var(--warn) 25%,transparent);color:var(--warn);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10v4M11 10v4M15 10v4"/></svg>
         </div>
-    </a>
+        <span style="font:500 12px/1 var(--font-sans);color:var(--text-3);letter-spacing:.02em;text-transform:uppercase;">Open ports</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px;">
+      <div x-data="ticker({{ stats.total_ports }})">
+        <div style="font:600 32px/1 var(--font-sans);letter-spacing:-0.03em;color:var(--warn);" x-text="v">{{ stats.total_ports }}</div>
+      </div>
+      <svg x-show="sparkPorts.length > 1" viewBox="0 0 88 28" style="width:88px;height:28px;display:block;flex-shrink:0;">
+        <path :d="areaPath(sparkPorts,88,28)" fill="var(--warn)" fill-opacity="0.12"/>
+        <path :d="linePath(sparkPorts,88,28)" stroke="var(--warn)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </a>
+
+  <a href="/changes" class="card" style="padding:18px;display:flex;flex-direction:column;gap:14px;min-height:132px;text-decoration:none;{% if stats.recent_changes > 0 %}border-color:color-mix(in oklch,var(--warn) 30%,var(--line));{% endif %}">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:{% if stats.recent_changes > 0 %}var(--warn-bg){% else %}var(--bg-2){% endif %};border:1px solid {% if stats.recent_changes > 0 %}color-mix(in oklch,var(--warn) 25%,transparent){% else %}var(--line){% endif %};color:{% if stats.recent_changes > 0 %}var(--warn){% else %}var(--text-2){% endif %};">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7H8m13 0-4-4m4 4-4 4"/><path d="M3 17h13M3 17l4-4m-4 4 4 4"/></svg>
+      </div>
+      <span style="font:500 12px/1 var(--font-sans);color:var(--text-3);letter-spacing:.02em;text-transform:uppercase;">Changes (24h)</span>
+    </div>
+    <div>
+      <div x-data="ticker({{ stats.recent_changes }})">
+        <div style="font:600 32px/1 var(--font-sans);letter-spacing:-0.03em;{% if stats.recent_changes > 0 %}color:var(--warn);{% endif %}" x-text="v">{{ stats.recent_changes }}</div>
+      </div>
+      <div style="font:500 12px/1.4 var(--font-sans);color:var(--text-3);margin-top:6px;">network diff</div>
+    </div>
+  </a>
+
 </div>
 
-<!-- Network Overview Charts -->
-<div class="mt-8 bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg" x-data="distributionCharts()">
-    <div class="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Network Overview</h3>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Current network composition and security posture</p>
-    </div>
-    <div class="p-4">
-        <template x-if="loading">
-            <div class="flex justify-center items-center h-64">
-                <svg class="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            </div>
-        </template>
-        <template x-if="!loading && noData">
-            <div class="flex flex-col justify-center items-center h-64 text-gray-500 dark:text-gray-400">
-                <svg class="h-12 w-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                </svg>
-                <p>No scan data available yet</p>
-                <p class="text-sm">Run a scan to see network overview</p>
-            </div>
-        </template>
-        <div x-show="!loading && !noData" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-            <!-- Risk Distribution Doughnut -->
-            <div class="flex flex-col items-center">
-                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Risk Distribution</h4>
-                <div style="position: relative; width: 180px; height: 180px;">
-                    <canvas id="riskDistributionChart"></canvas>
-                </div>
-                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center" x-text="'Based on ' + totalDevices + ' devices'"></div>
-            </div>
-            <!-- Device Types Doughnut -->
-            <div class="flex flex-col items-center">
-                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Device Types</h4>
-                <div style="position: relative; width: 180px; height: 180px;">
-                    <canvas id="deviceTypesChart"></canvas>
-                </div>
-                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">Top categories</div>
-            </div>
-            <!-- Top Ports Polar Area -->
-            <div class="flex flex-col items-center">
-                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Top Open Ports</h4>
-                <div style="position: relative; width: 180px; height: 180px;">
-                    <canvas id="topPortsChart"></canvas>
-                </div>
-                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">By frequency</div>
-            </div>
-            <!-- Security Posture Radar -->
-            <div class="flex flex-col items-center">
-                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Security Posture</h4>
-                <div style="position: relative; width: 180px; height: 180px;">
-                    <canvas id="securityPostureChart"></canvas>
-                </div>
-                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">Higher is better</div>
-            </div>
-        </div>
-    </div>
-</div>
+{# ── Trend + Next Scan ── #}
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;">
 
-<!-- Historical Trend Charts -->
-<div class="mt-8 bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg" x-data="trendCharts()">
-    <div class="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+  <div class="card" style="padding:18px;" x-data="trendCard()">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font:600 15px/1.2 var(--font-sans);letter-spacing:-0.01em;" x-text="seriesLabel">Devices online</div>
+        <div style="font:500 12px/1.4 var(--font-sans);color:var(--text-3);margin-top:4px;">Last 30 days · daily scan</div>
+      </div>
+      <div style="position:relative;display:flex;padding:3px;border-radius:999px;background:var(--bg-2);border:1px solid var(--line);">
+        <div aria-hidden="true"
+             :style="{
+               position:'absolute', top:'3px', bottom:'3px', left:'3px',
+               width:'calc((100% - 6px) / 3)', borderRadius:'999px',
+               background:'var(--bg-0)', boxShadow:'var(--shadow-1)',
+               pointerEvents:'none',
+               transition:'transform 220ms cubic-bezier(0.4,0,0.2,1)',
+               transform:'translateX(calc(' + seriesIndex + ' * 100%))'
+             }"></div>
+        <template x-for="k in ['devices','risk','ports']" :key="k">
+          <button @click="series=k" class="btn btn-ghost"
+            :style="{ color: series===k ? 'var(--text)' : 'var(--text-3)', transition: 'color 150ms', position: 'relative', zIndex: 1, flex: '1', justifyContent: 'center', padding: '5px 12px', borderRadius: '999px', background: 'transparent', borderColor: 'transparent', font: '500 12px/1 var(--font-sans)' }"
+            x-text="k.charAt(0).toUpperCase()+k.slice(1)"></button>
+        </template>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:flex-end;gap:16px;margin-bottom:14px;">
+      <div class="tnum" style="font:600 32px/1 var(--font-sans);letter-spacing:-0.03em;" x-text="lastVal">—</div>
+      <div style="display:flex;flex-direction:column;padding-bottom:4px;" x-show="delta !== null">
+        <span style="font:500 12px/1 var(--font-mono);" :style="delta >= 0 ? 'color:var(--ok)' : 'color:var(--crit)'" x-text="(delta >= 0 ? '↑ ' : '↓ ') + Math.abs(delta)"></span>
+        <span style="font:500 11px/1.4 var(--font-sans);color:var(--text-4);">vs 30d ago</span>
+      </div>
+    </div>
+
+    <div style="position:relative;min-height:140px;">
+      <template x-if="!loading && currentData.length > 1">
+        <svg viewBox="0 0 620 140" style="width:100%;height:140px;display:block;" preserveAspectRatio="none">
+          <path :d="areaPath(currentData,620,140)" :fill="seriesColor" fill-opacity="0.10"/>
+          <path :d="linePath(currentData,620,140)" :stroke="seriesColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </template>
+      <template x-if="loading">
+        <div style="height:140px;display:flex;align-items:center;justify-content:center;color:var(--text-4);">
+          <svg class="spin" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="8" stroke-opacity=".2"/><path d="M10 2a8 8 0 018 8"/></svg>
+        </div>
+      </template>
+      <template x-if="!loading && currentData.length < 2">
+        <div style="height:140px;display:flex;align-items:center;justify-content:center;color:var(--text-4);font:500 13px/1 var(--font-sans);">Run more scans to see trends</div>
+      </template>
+    </div>
+  </div>
+
+  <div class="card" style="padding:18px;display:flex;flex-direction:column;gap:14px;" x-data="nextScanCard()">
+    <div>
+      <div style="font:600 15px/1.2 var(--font-sans);letter-spacing:-0.01em;">Next scan</div>
+      <div style="font:500 12px/1.4 var(--font-sans);color:var(--text-3);margin-top:4px;" x-text="scheduleLabel">Scheduled</div>
+    </div>
+    <div style="padding:16px;border-radius:12px;background:radial-gradient(120% 80% at 50% 0%,color-mix(in oklch,var(--accent) 14%,var(--bg-1)) 0%,var(--bg-1) 70%);border:1px solid var(--line);">
+      <div style="display:flex;align-items:baseline;gap:8px;">
+        <span class="mono tnum" style="font:600 28px/1 var(--font-mono);color:var(--accent);letter-spacing:-0.03em;" x-text="countdown">—</span>
+        <span style="font:500 12px/1 var(--font-sans);color:var(--text-3);">until next sweep</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;">
         <div>
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Historical Trends</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Network metrics over time</p>
+          <div style="font:500 11px/1 var(--font-sans);color:var(--text-4);margin-bottom:4px;">Subnet</div>
+          <span class="mono" style="font:500 12px/1 var(--font-mono);color:var(--text-2);" x-text="subnet">—</span>
         </div>
-        <div class="flex items-center space-x-2">
-            <label for="trend-days" class="text-sm text-gray-500 dark:text-gray-400">Time Range:</label>
-            <select id="trend-days" x-model="selectedDays" @change="loadTrends()"
-                    class="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm py-1 pl-2 pr-8 focus:border-indigo-500 focus:ring-indigo-500">
-                <option value="7">7 days</option>
-                <option value="30" selected>30 days</option>
-                <option value="90">90 days</option>
-                <option value="365">1 year</option>
-            </select>
+        <div>
+          <div style="font:500 11px/1 var(--font-sans);color:var(--text-4);margin-bottom:4px;">Method</div>
+          <span class="mono" style="font:500 12px/1 var(--font-mono);color:var(--text-2);" x-text="method">—</span>
         </div>
+      </div>
     </div>
-    <div class="p-4">
-        <template x-if="loading">
-            <div class="flex justify-center items-center h-64">
-                <svg class="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+    <button class="btn btn-primary" style="justify-content:center;padding:10px 16px;" onclick="triggerScan('/api/scan/trigger?profile=normal')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M6 4l14 8-14 8z"/></svg>
+      Run scan now
+    </button>
+  </div>
+
+</div>
+
+{# ── Composition Row ── #}
+<div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:14px;" x-data="distSection()">
+
+  <div class="card" style="padding:18px;">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font:600 15px/1.2 var(--font-sans);letter-spacing:-0.01em;">Risk distribution</div>
+        <div style="font:500 12px/1.4 var(--font-sans);color:var(--text-3);margin-top:4px;" x-text="totalDevices + ' active devices'">— active devices</div>
+      </div>
+      <span class="chip mono" x-show="totalDevices > 0" x-text="totalDevices">—</span>
+    </div>
+    <template x-if="!loading && totalDevices > 0">
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;">
+        <div style="position:relative;width:140px;height:140px;flex-shrink:0;">
+          <svg width="140" height="140" style="transform:rotate(-90deg);">
+            <circle cx="70" cy="70" r="62" stroke="var(--bg-3)" stroke-width="16" fill="none"/>
+            <template x-for="seg in riskSegs" :key="seg.label">
+              <circle cx="70" cy="70" r="62" :stroke="seg.color" stroke-width="16" fill="none"
+                :stroke-dasharray="seg.len + ' ' + (seg.circ - seg.len)"
+                :stroke-dashoffset="seg.offset"/>
+            </template>
+          </svg>
+          <div style="position:absolute;inset:0;display:grid;place-items:center;text-align:center;">
+            <div>
+              <div style="font:600 22px/1 var(--font-sans);letter-spacing:-0.02em;" x-text="safePercent">—</div>
+              <div style="font:500 11px/1.4 var(--font-sans);color:var(--text-3);margin-top:4px;">safe or low</div>
             </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <template x-for="seg in reversedRiskSegs" :key="seg.label">
+            <div style="display:grid;grid-template-columns:12px 1fr auto;gap:10px;align-items:center;">
+              <div style="width:10px;height:10px;border-radius:3px;" :style="'background:'+seg.color"></div>
+              <span style="font:500 13px/1 var(--font-sans);color:var(--text-2);" x-text="seg.label"></span>
+              <span class="mono tnum" style="font:500 13px/1 var(--font-mono);color:var(--text);" x-text="seg.value"></span>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+    <template x-if="loading">
+      <div style="height:160px;display:flex;align-items:center;justify-content:center;"><svg class="spin" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="8" stroke-opacity=".2"/><path d="M10 2a8 8 0 018 8"/></svg></div>
+    </template>
+    <template x-if="!loading && totalDevices === 0">
+      <div style="height:160px;display:flex;align-items:center;justify-content:center;color:var(--text-4);font:500 13px/1 var(--font-sans);">No scan data yet</div>
+    </template>
+  </div>
+
+  <div class="card" style="padding:18px;">
+    <div style="margin-bottom:14px;">
+      <div style="font:600 15px/1.2 var(--font-sans);letter-spacing:-0.01em;">Devices by type</div>
+      <div style="font:500 12px/1.4 var(--font-sans);color:var(--text-3);margin-top:4px;" x-text="totalDevices + ' devices · top categories'">—</div>
+    </div>
+    <template x-if="!loading && deviceTypes.length > 0">
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <template x-for="(t,i) in deviceTypes.slice(0,7)" :key="t.label">
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+              <span style="font:500 13px/1 var(--font-sans);color:var(--text-2);" x-text="t.label"></span>
+              <span class="mono tnum" style="font:500 12px/1 var(--font-mono);color:var(--text-3);" x-text="t.value"></span>
+            </div>
+            <div style="height:6px;background:var(--bg-3);border-radius:999px;overflow:hidden;">
+              <div :style="'width:'+(maxDT>0?t.value/maxDT*100:0)+'%;height:100%;border-radius:999px;background:'+typeColors[i%typeColors.length]"></div>
+            </div>
+          </div>
         </template>
-        <template x-if="!loading && noData">
-            <div class="flex flex-col justify-center items-center h-64 text-gray-500 dark:text-gray-400">
-                <svg class="h-12 w-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                </svg>
-                <p>No scan data available yet</p>
-                <p class="text-sm">Run some scans to see trends</p>
+      </div>
+    </template>
+    <template x-if="loading">
+      <div style="height:160px;display:flex;align-items:center;justify-content:center;"><svg class="spin" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="8" stroke-opacity=".2"/><path d="M10 2a8 8 0 018 8"/></svg></div>
+    </template>
+    <template x-if="!loading && deviceTypes.length === 0">
+      <div style="height:160px;display:flex;align-items:center;justify-content:center;color:var(--text-4);font:500 13px/1 var(--font-sans);">No device data yet</div>
+    </template>
+  </div>
+
+  <div class="card" style="padding:18px;">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font:600 15px/1.2 var(--font-sans);letter-spacing:-0.01em;">Open ports observed</div>
+        <div style="font:500 12px/1.4 var(--font-sans);color:var(--text-3);margin-top:4px;" x-text="portsSubtitle">—</div>
+      </div>
+      <span class="chip tone-warn" x-show="riskyCount > 0">
+        <span style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;margin-right:4px;"></span>
+        <span x-text="riskyCount + ' risky'"></span>
+      </span>
+    </div>
+    <template x-if="!loading && topPorts.length > 0">
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        <template x-for="p in topPorts.slice(0,10)" :key="p.port">
+          <div style="display:grid;grid-template-columns:56px 1fr 32px;gap:0 10px;align-items:center;">
+            <div class="mono tnum" style="font:600 13px/1 var(--font-mono);" :style="p.risky?'color:var(--crit)':'color:var(--text)'" x-text="p.port"></div>
+            <div>
+              <div style="font:500 11px/1 var(--font-sans);color:var(--text-3);margin-bottom:3px;" x-text="p.service"></div>
+              <div style="height:5px;background:var(--bg-3);border-radius:999px;">
+                <div :style="'width:'+(maxPort>0?p.count/maxPort*100:0)+'%;height:100%;border-radius:999px;background:'+(p.risky?'var(--crit)':'var(--accent)')"></div>
+              </div>
             </div>
+            <div class="mono tnum" style="font:500 12px/1 var(--font-mono);color:var(--text-3);text-align:right;" x-text="p.count"></div>
+          </div>
         </template>
-        <div x-show="!loading && !noData" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Device Count Chart -->
-            <div>
-                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Device Count</h4>
-                <div style="position: relative; height: 200px;">
-                    <canvas id="deviceCountChart"></canvas>
-                </div>
-            </div>
-            <!-- Risk Score Chart -->
-            <div>
-                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Average Risk Score</h4>
-                <div style="position: relative; height: 200px;">
-                    <canvas id="riskScoreChart"></canvas>
-                </div>
-            </div>
-            <!-- Open Ports Chart -->
-            <div>
-                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Open Ports</h4>
-                <div style="position: relative; height: 200px;">
-                    <canvas id="portCountChart"></canvas>
-                </div>
-            </div>
-            <!-- Changes Chart -->
-            <div>
-                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Network Changes</h4>
-                <div style="position: relative; height: 200px;">
-                    <canvas id="changeCountChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
+      </div>
+    </template>
+    <template x-if="loading">
+      <div style="height:160px;display:flex;align-items:center;justify-content:center;"><svg class="spin" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="8" stroke-opacity=".2"/><path d="M10 2a8 8 0 018 8"/></svg></div>
+    </template>
+    <template x-if="!loading && topPorts.length === 0">
+      <div style="height:160px;display:flex;align-items:center;justify-content:center;color:var(--text-4);font:500 13px/1 var(--font-sans);">No port data yet</div>
+    </template>
+  </div>
+
 </div>
 
-<!-- Latest Scan Info -->
-{% if latest_scan %}
-<div class="mt-8 bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg">
-    <div class="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Latest Scan</h3>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Scan #{{ latest_scan.id }} - {{ latest_scan.started_at.strftime('%Y-%m-%d %H:%M:%S') }}
-        </p>
-    </div>
-    <div class="px-4 py-5 sm:p-6">
-        <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-3">
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
-                <dd class="mt-1">
-                    {% if latest_scan.status == 'completed' %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                        Completed
-                    </span>
-                    {% elif latest_scan.status == 'running' %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                        Running
-                    </span>
-                    {% else %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                        Failed
-                    </span>
-                    {% endif %}
-                </dd>
-            </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Subnet</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ latest_scan.subnet }}</dd>
-            </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Devices Found</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ latest_scan.devices_found }}</dd>
-            </div>
-        </dl>
-    </div>
-</div>
-{% else %}
-<div class="mt-8 bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg p-6 text-center">
-    <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-    </svg>
-    <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No scans yet</h3>
-    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Run your first scan to see network devices.</p>
-    <div class="mt-6">
-        <button hx-post="/api/scan/trigger"
-                hx-swap="none"
-                hx-on::after-request="alert('Scan started!')"
-                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
-            Run First Scan
-        </button>
-    </div>
-</div>
-{% endif %}
+{# ── Bottom Row ── #}
+<div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;">
 
-<!-- Devices from Latest Scan -->
-{% if devices %}
-<div class="mt-8">
-    <div class="sm:flex sm:items-center">
-        <div class="sm:flex-auto">
-            <h2 class="text-lg font-medium text-gray-900 dark:text-white">Devices</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Devices discovered in the latest scan</p>
+  <div class="card" style="padding:18px;">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font:600 15px/1.2 var(--font-sans);letter-spacing:-0.01em;">Recent changes</div>
+        <div style="font:500 12px/1.4 var(--font-sans);color:var(--text-3);margin-top:4px;">
+          {% if latest_scan %}Scan #{{ latest_scan.id }} · latest diff{% else %}Latest network changes{% endif %}
         </div>
-        <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-            <a href="/devices" class="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500">
-                View all devices &rarr;
-            </a>
-        </div>
+      </div>
+      <a href="/changes" class="btn" style="font:500 12px/1 var(--font-sans);padding:5px 10px;">View all →</a>
     </div>
-    <div class="mt-4 overflow-x-auto shadow dark:shadow-gray-700 ring-1 ring-black ring-opacity-5 dark:ring-gray-700 rounded-lg">
-        <table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Risk</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">IP Address</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Hostname</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Vendor</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Ports</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
-                {% for device in devices %}
-                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer {% if device.risk_level == 'critical' %}bg-red-50 dark:bg-red-900/20{% elif device.risk_level == 'high' %}bg-orange-50 dark:bg-orange-900/20{% endif %}" onclick="window.location='/devices/{{ device.id }}'">
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm">
-                        {% if device.risk_level == 'critical' %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                            Critical
-                        </span>
-                        {% elif device.risk_level == 'high' %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
-                            High
-                        </span>
-                        {% elif device.risk_level == 'medium' %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                            Medium
-                        </span>
-                        {% elif device.risk_level == 'low' %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            Low
-                        </span>
-                        {% else %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                            Safe
-                        </span>
-                        {% endif %}
-                    </td>
-                    <td class="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900 dark:text-white">
-                        {{ device.ip_address }}
-                    </td>
-                    <td class="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        <div>{{ device.hostname or '-' }}</div>
-                        {% if device.device_type %}
-                        <div class="text-xs text-indigo-600 dark:text-indigo-400">{{ device.device_type }}</div>
-                        {% endif %}
-                    </td>
-                    <td class="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        <div>{{ device.vendor or '-' }}</div>
-                    </td>
-                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {% if device.ports|length > 0 %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            {{ device.ports|length }} open
-                        </span>
-                        {% else %}
-                        <span class="text-gray-400 dark:text-gray-500">-</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endif %}
 
-<!-- Recent Changes -->
-{% if recent_changes %}
-<div class="mt-8">
-    <div class="sm:flex sm:items-center">
-        <div class="sm:flex-auto">
-            <h2 class="text-lg font-medium text-gray-900 dark:text-white">Recent Changes</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Network changes detected in recent scans</p>
+    {% if recent_changes %}
+    <div style="display:flex;flex-direction:column;">
+      {% for change in recent_changes[:8] %}
+      <div style="display:grid;grid-template-columns:28px 1fr auto;gap:12px;padding:12px 0;{% if not loop.first %}border-top:1px solid var(--line-soft);{% endif %}align-items:start;">
+        <div style="width:28px;height:28px;border-radius:8px;display:grid;place-items:center;border:1px solid;flex-shrink:0;
+          {% if change.severity == 'critical' %}color:var(--crit);background:var(--crit-bg);border-color:color-mix(in oklch,var(--crit) 30%,transparent);
+          {% elif change.severity == 'warning' %}color:var(--warn);background:var(--warn-bg);border-color:color-mix(in oklch,var(--warn) 30%,transparent);
+          {% else %}color:var(--text-3);background:var(--bg-2);border-color:var(--line);{% endif %}">
+          {% if change.change_type == 'new_device' %}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          {% elif 'gone' in change.change_type or 'offline' in change.change_type %}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg>
+          {% elif 'port' in change.change_type %}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10v4M11 10v4"/></svg>
+          {% else %}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 7H8m13 0-4-4m4 4-4 4"/><path d="M3 17h13M3 17l4-4m-4 4 4 4"/></svg>
+          {% endif %}
         </div>
-        <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-            <a href="/changes" class="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500">
-                View all changes &rarr;
-            </a>
+        <div>
+          <div style="font:500 13px/1.3 var(--font-sans);">{{ change.change_type | replace('_',' ') | title }}</div>
+          <div style="font:500 12px/1.4 var(--font-sans);color:var(--text-3);margin-top:3px;">
+            <span class="mono">{{ change.device_ip or '—' }}</span>
+            {% if change.description %} · {{ change.description[:60] }}{% if change.description | length > 60 %}…{% endif %}{% endif %}
+          </div>
         </div>
+        <div class="mono" style="font:500 11px/1 var(--font-mono);color:var(--text-4);white-space:nowrap;padding-top:2px;">{{ change.detected_at.strftime('%H:%M') }}</div>
+      </div>
+      {% endfor %}
     </div>
-    <div class="mt-4 overflow-x-auto shadow dark:shadow-gray-700 ring-1 ring-black ring-opacity-5 dark:ring-gray-700 rounded-lg">
-        <table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Type</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Device</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Description</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Detected</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
-                {% for change in recent_changes %}
-                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm">
-                        {% if change.severity == 'critical' %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                            {{ change.change_type | replace('_', ' ') | title }}
-                        </span>
-                        {% elif change.severity == 'warning' %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                            {{ change.change_type | replace('_', ' ') | title }}
-                        </span>
-                        {% else %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200">
-                            {{ change.change_type | replace('_', ' ') | title }}
-                        </span>
-                        {% endif %}
-                    </td>
-                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {{ change.device_ip or '-' }}
-                    </td>
-                    <td class="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {{ change.description }}
-                    </td>
-                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {{ change.detected_at.strftime('%Y-%m-%d %H:%M') }}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    {% else %}
+    <div style="padding:40px 0;display:flex;align-items:center;justify-content:center;color:var(--text-4);font:500 13px/1 var(--font-sans);">No recent changes</div>
+    {% endif %}
+  </div>
+
+  <div class="card" style="padding:18px;" x-data="intCard()">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font:600 15px/1.2 var(--font-sans);letter-spacing:-0.01em;">Integrations</div>
+        <div style="font:500 12px/1.4 var(--font-sans);color:var(--text-3);margin-top:4px;" x-text="sub">—</div>
+      </div>
+      <span class="chip" :class="allOk ? 'tone-ok' : 'tone-warn'">
+        <span style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;margin-right:4px;"></span>
+        <span x-text="okCount+'/'+items.length"></span>
+      </span>
     </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <template x-for="it in items" :key="it.name">
+        <div style="display:grid;grid-template-columns:32px 1fr 10px;gap:8px;align-items:center;padding:12px;border-radius:10px;background:var(--bg-2);border:1px solid var(--line-soft);">
+          <div style="width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:var(--bg-1);border:1px solid var(--line);color:var(--text-2);" x-html="it.icon"></div>
+          <div style="min-width:0;">
+            <div style="font:500 12px/1.2 var(--font-sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" x-text="it.label"></div>
+            <div style="font:400 11px/1.4 var(--font-sans);color:var(--text-3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" x-text="it.detail"></div>
+          </div>
+          <template x-if="it.loading">
+            <svg class="spin" width="8" height="8" viewBox="0 0 20 20" fill="none" stroke="var(--accent)" stroke-width="3"><circle cx="10" cy="10" r="8" stroke-opacity=".2"/><path d="M10 2a8 8 0 018 8"/></svg>
+          </template>
+          <template x-if="!it.loading">
+            <span style="width:8px;height:8px;border-radius:50%;display:block;flex-shrink:0;"
+              :style="'background:'+(it.status==='connected'?'var(--ok)':it.enabled?'var(--crit)':'var(--text-4)')"></span>
+          </template>
+        </div>
+      </template>
+    </div>
+    <div style="margin-top:12px;">
+      <a href="/settings/integrations" style="font:500 12px/1 var(--font-sans);color:var(--accent);">Manage integrations →</a>
+    </div>
+  </div>
+
 </div>
-{% endif %}
+
+</div>
 {% endblock %}
 
 {% block extra_js %}
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-// Distribution Charts (Network Overview section)
-function distributionCharts() {
-    return {
-        loading: true,
-        noData: false,
-        totalDevices: 0,
-        charts: {},
-
-        init() {
-            this.loadDistributions();
-        },
-
-        async loadDistributions() {
-            this.loading = true;
-            this.noData = false;
-            this.destroyCharts();
-
-            try {
-                const response = await fetch('/api/dashboard/distributions');
-                const data = await response.json();
-
-                if (!data.has_data) {
-                    this.noData = true;
-                    this.loading = false;
-                    return;
-                }
-
-                this.totalDevices = data.total_devices;
-                this.loading = false;
-                this.noData = false;
-                // Small delay to ensure DOM is ready
-                setTimeout(() => this.renderCharts(data), 50);
-            } catch (error) {
-                console.error('Error loading distributions:', error);
-                this.noData = true;
-                this.loading = false;
-            }
-        },
-
-        destroyCharts() {
-            Object.values(this.charts).forEach(chart => {
-                if (chart) chart.destroy();
-            });
-            this.charts = {};
-        },
-
-        renderCharts(data) {
-            this.destroyCharts();
-
-            const isDark = document.documentElement.classList.contains('dark');
-            const textColor = isDark ? '#9ca3af' : '#6b7280';
-
-            // Risk Distribution Doughnut Chart
-            const riskCtx = document.getElementById('riskDistributionChart');
-            if (riskCtx) {
-                const riskData = data.risk_distribution;
-                this.charts.risk = new Chart(riskCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Critical', 'High', 'Medium', 'Low', 'Safe'],
-                        datasets: [{
-                            data: [
-                                riskData.critical || 0,
-                                riskData.high || 0,
-                                riskData.medium || 0,
-                                riskData.low || 0,
-                                riskData.safe || 0
-                            ],
-                            backgroundColor: [
-                                '#dc2626', // red-600 for critical
-                                '#ea580c', // orange-600 for high
-                                '#ca8a04', // yellow-600 for medium
-                                '#2563eb', // blue-600 for low
-                                '#16a34a'  // green-600 for safe
-                            ],
-                            borderWidth: 0,
-                            hoverOffset: 4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        cutout: '60%',
-                        plugins: {
-                            legend: {
-                                display: true,
-                                position: 'bottom',
-                                labels: {
-                                    color: textColor,
-                                    boxWidth: 12,
-                                    padding: 8,
-                                    font: { size: 10 }
-                                }
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                        const percentage = total > 0 ? Math.round((context.raw / total) * 100) : 0;
-                                        return `${context.label}: ${context.raw} (${percentage}%)`;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            // Device Types Doughnut Chart
-            const typesCtx = document.getElementById('deviceTypesChart');
-            if (typesCtx) {
-                const typeLabels = Object.keys(data.device_types);
-                const typeValues = Object.values(data.device_types);
-                const typeColors = [
-                    '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
-                    '#ec4899', '#f43f5e', '#f97316', '#eab308'
-                ];
-
-                this.charts.types = new Chart(typesCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: typeLabels,
-                        datasets: [{
-                            data: typeValues,
-                            backgroundColor: typeColors.slice(0, typeLabels.length),
-                            borderWidth: 0,
-                            hoverOffset: 4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        cutout: '60%',
-                        plugins: {
-                            legend: {
-                                display: true,
-                                position: 'bottom',
-                                labels: {
-                                    color: textColor,
-                                    boxWidth: 12,
-                                    padding: 8,
-                                    font: { size: 10 }
-                                }
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return `${context.label}: ${context.raw}`;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            // Top Ports Polar Area Chart
-            const portsCtx = document.getElementById('topPortsChart');
-            if (portsCtx && data.top_ports.length > 0) {
-                const portLabels = data.top_ports.map(p => p.port);
-                const portValues = data.top_ports.map(p => p.count);
-                const portColors = [
-                    'rgba(239, 68, 68, 0.7)',   // red
-                    'rgba(249, 115, 22, 0.7)',  // orange
-                    'rgba(234, 179, 8, 0.7)',   // yellow
-                    'rgba(34, 197, 94, 0.7)',   // green
-                    'rgba(6, 182, 212, 0.7)',   // cyan
-                    'rgba(59, 130, 246, 0.7)',  // blue
-                    'rgba(139, 92, 246, 0.7)',  // violet
-                    'rgba(236, 72, 153, 0.7)',  // pink
-                    'rgba(107, 114, 128, 0.7)', // gray
-                    'rgba(168, 162, 158, 0.7)'  // stone
-                ];
-
-                this.charts.ports = new Chart(portsCtx, {
-                    type: 'polarArea',
-                    data: {
-                        labels: portLabels,
-                        datasets: [{
-                            data: portValues,
-                            backgroundColor: portColors.slice(0, portLabels.length),
-                            borderWidth: 1,
-                            borderColor: isDark ? '#374151' : '#e5e7eb'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return `${context.label}: ${context.raw} device(s)`;
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            r: {
-                                ticks: {
-                                    display: false
-                                },
-                                grid: {
-                                    color: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
-                                }
-                            }
-                        }
-                    }
-                });
-            } else if (portsCtx) {
-                // No ports - show empty state
-                this.charts.ports = new Chart(portsCtx, {
-                    type: 'polarArea',
-                    data: {
-                        labels: ['No open ports'],
-                        datasets: [{
-                            data: [1],
-                            backgroundColor: ['rgba(107, 114, 128, 0.3)'],
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: { enabled: false }
-                        },
-                        scales: {
-                            r: { ticks: { display: false }, grid: { display: false } }
-                        }
-                    }
-                });
-            }
-
-            // Security Posture Radar Chart
-            const postureCtx = document.getElementById('securityPostureChart');
-            if (postureCtx) {
-                const posture = data.security_posture;
-                this.charts.posture = new Chart(postureCtx, {
-                    type: 'radar',
-                    data: {
-                        labels: ['Device Security', 'Trust Coverage', 'Port Exposure', 'Network Stability', 'Monitoring'],
-                        datasets: [{
-                            label: 'Security Score',
-                            data: [
-                                posture.device_security || 0,
-                                posture.trust_coverage || 0,
-                                posture.port_exposure || 0,
-                                posture.network_stability || 0,
-                                posture.monitoring_coverage || 0
-                            ],
-                            backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                            borderColor: '#6366f1',
-                            borderWidth: 2,
-                            pointBackgroundColor: '#6366f1',
-                            pointBorderColor: '#fff',
-                            pointHoverBackgroundColor: '#fff',
-                            pointHoverBorderColor: '#6366f1',
-                            pointRadius: 3
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return `${context.label}: ${context.raw}%`;
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            r: {
-                                beginAtZero: true,
-                                max: 100,
-                                ticks: {
-                                    display: false,
-                                    stepSize: 20
-                                },
-                                pointLabels: {
-                                    color: textColor,
-                                    font: { size: 9 }
-                                },
-                                grid: {
-                                    color: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
-                                },
-                                angleLines: {
-                                    color: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-        }
-    };
+function _sparkLine(data, w, h) {
+  if (!data || data.length < 2) return '';
+  const min = Math.min(...data), max = Math.max(...data);
+  const range = (max - min) || 1;
+  const stepX = w / (data.length - 1);
+  const pts = data.map((v, i) => [i * stepX, h - ((v - min) / range) * (h - 4) - 2]);
+  return pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+}
+function _sparkArea(data, w, h) {
+  const l = _sparkLine(data, w, h);
+  return l ? `${l} L ${w},${h} L 0,${h} Z` : '';
 }
 
-// Trend Charts (Historical Trends section)
-function trendCharts() {
-    return {
-        selectedDays: 30,
-        loading: true,
-        noData: false,
-        charts: {},
+function ticker(target) {
+  return {
+    v: 0,
+    init() {
+      if (!target) return;
+      const s = performance.now();
+      const f = t => {
+        const p = Math.min(1, (t - s) / 900);
+        this.v = Math.round(target * (1 - Math.pow(1 - p, 3)));
+        if (p < 1) requestAnimationFrame(f);
+      };
+      requestAnimationFrame(f);
+    }
+  };
+}
 
-        init() {
-            this.loadTrends();
-        },
+let _trendCache = null;
+async function _loadTrends() {
+  if (_trendCache !== null) return _trendCache;
+  try {
+    const r = await fetch('/api/trends?days=30');
+    const d = await r.json();
+    _trendCache = d.trends || {};
+  } catch(_) { _trendCache = {}; }
+  return _trendCache;
+}
 
-        async loadTrends() {
-            this.loading = true;
-            this.noData = false;
-            this.destroyCharts();
+function trendSpark() {
+  return {
+    sparkDevices: [], sparkPorts: [],
+    linePath: _sparkLine, areaPath: _sparkArea,
+    async init() {
+      const t = await _loadTrends();
+      this.sparkDevices = t.device_counts || [];
+      this.sparkPorts   = t.port_counts   || [];
+    }
+  };
+}
 
-            try {
-                const response = await fetch(`/api/trends?days=${this.selectedDays}`);
-                const data = await response.json();
+function trendCard() {
+  return {
+    series: 'devices',
+    loading: true,
+    devData: [], riskData: [], portData: [],
+    linePath: _sparkLine, areaPath: _sparkArea,
 
-                if (!data.trends || data.trends.labels.length === 0) {
-                    this.noData = true;
-                    this.loading = false;
-                    return;
-                }
+    get currentData() { return this.series==='devices'?this.devData:this.series==='risk'?this.riskData:this.portData; },
+    get lastVal() { const d=this.currentData; return d.length ? d[d.length-1] : '—'; },
+    get delta() { const d=this.currentData; return d.length>1 ? d[d.length-1]-d[0] : null; },
+    get seriesLabel() { return {devices:'Devices online',risk:'Avg risk score',ports:'Open ports'}[this.series]; },
+    get seriesColor() { return {devices:'var(--accent)',risk:'var(--crit)',ports:'var(--warn)'}[this.series]; },
+    get seriesIndex() { return this.series==='devices' ? 0 : this.series==='risk' ? 1 : 2; },
 
-                this.loading = false;
-                this.noData = false;
-                // Small delay to ensure DOM is ready
-                setTimeout(() => this.renderCharts(data.trends), 50);
-            } catch (error) {
-                console.error('Error loading trends:', error);
-                this.noData = true;
-                this.loading = false;
-            }
-        },
+    async init() {
+      const t = await _loadTrends();
+      this.devData  = t.device_counts || [];
+      this.riskData = t.risk_scores   || [];
+      this.portData = t.port_counts   || [];
+      this.loading  = false;
+    }
+  };
+}
 
-        destroyCharts() {
-            Object.values(this.charts).forEach(chart => {
-                if (chart) chart.destroy();
-            });
-            this.charts = {};
-        },
+function nextScanCard() {
+  return {
+    countdown: '—', scheduleLabel: 'Scheduled', subnet: '—', method: '—',
+    _ts: null, _timer: null,
 
-        renderCharts(trends) {
-            this.destroyCharts();
+    async init() {
+      try {
+        const r = await fetch('/api/schedule');
+        if (!r.ok) { this.countdown = 'N/A'; return; }
+        const d = await r.json();
+        if (d.next_run) {
+          this._ts = new Date(d.next_run).getTime();
+          this.subnet        = d.subnet        || '—';
+          this.method        = d.scan_method   || 'nmap';
+          this.scheduleLabel = d.schedule_label || 'Scheduled';
+          this._tick();
+          this._timer = setInterval(() => this._tick(), 30000);
+        } else { this.countdown = 'Manual'; }
+      } catch(_) { this.countdown = 'N/A'; }
+    },
+    _tick() {
+      if (!this._ts) return;
+      const diff = this._ts - Date.now();
+      if (diff <= 0) { this.countdown = 'Now'; return; }
+      const h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000);
+      this.countdown = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    },
+    destroy() { if (this._timer) clearInterval(this._timer); }
+  };
+}
 
-            const isDark = document.documentElement.classList.contains('dark');
-            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-            const textColor = isDark ? '#9ca3af' : '#6b7280';
+function distSection() {
+  return {
+    loading: true,
+    totalDevices: 0,
+    riskSegs: [],
+    deviceTypes: [],
+    topPorts: [],
+    typeColors: ['var(--info)','var(--accent)','oklch(0.72 0.16 320)','oklch(0.78 0.14 80)','oklch(0.72 0.16 25)','var(--ok)','var(--text-3)'],
 
-            const commonOptions = {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    x: {
-                        grid: { color: gridColor },
-                        ticks: { color: textColor, maxTicksLimit: 8 }
-                    },
-                    y: {
-                        grid: { color: gridColor },
-                        ticks: { color: textColor },
-                        beginAtZero: true
-                    }
-                }
-            };
+    get reversedRiskSegs() { return [...this.riskSegs].reverse(); },
+    get safePercent() {
+      const sl = this.riskSegs.filter(s=>s.label==='Safe'||s.label==='Low').reduce((a,s)=>a+s.value,0);
+      const tot = this.riskSegs.reduce((a,s)=>a+s.value,0)||1;
+      return Math.round(sl/tot*100)+'%';
+    },
+    get maxDT() { return this.deviceTypes.length?Math.max(...this.deviceTypes.map(t=>t.value)):1; },
+    get maxPort() { return this.topPorts.length?Math.max(...this.topPorts.map(p=>p.count)):1; },
+    get riskyCount() { return this.topPorts.filter(p=>p.risky).length; },
+    get portsSubtitle() {
+      const tot = this.topPorts.reduce((a,p)=>a+p.count,0);
+      return `${tot} total · ${this.riskyCount} flagged`;
+    },
 
-            // Device Count Chart
-            const deviceCtx = document.getElementById('deviceCountChart');
-            if (deviceCtx) {
-                this.charts.devices = new Chart(deviceCtx, {
-                    type: 'line',
-                    data: {
-                        labels: trends.labels,
-                        datasets: [{
-                            label: 'Devices',
-                            data: trends.device_counts,
-                            borderColor: '#6366f1',
-                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                            fill: true,
-                            tension: 0.3
-                        }]
-                    },
-                    options: commonOptions
-                });
-            }
+    async init() {
+      try {
+        const r = await fetch('/api/dashboard/distributions');
+        const d = await r.json();
+        if (!d.has_data) { this.loading=false; return; }
+        this.totalDevices = d.total_devices||0;
 
-            // Risk Score Chart
-            const riskCtx = document.getElementById('riskScoreChart');
-            if (riskCtx) {
-                this.charts.risk = new Chart(riskCtx, {
-                    type: 'line',
-                    data: {
-                        labels: trends.labels,
-                        datasets: [{
-                            label: 'Avg Risk Score',
-                            data: trends.risk_scores,
-                            borderColor: '#ef4444',
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            fill: true,
-                            tension: 0.3
-                        }]
-                    },
-                    options: commonOptions
-                });
-            }
+        const rv = d.risk_distribution||{};
+        const rl = [
+          {label:'Safe',    value:rv.safe    ||0, color:'var(--ok)'},
+          {label:'Low',     value:rv.low     ||0, color:'var(--info)'},
+          {label:'Medium',  value:rv.medium  ||0, color:'var(--warn)'},
+          {label:'High',    value:rv.high    ||0, color:'oklch(0.72 0.16 25)'},
+          {label:'Critical',value:rv.critical||0, color:'var(--crit)'},
+        ];
+        const tot = rl.reduce((s,x)=>s+x.value,0)||1;
+        const circ = 2*Math.PI*62;
+        let cum = 0;
+        this.riskSegs = rl.map(x=>{
+          const len=(x.value/tot)*circ, offset=circ-cum;
+          cum+=len;
+          return {...x,len,offset,circ};
+        });
 
-            // Port Count Chart
-            const portCtx = document.getElementById('portCountChart');
-            if (portCtx) {
-                this.charts.ports = new Chart(portCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: trends.labels,
-                        datasets: [{
-                            label: 'Open Ports',
-                            data: trends.port_counts,
-                            backgroundColor: '#10b981',
-                            borderRadius: 4
-                        }]
-                    },
-                    options: commonOptions
-                });
-            }
+        this.deviceTypes = Object.entries(d.device_types||{})
+          .map(([k,v])=>({label:k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()),value:v}))
+          .sort((a,b)=>b.value-a.value);
 
-            // Change Count Chart
-            const changeCtx = document.getElementById('changeCountChart');
-            if (changeCtx) {
-                this.charts.changes = new Chart(changeCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: trends.labels,
-                        datasets: [{
-                            label: 'Changes',
-                            data: trends.change_counts,
-                            backgroundColor: '#f59e0b',
-                            borderRadius: 4
-                        }]
-                    },
-                    options: commonOptions
-                });
-            }
-        }
-    };
+        const svcMap={80:'HTTP',443:'HTTPS',22:'SSH',21:'FTP',25:'SMTP',53:'DNS',
+          3306:'MySQL',5432:'PostgreSQL',6379:'Redis',8080:'HTTP-alt',8443:'HTTPS-alt',
+          554:'RTSP',5000:'UPnP',631:'IPP',9100:'JetDirect',3389:'RDP',5900:'VNC'};
+        this.topPorts = (d.top_ports||[]).slice(0,10).map(p=>({
+          ...p, service: p.service || svcMap[p.port] || `port ${p.port}`
+        }));
+      } catch(_) {}
+      this.loading = false;
+    }
+  };
+}
+
+function intCard() {
+  const SVG = {
+    unifi:   '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg>',
+    adguard: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>',
+    pihole:  '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>',
+    cve:     '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4M12 16v.01"/><circle cx="12" cy="12" r="9"/></svg>',
+  };
+  return {
+    items: [
+      {name:'unifi',  label:'UniFi',       icon:SVG.unifi,   enabled:false,loading:true,status:null,detail:'Checking…'},
+      {name:'adguard',label:'AdGuard',      icon:SVG.adguard, enabled:false,loading:true,status:null,detail:'Checking…'},
+      {name:'pihole', label:'Pi-hole',      icon:SVG.pihole,  enabled:false,loading:true,status:null,detail:'Checking…'},
+      {name:'cve',    label:'CVE Database', icon:SVG.cve,     enabled:false,loading:true,status:null,detail:'Checking…'},
+    ],
+
+    get okCount() { return this.items.filter(i=>i.status==='connected').length; },
+    get allOk() { const en=this.items.filter(i=>i.enabled); return en.length>0&&en.every(i=>i.status==='connected'); },
+    get sub() {
+      const en=this.items.filter(i=>i.enabled).length;
+      if(!en) return 'No integrations enabled';
+      return this.okCount===en?'All connected':`${this.okCount} of ${en} connected`;
+    },
+
+    async init() {
+      await Promise.all(this.items.map(it=>this._load(it)));
+    },
+
+    async _load(it) {
+      try {
+        const r = await fetch(`/api/integrations/${it.name}`);
+        if (!r.ok) { it.loading=false; it.detail='Not configured'; return; }
+        const d = await r.json();
+        it.enabled = !!d.enabled;
+        if (!it.enabled) { it.loading=false; it.status='off'; it.detail='Disabled'; return; }
+        const tr = await fetch(`/api/integrations/${it.name}/test`,{method:'POST'});
+        const td = await tr.json();
+        it.status = td.status||'error';
+        it.detail = it.status==='connected'
+          ? (td.details?.version ? `v${td.details.version} · connected` : 'Connected')
+          : (td.error_message||td.error||'Connection failed');
+      } catch(_) { it.status='error'; it.detail='Unreachable'; }
+      it.loading = false;
+    }
+  };
 }
 </script>
 {% endblock %}

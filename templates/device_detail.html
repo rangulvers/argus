@@ -6,122 +6,113 @@
 
 {% block content %}
 <!-- Back link -->
-<div class="mb-4">
-    <a href="/devices" class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300">&larr; Back to Devices</a>
+<div style="margin-bottom:16px;">
+    <a href="/devices" style="color:var(--accent);font:500 13px/1 var(--font-sans);">&larr; Back to Devices</a>
 </div>
 
 <!-- Security Assessment Banner -->
 {% if device.risk_level in ['medium', 'high', 'critical'] %}
-<div class="mb-6 rounded-lg overflow-hidden shadow-lg
-    {% if device.risk_level == 'critical' %}bg-red-600{% elif device.risk_level == 'high' %}bg-orange-500{% else %}bg-yellow-500{% endif %}">
-    <div class="px-4 py-5 sm:px-6">
-        <div class="flex items-center">
-            <div class="flex-shrink-0">
-                <svg class="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                </svg>
-            </div>
-            <div class="ml-4">
-                <h3 class="text-lg font-bold text-white">
-                    {% if device.risk_level == 'critical' %}CRITICAL SECURITY RISK
-                    {% elif device.risk_level == 'high' %}HIGH SECURITY RISK
-                    {% else %}MEDIUM SECURITY RISK{% endif %}
-                </h3>
-                <p class="text-sm text-white text-opacity-90">
-                    {{ device.threat_summary or 'This device has open ports that may pose security risks.' }}
-                </p>
-            </div>
-            <div class="ml-auto">
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-white bg-opacity-20 text-white">
-                    Score: {{ device.risk_score }}/100
-                </span>
-            </div>
+<div style="margin-bottom:24px;border-radius:var(--r-3);overflow:hidden;
+    background:{% if device.risk_level == 'critical' %}var(--crit-bg){% elif device.risk_level == 'high' %}oklch(0.30 0.08 50){% else %}var(--warn-bg){% endif %};
+    border:1px solid {% if device.risk_level == 'critical' %}color-mix(in oklch,var(--crit) 40%,transparent){% elif device.risk_level == 'high' %}color-mix(in oklch,var(--warn) 40%,transparent){% else %}color-mix(in oklch,var(--warn) 40%,transparent){% endif %};">
+    <div style="padding:20px 24px;display:flex;align-items:center;gap:16px;">
+        <div style="flex-shrink:0;">
+            <svg style="width:32px;height:32px;color:{% if device.risk_level == 'critical' %}var(--crit){% elif device.risk_level == 'high' %}var(--warn){% else %}var(--warn){% endif %};" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+            </svg>
+        </div>
+        <div style="flex:1;">
+            <h3 style="font:700 15px/1.2 var(--font-sans);color:{% if device.risk_level == 'critical' %}var(--crit){% elif device.risk_level == 'high' %}var(--warn){% else %}var(--warn){% endif %};letter-spacing:-0.01em;">
+                {% if device.risk_level == 'critical' %}CRITICAL SECURITY RISK
+                {% elif device.risk_level == 'high' %}HIGH SECURITY RISK
+                {% else %}MEDIUM SECURITY RISK{% endif %}
+            </h3>
+            <p style="font:500 13px/1.5 var(--font-sans);color:var(--text-2);margin-top:4px;">
+                {{ device.threat_summary or 'This device has open ports that may pose security risks.' }}
+            </p>
+        </div>
+        <div>
+            <span class="chip {% if device.risk_level == 'critical' %}tone-crit{% elif device.risk_level == 'high' %}tone-warn{% else %}tone-warn{% endif %}">
+                Score: {{ device.risk_score }}/100
+            </span>
         </div>
     </div>
 </div>
 {% elif device.risk_level == 'low' %}
-<div class="mb-6 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 p-4">
-    <div class="flex">
-        <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
-            </svg>
-        </div>
-        <div class="ml-3">
-            <h3 class="text-sm font-medium text-blue-800 dark:text-blue-200">Low Risk</h3>
-            <p class="mt-1 text-sm text-blue-700 dark:text-blue-300">{{ device.threat_summary or 'Minor security considerations detected. Review recommendations below.' }}</p>
+<div style="margin-bottom:24px;" class="card card-p">
+    <div style="display:flex;gap:12px;align-items:flex-start;">
+        <svg style="width:20px;height:20px;color:var(--info);flex-shrink:0;margin-top:1px;" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+        </svg>
+        <div>
+            <p style="font:600 13px/1.2 var(--font-sans);color:var(--info);">Low Risk</p>
+            <p style="font:400 13px/1.5 var(--font-sans);color:var(--text-2);margin-top:4px;">{{ device.threat_summary or 'Minor security considerations detected. Review recommendations below.' }}</p>
         </div>
     </div>
 </div>
 {% else %}
-<div class="mb-6 rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 p-4">
-    <div class="flex">
-        <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
-            </svg>
-        </div>
-        <div class="ml-3">
-            <h3 class="text-sm font-medium text-green-800 dark:text-green-200">No Known Threats</h3>
-            <p class="mt-1 text-sm text-green-700 dark:text-green-300">No risky ports detected on this device. Continue monitoring with regular scans.</p>
+<div style="margin-bottom:24px;" class="card card-p">
+    <div style="display:flex;gap:12px;align-items:flex-start;">
+        <svg style="width:20px;height:20px;color:var(--ok);flex-shrink:0;margin-top:1px;" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+        </svg>
+        <div>
+            <p style="font:600 13px/1.2 var(--font-sans);color:var(--ok);">No Known Threats</p>
+            <p style="font:400 13px/1.5 var(--font-sans);color:var(--text-2);margin-top:4px;">No risky ports detected on this device. Continue monitoring with regular scans.</p>
         </div>
     </div>
 </div>
 {% endif %}
 
 <!-- Device info card -->
-<div class="bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-hidden">
-    <div class="px-4 py-5 sm:px-6 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center">
+<div class="card">
+    <div style="padding:16px 20px;background:var(--bg-2);border-bottom:1px solid var(--line);border-radius:var(--r-3) var(--r-3) 0 0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:16px;">
                 {# Device type icon #}
                 {% set icon_type = get_device_icon_type(device) %}
                 {% set icon_info = get_device_icon_info(icon_type) %}
-                <div class="flex-shrink-0 mr-4 p-3 bg-gray-100 dark:bg-gray-600 rounded-lg">
-                    <span class="text-gray-500 dark:text-gray-300">
-                        {{ device_icon(icon_type, "8") }}
-                    </span>
+                <div class="device-icon device-icon-lg">
+                    {{ device_icon(icon_type, "8") }}
                 </div>
                 <div>
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ device.ip_address }}</h3>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ device.hostname or 'No hostname' }}</p>
-                    <p class="mt-1 text-sm font-medium text-indigo-600 dark:text-indigo-400">{{ device.device_type or icon_info.label }}</p>
+                    <h3 style="font:600 17px/1.2 var(--font-sans);letter-spacing:-0.02em;color:var(--text);">{{ device.ip_address }}</h3>
+                    <p style="font:400 13px/1.4 var(--font-sans);color:var(--text-3);margin-top:2px;">{{ device.hostname or 'No hostname' }}</p>
+                    <p style="font:500 12px/1 var(--font-sans);color:var(--accent);margin-top:4px;">{{ device.device_type or icon_info.label }}</p>
                 </div>
             </div>
-            <div class="flex items-center space-x-2">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                 <!-- Scan This Device Button -->
-                <div class="relative" x-data="{ open: false, scanning: false }">
+                <div class="dropdown" x-data="{ open: false, scanning: false }">
                     <button @click="open = !open"
                             :disabled="scanning"
-                            class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <svg class="w-4 h-4 mr-1.5" :class="{ 'animate-spin': scanning }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="btn btn-primary btn-sm">
+                        <svg style="width:14px;height:14px;" :class="{ 'spin': scanning }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
                         <span x-text="scanning ? 'Scanning...' : 'Scan Device'"></span>
-                        <svg class="ml-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                         </svg>
                     </button>
                     <div x-show="open" x-cloak
                          @click.away="open = false"
-                         class="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 dark:ring-gray-700 z-50">
-                        <div class="py-1">
-                            <button @click="open = false; triggerScan('/api/scan/device/{{ device.ip_address }}?profile=quick')"
-                                    class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                <div class="font-medium">Quick Scan</div>
-                                <div class="text-xs text-gray-500 dark:text-gray-400">Ping only, ~5 seconds</div>
-                            </button>
-                            <button @click="open = false; triggerScan('/api/scan/device/{{ device.ip_address }}?profile=normal')"
-                                    class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                <div class="font-medium">Normal Scan</div>
-                                <div class="text-xs text-gray-500 dark:text-gray-400">Ports 1-1000, ~1 minute</div>
-                            </button>
-                            <button @click="open = false; triggerScan('/api/scan/device/{{ device.ip_address }}?profile=intensive')"
-                                    class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                <div class="font-medium">Intensive Scan</div>
-                                <div class="text-xs text-gray-500 dark:text-gray-400">All ports + OS, 2-5 min</div>
-                            </button>
-                        </div>
+                         class="dropdown-menu">
+                        <button @click="open = false; triggerScan('/api/scan/device/{{ device.ip_address }}?profile=quick')"
+                                class="dropdown-item">
+                            <div>Quick Scan</div>
+                            <span class="desc">Ping only, ~5 seconds</span>
+                        </button>
+                        <button @click="open = false; triggerScan('/api/scan/device/{{ device.ip_address }}?profile=normal')"
+                                class="dropdown-item">
+                            <div>Normal Scan</div>
+                            <span class="desc">Ports 1-1000, ~1 minute</span>
+                        </button>
+                        <button @click="open = false; triggerScan('/api/scan/device/{{ device.ip_address }}?profile=intensive')"
+                                class="dropdown-item">
+                            <div>Intensive Scan</div>
+                            <span class="desc">All ports + OS, 2-5 min</span>
+                        </button>
                     </div>
                 </div>
 
@@ -131,8 +122,9 @@
                 {% if https_ports %}
                 <a href="https://{{ device.ip_address }}{% if https_ports[0].port_number != 443 %}:{{ https_ports[0].port_number }}{% endif %}"
                    target="_blank"
-                   class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 shadow-sm">
-                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   class="btn btn-sm"
+                   style="color:var(--ok);border-color:color-mix(in oklch,var(--ok) 30%,transparent);background:var(--ok-bg);">
+                    <svg style="width:14px;height:14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                     </svg>
                     Open HTTPS
@@ -141,8 +133,9 @@
                 {% if http_ports %}
                 <a href="http://{{ device.ip_address }}{% if http_ports[0].port_number != 80 %}:{{ http_ports[0].port_number }}{% endif %}"
                    target="_blank"
-                   class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 shadow-sm">
-                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   class="btn btn-sm"
+                   style="color:var(--info);border-color:color-mix(in oklch,var(--info) 30%,transparent);background:var(--info-bg);">
+                    <svg style="width:14px;height:14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                     </svg>
                     Open HTTP
@@ -151,112 +144,111 @@
 
                 <!-- Risk and Status Badges -->
                 {% if device.risk_level == 'critical' %}
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">Critical Risk</span>
+                <span class="chip tone-crit">Critical Risk</span>
                 {% elif device.risk_level == 'high' %}
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200">High Risk</span>
+                <span class="chip tone-warn">High Risk</span>
                 {% elif device.risk_level == 'medium' %}
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">Medium Risk</span>
+                <span class="chip tone-warn">Medium Risk</span>
                 {% elif device.risk_level == 'low' %}
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">Low Risk</span>
+                <span class="chip tone-info">Low Risk</span>
                 {% endif %}
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {% if device.status == 'up' %}bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200{% else %}bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300{% endif %}">
+                <span class="chip {% if device.status == 'up' %}tone-ok{% else %}tone-info{% endif %}">
+                    <span class="chip-dot"></span>
                     {{ device.status | upper }}
                 </span>
             </div>
         </div>
     </div>
-    <div class="px-4 py-5 sm:p-6">
-        <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">MAC Address</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white font-mono">{{ device.mac_address or '-' }}</dd>
+    <div style="padding:20px;">
+        <div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label" style="color:var(--text-3);">MAC Address</div>
+                </div>
+                <div style="font-family:var(--font-mono);font-size:13px;color:var(--text);">{{ device.mac_address or '-' }}</div>
             </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Vendor</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ device.vendor or '-' }}</dd>
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">Vendor</div>
+                <div style="font:500 13px/1 var(--font-sans);color:var(--text);">{{ device.vendor or '-' }}</div>
             </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Device Type</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">Device Type</div>
+                <div>
                     {% if device.device_type %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200">
-                        {{ device.device_type }}
-                    </span>
+                    <span class="chip tone-info">{{ device.device_type }}</span>
                     {% else %}
-                    <span class="text-gray-400 dark:text-gray-500">Unknown</span>
+                    <span style="color:var(--text-4);font:400 13px/1 var(--font-sans);">Unknown</span>
                     {% endif %}
-                </dd>
+                </div>
             </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Operating System</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">Operating System</div>
+                <div style="font:500 13px/1.4 var(--font-sans);color:var(--text);">
                     {% if device.os_name %}
                     {{ device.os_name }}
                     {% if device.os_accuracy %}
-                    <span class="text-gray-500 dark:text-gray-400">({{ device.os_accuracy }}% confidence)</span>
+                    <span style="color:var(--text-4);">({{ device.os_accuracy }}% confidence)</span>
                     {% endif %}
                     {% else %}
                     -
                     {% endif %}
-                </dd>
+                </div>
             </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">First Seen</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ device.first_seen.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">First Seen</div>
+                <div class="mono" style="font-size:13px;color:var(--text);">{{ device.first_seen.strftime('%Y-%m-%d %H:%M:%S') }}</div>
             </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Seen</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ device.last_seen.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">Last Seen</div>
+                <div class="mono" style="font-size:13px;color:var(--text);">{{ device.last_seen.strftime('%Y-%m-%d %H:%M:%S') }}</div>
             </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Scan ID</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white">
-                    <a href="/scans/{{ device.scan_id }}" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300">
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">Scan ID</div>
+                <div>
+                    <a href="/scans/{{ device.scan_id }}" style="color:var(--accent);font:500 13px/1 var(--font-sans);">
                         #{{ device.scan_id }}
                     </a>
-                </dd>
+                </div>
             </div>
-        </dl>
+        </div>
     </div>
 </div>
 
 <!-- UniFi Network Details -->
 {% if device.threat_details and device.threat_details.integrations and device.threat_details.integrations.unifi %}
 {% set unifi = device.threat_details.integrations.unifi %}
-<div class="mt-6 bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-hidden">
-    <div class="px-4 py-5 sm:px-6 bg-gradient-to-r from-blue-500 to-indigo-600 border-b border-gray-200 dark:border-gray-600">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center">
-                <svg class="h-6 w-6 text-white mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<div class="card" style="margin-top:24px;">
+    <div style="padding:16px 20px;background:linear-gradient(135deg,var(--accent-bg),var(--info-bg));border-bottom:1px solid var(--line);border-radius:var(--r-3) var(--r-3) 0 0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <svg style="width:22px;height:22px;color:var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
                 </svg>
-                <h3 class="text-lg font-medium text-white">UniFi Network Details</h3>
+                <h3 style="font:600 15px/1 var(--font-sans);letter-spacing:-0.01em;color:var(--text);">UniFi Network Details</h3>
             </div>
-            <div class="flex items-center space-x-2">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                 {% if unifi.is_online %}
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    <span class="w-2 h-2 mr-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                <span class="chip tone-ok">
+                    <span class="live-dot pulsing"></span>
                     Online
                 </span>
                 {% else %}
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                    <span class="w-2 h-2 mr-1.5 bg-gray-400 rounded-full"></span>
+                <span class="chip">
+                    <span class="chip-dot"></span>
                     Offline
                 </span>
                 {% endif %}
                 {% if unifi.is_guest %}
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    Guest
-                </span>
+                <span class="chip tone-warn">Guest</span>
                 {% endif %}
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
+                <span class="chip tone-info">
                     {% if unifi.connection_type == 'wireless' %}
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg style="width:12px;height:12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0"/>
                     </svg>
                     Wireless
                     {% else %}
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg style="width:12px;height:12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/>
                     </svg>
                     Wired
@@ -265,62 +257,59 @@
             </div>
         </div>
     </div>
-    <div class="px-4 py-5 sm:p-6">
-        <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+    <div style="padding:20px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0;">
             {% if unifi.unifi_name %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Device Name (UniFi)</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white font-medium">{{ unifi.unifi_name }}</dd>
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">Device Name (UniFi)</div>
+                <div style="font:600 13px/1 var(--font-sans);color:var(--text);">{{ unifi.unifi_name }}</div>
             </div>
             {% endif %}
 
             {% if unifi.device_type %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Device Type (UniFi)</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ unifi.device_type }}</dd>
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">Device Type (UniFi)</div>
+                <div style="font:500 13px/1 var(--font-sans);color:var(--text);">{{ unifi.device_type }}</div>
             </div>
             {% endif %}
 
             {% if unifi.network and unifi.network.name %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Network</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white">
-                    {{ unifi.network.name }}
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">Network</div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span style="font:500 13px/1 var(--font-sans);color:var(--text);">{{ unifi.network.name }}</span>
                     {% if unifi.network.vlan %}
-                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200">
-                        VLAN {{ unifi.network.vlan }}
-                    </span>
+                    <span class="chip tone-info">VLAN {{ unifi.network.vlan }}</span>
                     {% endif %}
-                </dd>
+                </div>
             </div>
             {% endif %}
 
             {% if unifi.uptime_seconds %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Uptime</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">Uptime</div>
+                <div class="mono" style="font-size:13px;color:var(--text);">
                     {% set days = (unifi.uptime_seconds // 86400)|int %}
                     {% set hours = ((unifi.uptime_seconds % 86400) // 3600)|int %}
                     {% set minutes = ((unifi.uptime_seconds % 3600) // 60)|int %}
                     {% if days > 0 %}{{ days }}d {% endif %}{% if hours > 0 %}{{ hours }}h {% endif %}{{ minutes }}m
-                </dd>
+                </div>
             </div>
             {% endif %}
 
             <!-- Wireless-specific info -->
             {% if unifi.connection_type == 'wireless' and unifi.wireless %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">SSID</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white font-medium">{{ unifi.wireless.ssid or '-' }}</dd>
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">SSID</div>
+                <div style="font:600 13px/1 var(--font-sans);color:var(--text);">{{ unifi.wireless.ssid or '-' }}</div>
             </div>
 
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Signal Strength</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">Signal Strength</div>
+                <div>
                     {% if unifi.wireless.signal %}
-                    <div class="flex items-center">
-                        <!-- Signal bars -->
-                        <div class="flex items-end space-x-0.5 mr-2">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <div style="display:flex;align-items:flex-end;gap:2px;">
                             {% set signal = unifi.wireless.signal|int %}
                             {% if signal >= -50 %}
                                 {% set bars = 4 %}
@@ -331,47 +320,47 @@
                             {% else %}
                                 {% set bars = 1 %}
                             {% endif %}
-                            <div class="w-1 h-1.5 rounded-sm {% if bars >= 1 %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}"></div>
-                            <div class="w-1 h-2.5 rounded-sm {% if bars >= 2 %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}"></div>
-                            <div class="w-1 h-3.5 rounded-sm {% if bars >= 3 %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}"></div>
-                            <div class="w-1 h-4.5 rounded-sm {% if bars >= 4 %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}"></div>
+                            <div style="width:4px;height:6px;border-radius:2px;background:{% if bars >= 1 %}var(--ok){% else %}var(--line){% endif %};"></div>
+                            <div style="width:4px;height:10px;border-radius:2px;background:{% if bars >= 2 %}var(--ok){% else %}var(--line){% endif %};"></div>
+                            <div style="width:4px;height:14px;border-radius:2px;background:{% if bars >= 3 %}var(--ok){% else %}var(--line){% endif %};"></div>
+                            <div style="width:4px;height:18px;border-radius:2px;background:{% if bars >= 4 %}var(--ok){% else %}var(--line){% endif %};"></div>
                         </div>
-                        <span>{{ signal }} dBm</span>
-                        <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                        <span class="mono" style="font-size:13px;color:var(--text);">{{ signal }} dBm</span>
+                        <span style="font:400 11px/1 var(--font-sans);color:var(--text-4);">
                             {% if bars == 4 %}(Excellent){% elif bars == 3 %}(Good){% elif bars == 2 %}(Fair){% else %}(Poor){% endif %}
                         </span>
                     </div>
                     {% else %}
-                    -
+                    <span style="color:var(--text-4);">-</span>
                     {% endif %}
-                </dd>
+                </div>
             </div>
 
             {% if unifi.wireless.channel %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Channel / Radio</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">Channel / Radio</div>
+                <div style="font:500 13px/1 var(--font-sans);color:var(--text);">
                     Channel {{ unifi.wireless.channel }}
                     {% if unifi.wireless.radio %}
-                    <span class="ml-1 text-gray-500 dark:text-gray-400">
+                    <span style="color:var(--text-4);">
                         ({{ unifi.wireless.radio|replace('ng', '2.4 GHz')|replace('na', '5 GHz')|replace('ac', '5 GHz AC')|replace('ax', 'WiFi 6') }})
                     </span>
                     {% endif %}
-                </dd>
+                </div>
             </div>
             {% endif %}
 
             {% if unifi.wireless.tx_rate or unifi.wireless.rx_rate %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Link Speed</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">Link Speed</div>
+                <div style="display:flex;gap:12px;font:500 13px/1 var(--font-mono);">
                     {% if unifi.wireless.tx_rate %}
-                    <span class="text-green-600 dark:text-green-400">TX: {{ (unifi.wireless.tx_rate / 1000)|int }} Mbps</span>
+                    <span style="color:var(--ok);">TX: {{ (unifi.wireless.tx_rate / 1000)|int }} Mbps</span>
                     {% endif %}
                     {% if unifi.wireless.rx_rate %}
-                    <span class="ml-2 text-blue-600 dark:text-blue-400">RX: {{ (unifi.wireless.rx_rate / 1000)|int }} Mbps</span>
+                    <span style="color:var(--info);">RX: {{ (unifi.wireless.rx_rate / 1000)|int }} Mbps</span>
                     {% endif %}
-                </dd>
+                </div>
             </div>
             {% endif %}
             {% endif %}
@@ -379,28 +368,32 @@
             <!-- Wired-specific info -->
             {% if unifi.connection_type == 'wired' and unifi.wired %}
             {% if unifi.wired.switch_port %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Switch Port</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white font-mono">Port {{ unifi.wired.switch_port }}</dd>
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">Switch Port</div>
+                <div class="mono" style="font-size:13px;color:var(--text);">Port {{ unifi.wired.switch_port }}</div>
             </div>
             {% endif %}
             {% if unifi.wired.switch_mac %}
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Switch MAC</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white font-mono">{{ unifi.wired.switch_mac }}</dd>
+            <div class="setting-row">
+                <div class="setting-label" style="color:var(--text-3);">Switch MAC</div>
+                <div class="mono" style="font-size:13px;color:var(--text);">{{ unifi.wired.switch_mac }}</div>
             </div>
             {% endif %}
             {% endif %}
-        </dl>
+        </div>
 
         <!-- Traffic Stats -->
         {% if unifi.traffic and (unifi.traffic.tx_bytes or unifi.traffic.rx_bytes) %}
-        <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-4">Traffic Statistics</h4>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
-                    <dt class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Uploaded</dt>
-                    <dd class="mt-1 text-lg font-semibold text-green-600 dark:text-green-400">
+        <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--line-soft);">
+            <div class="section-header">
+                <div>
+                    <div class="section-title">Traffic Statistics</div>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;">
+                <div class="card card-p" style="text-align:center;">
+                    <div style="font:500 11px/1 var(--font-sans);color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">Uploaded</div>
+                    <div style="font:600 20px/1 var(--font-sans);color:var(--ok);margin-top:8px;letter-spacing:-0.02em;">
                         {% if unifi.traffic.tx_bytes >= 1073741824 %}
                             {{ "%.1f"|format(unifi.traffic.tx_bytes / 1073741824) }} GB
                         {% elif unifi.traffic.tx_bytes >= 1048576 %}
@@ -410,11 +403,11 @@
                         {% else %}
                             {{ unifi.traffic.tx_bytes }} B
                         {% endif %}
-                    </dd>
+                    </div>
                 </div>
-                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
-                    <dt class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Downloaded</dt>
-                    <dd class="mt-1 text-lg font-semibold text-blue-600 dark:text-blue-400">
+                <div class="card card-p" style="text-align:center;">
+                    <div style="font:500 11px/1 var(--font-sans);color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">Downloaded</div>
+                    <div style="font:600 20px/1 var(--font-sans);color:var(--info);margin-top:8px;letter-spacing:-0.02em;">
                         {% if unifi.traffic.rx_bytes >= 1073741824 %}
                             {{ "%.1f"|format(unifi.traffic.rx_bytes / 1073741824) }} GB
                         {% elif unifi.traffic.rx_bytes >= 1048576 %}
@@ -424,22 +417,22 @@
                         {% else %}
                             {{ unifi.traffic.rx_bytes }} B
                         {% endif %}
-                    </dd>
+                    </div>
                 </div>
                 {% if unifi.traffic.tx_packets %}
-                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
-                    <dt class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">TX Packets</dt>
-                    <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
+                <div class="card card-p" style="text-align:center;">
+                    <div style="font:500 11px/1 var(--font-sans);color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">TX Packets</div>
+                    <div class="tnum" style="font:600 20px/1 var(--font-sans);color:var(--text);margin-top:8px;letter-spacing:-0.02em;">
                         {{ "{:,}".format(unifi.traffic.tx_packets) }}
-                    </dd>
+                    </div>
                 </div>
                 {% endif %}
                 {% if unifi.traffic.rx_packets %}
-                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
-                    <dt class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">RX Packets</dt>
-                    <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
+                <div class="card card-p" style="text-align:center;">
+                    <div style="font:500 11px/1 var(--font-sans);color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">RX Packets</div>
+                    <div class="tnum" style="font:600 20px/1 var(--font-sans);color:var(--text);margin-top:8px;letter-spacing:-0.02em;">
                         {{ "{:,}".format(unifi.traffic.rx_packets) }}
-                    </dd>
+                    </div>
                 </div>
                 {% endif %}
             </div>
@@ -452,18 +445,18 @@
 <!-- Pi-hole DNS Activity Section -->
 {% set pihole = device.threat_details.integrations.pihole if device.threat_details and device.threat_details.integrations and device.threat_details.integrations.pihole else none %}
 {% if pihole %}
-<div class="mt-6 bg-gradient-to-r from-green-700 to-teal-600 rounded-lg shadow-lg overflow-hidden">
-    <div class="px-6 py-4">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center">
-                <svg class="h-8 w-8 text-white mr-3" viewBox="0 0 24 24" fill="currentColor">
+<div class="card" style="margin-top:24px;">
+    <div style="padding:16px 20px;background:linear-gradient(135deg,var(--ok-bg),var(--accent-bg));border-bottom:1px solid var(--line);border-radius:var(--r-3) var(--r-3) 0 0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <svg style="width:22px;height:22px;color:var(--ok);" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
                 </svg>
-                <h3 class="text-lg font-medium text-white">DNS Activity (Pi-hole)</h3>
+                <h3 style="font:600 15px/1 var(--font-sans);letter-spacing:-0.01em;color:var(--text);">DNS Activity (Pi-hole)</h3>
             </div>
             {% if pihole.suspicious_domains and pihole.suspicious_domains|length > 0 %}
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-500 text-white">
-                <svg class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+            <span class="chip tone-crit">
+                <svg style="width:12px;height:12px;" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
                 </svg>
                 Suspicious Activity
@@ -472,63 +465,54 @@
         </div>
     </div>
 
-    <div class="bg-white dark:bg-gray-800 px-6 py-5">
+    <div style="padding:20px;">
         <!-- DNS Stats Summary -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Queries (24h)</dt>
-                <dd class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-                    {{ "{:,}".format(pihole.queries_24h) }}
-                </dd>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:20px;">
+            <div class="card card-p" style="text-align:center;">
+                <div style="font:500 11px/1 var(--font-sans);color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">Queries (24h)</div>
+                <div class="tnum" style="font:700 22px/1 var(--font-sans);color:var(--text);margin-top:8px;letter-spacing:-0.02em;">{{ "{:,}".format(pihole.queries_24h) }}</div>
             </div>
-            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Blocked</dt>
-                <dd class="mt-1 text-2xl font-bold text-red-600 dark:text-red-400">
-                    {{ "{:,}".format(pihole.blocked_24h) }}
-                </dd>
+            <div class="card card-p" style="text-align:center;">
+                <div style="font:500 11px/1 var(--font-sans);color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">Blocked</div>
+                <div class="tnum" style="font:700 22px/1 var(--font-sans);color:var(--crit);margin-top:8px;letter-spacing:-0.02em;">{{ "{:,}".format(pihole.blocked_24h) }}</div>
             </div>
-            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Block Rate</dt>
-                <dd class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-                    {{ pihole.blocked_percentage }}%
-                </dd>
+            <div class="card card-p" style="text-align:center;">
+                <div style="font:500 11px/1 var(--font-sans);color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">Block Rate</div>
+                <div class="tnum" style="font:700 22px/1 var(--font-sans);color:var(--text);margin-top:8px;letter-spacing:-0.02em;">{{ pihole.blocked_percentage }}%</div>
             </div>
-            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">DNS Risk Score</dt>
-                <dd class="mt-1 text-2xl font-bold {% if pihole.dns_risk_score > 50 %}text-red-600 dark:text-red-400{% elif pihole.dns_risk_score > 20 %}text-yellow-600 dark:text-yellow-400{% else %}text-green-600 dark:text-green-400{% endif %}">
+            <div class="card card-p" style="text-align:center;">
+                <div style="font:500 11px/1 var(--font-sans);color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">DNS Risk Score</div>
+                <div class="tnum" style="font:700 22px/1 var(--font-sans);margin-top:8px;letter-spacing:-0.02em;
+                    color:{% if pihole.dns_risk_score > 50 %}var(--crit){% elif pihole.dns_risk_score > 20 %}var(--warn){% else %}var(--ok){% endif %};">
                     {{ pihole.dns_risk_score }}/100
-                </dd>
+                </div>
             </div>
         </div>
 
         <!-- DNS Risk Score Bar -->
-        <div class="mb-6">
-            <div class="flex items-center justify-between text-sm mb-1">
-                <span class="font-medium text-gray-700 dark:text-gray-300">DNS Behavior Risk</span>
-                <span class="text-gray-500 dark:text-gray-400">{{ pihole.dns_risk_score }}/100</span>
+        <div style="margin-bottom:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <span style="font:500 13px/1 var(--font-sans);color:var(--text-2);">DNS Behavior Risk</span>
+                <span style="font:500 12px/1 var(--font-mono);color:var(--text-4);">{{ pihole.dns_risk_score }}/100</span>
             </div>
-            <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-3">
-                <div class="h-3 rounded-full transition-all duration-300
-                    {% if pihole.dns_risk_score > 50 %}bg-red-500{% elif pihole.dns_risk_score > 20 %}bg-yellow-500{% else %}bg-green-500{% endif %}"
-                    style="width: {{ pihole.dns_risk_score }}%"></div>
+            <div class="progress-track">
+                <div class="progress-bar" style="width:{{ pihole.dns_risk_score }}%;background:{% if pihole.dns_risk_score > 50 %}var(--crit){% elif pihole.dns_risk_score > 20 %}var(--warn){% else %}var(--ok){% endif %};box-shadow:none;"></div>
             </div>
         </div>
 
         <!-- Suspicious Domains Alert -->
         {% if pihole.suspicious_domains and pihole.suspicious_domains|length > 0 %}
-        <div class="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-r-lg">
-            <div class="flex items-start">
-                <svg class="h-5 w-5 text-red-500 mr-3 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+        <div style="margin-bottom:20px;background:var(--crit-bg);border-left:3px solid var(--crit);padding:14px 16px;border-radius:0 var(--r-2) var(--r-2) 0;">
+            <div style="display:flex;gap:10px;align-items:flex-start;">
+                <svg style="width:16px;height:16px;color:var(--crit);flex-shrink:0;margin-top:1px;" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
                 </svg>
                 <div>
-                    <h4 class="text-sm font-semibold text-red-800 dark:text-red-200">Suspicious Domains Detected</h4>
-                    <p class="mt-1 text-sm text-red-700 dark:text-red-300">
-                        This device has contacted potentially suspicious domains:
-                    </p>
-                    <ul class="mt-2 space-y-1">
+                    <p style="font:600 13px/1 var(--font-sans);color:var(--crit);">Suspicious Domains Detected</p>
+                    <p style="font:400 12px/1.5 var(--font-sans);color:var(--text-2);margin-top:4px;">This device has contacted potentially suspicious domains:</p>
+                    <ul style="margin-top:8px;display:flex;flex-direction:column;gap:4px;list-style:none;padding:0;">
                         {% for domain in pihole.suspicious_domains %}
-                        <li class="text-sm font-mono text-red-600 dark:text-red-400">{{ domain }}</li>
+                        <li class="mono" style="font-size:12px;color:var(--crit);">{{ domain }}</li>
                         {% endfor %}
                     </ul>
                 </div>
@@ -537,55 +521,49 @@
         {% endif %}
 
         <!-- Top Domains and Blocked Domains -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Top Domains -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;">
             {% if pihole.top_domains and pihole.top_domains|length > 0 %}
             <div>
-                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                    <svg class="h-4 w-4 mr-2 text-green-500" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M12.577 4.878a.75.75 0 01.919-.53l4.78 1.281a.75.75 0 01.531.919l-1.281 4.78a.75.75 0 01-1.449-.387l.81-3.022a19.407 19.407 0 00-5.594 5.203.75.75 0 01-1.139.093L7 10.06l-4.72 4.72a.75.75 0 01-1.06-1.061l5.25-5.25a.75.75 0 011.06 0l3.074 3.073a20.923 20.923 0 015.545-4.931l-3.042-.815a.75.75 0 01-.53-.919z" clip-rule="evenodd" />
-                    </svg>
-                    Top Domains (24h)
-                </h4>
-                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden">
-                    <ul class="divide-y divide-gray-200 dark:divide-gray-600">
-                        {% for item in pihole.top_domains[:10] %}
-                        <li class="px-4 py-2 flex justify-between items-center">
-                            <span class="text-sm font-mono text-gray-700 dark:text-gray-300 truncate max-w-xs" title="{{ item.domain }}">
-                                {{ item.domain }}
-                            </span>
-                            <span class="ml-2 text-sm font-medium text-gray-500 dark:text-gray-400">
-                                {{ "{:,}".format(item.count) }}
-                            </span>
-                        </li>
-                        {% endfor %}
-                    </ul>
+                <div class="section-header">
+                    <div>
+                        <div class="section-title" style="display:flex;align-items:center;gap:8px;">
+                            <svg style="width:14px;height:14px;color:var(--ok);" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M12.577 4.878a.75.75 0 01.919-.53l4.78 1.281a.75.75 0 01.531.919l-1.281 4.78a.75.75 0 01-1.449-.387l.81-3.022a19.407 19.407 0 00-5.594 5.203.75.75 0 01-1.139.093L7 10.06l-4.72 4.72a.75.75 0 01-1.06-1.061l5.25-5.25a.75.75 0 011.06 0l3.074 3.073a20.923 20.923 0 015.545-4.931l-3.042-.815a.75.75 0 01-.53-.919z" clip-rule="evenodd" />
+                            </svg>
+                            Top Domains (24h)
+                        </div>
+                    </div>
+                </div>
+                <div class="card" style="overflow:hidden;">
+                    {% for item in pihole.top_domains[:10] %}
+                    <div class="data-table-row" style="grid-template-columns:1fr auto;cursor:default;">
+                        <span class="mono truncate" style="font-size:12px;color:var(--text-2);" title="{{ item.domain }}">{{ item.domain }}</span>
+                        <span class="tnum" style="font:500 12px/1 var(--font-mono);color:var(--text-4);">{{ "{:,}".format(item.count) }}</span>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
             {% endif %}
 
-            <!-- Blocked Domains -->
             {% if pihole.blocked_domains and pihole.blocked_domains|length > 0 %}
             <div>
-                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                    <svg class="h-4 w-4 mr-2 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd" />
-                    </svg>
-                    Blocked Domains (24h)
-                </h4>
-                <div class="bg-red-50 dark:bg-red-900/20 rounded-lg overflow-hidden">
-                    <ul class="divide-y divide-red-100 dark:divide-red-900/40">
-                        {% for item in pihole.blocked_domains[:10] %}
-                        <li class="px-4 py-2 flex justify-between items-center">
-                            <span class="text-sm font-mono text-red-700 dark:text-red-300 truncate max-w-xs" title="{{ item.domain }}">
-                                {{ item.domain }}
-                            </span>
-                            <span class="ml-2 text-sm font-medium text-red-500 dark:text-red-400">
-                                {{ "{:,}".format(item.count) }}
-                            </span>
-                        </li>
-                        {% endfor %}
-                    </ul>
+                <div class="section-header">
+                    <div>
+                        <div class="section-title" style="display:flex;align-items:center;gap:8px;">
+                            <svg style="width:14px;height:14px;color:var(--crit);" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd" />
+                            </svg>
+                            Blocked Domains (24h)
+                        </div>
+                    </div>
+                </div>
+                <div class="card" style="overflow:hidden;border-color:color-mix(in oklch,var(--crit) 25%,var(--line));">
+                    {% for item in pihole.blocked_domains[:10] %}
+                    <div class="data-table-row" style="grid-template-columns:1fr auto;cursor:default;">
+                        <span class="mono truncate" style="font-size:12px;color:var(--crit);" title="{{ item.domain }}">{{ item.domain }}</span>
+                        <span class="tnum" style="font:500 12px/1 var(--font-mono);color:var(--crit);opacity:0.7;">{{ "{:,}".format(item.count) }}</span>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
             {% endif %}
@@ -593,13 +571,11 @@
 
         <!-- Query Types -->
         {% if pihole.query_types %}
-        <div class="mt-6">
-            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Query Types</h4>
-            <div class="flex flex-wrap gap-2">
+        <div style="margin-top:20px;">
+            <div class="section-title" style="margin-bottom:10px;">Query Types</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
                 {% for qtype, count in pihole.query_types.items() %}
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                    {{ qtype }}: {{ "{:,}".format(count) }}
-                </span>
+                <span class="chip">{{ qtype }}: {{ "{:,}".format(count) }}</span>
                 {% endfor %}
             </div>
         </div>
@@ -611,18 +587,18 @@
 <!-- AdGuard Home DNS Activity Section -->
 {% set adguard = device.threat_details.integrations.adguard if device.threat_details and device.threat_details.integrations and device.threat_details.integrations.adguard else none %}
 {% if adguard %}
-<div class="mt-6 bg-gradient-to-r from-teal-700 to-cyan-600 rounded-lg shadow-lg overflow-hidden">
-    <div class="px-6 py-4">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center">
-                <svg class="h-8 w-8 text-white mr-3" viewBox="0 0 24 24" fill="currentColor">
+<div class="card" style="margin-top:24px;">
+    <div style="padding:16px 20px;background:linear-gradient(135deg,var(--accent-bg),var(--ok-bg));border-bottom:1px solid var(--line);border-radius:var(--r-3) var(--r-3) 0 0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <svg style="width:22px;height:22px;color:var(--accent);" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
                 </svg>
-                <h3 class="text-lg font-medium text-white">DNS Activity (AdGuard Home)</h3>
+                <h3 style="font:600 15px/1 var(--font-sans);letter-spacing:-0.01em;color:var(--text);">DNS Activity (AdGuard Home)</h3>
             </div>
             {% if adguard.suspicious_domains and adguard.suspicious_domains|length > 0 %}
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-500 text-white">
-                <svg class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+            <span class="chip tone-crit">
+                <svg style="width:12px;height:12px;" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
                 </svg>
                 Suspicious Activity
@@ -631,63 +607,54 @@
         </div>
     </div>
 
-    <div class="bg-white dark:bg-gray-800 px-6 py-5">
+    <div style="padding:20px;">
         <!-- DNS Stats Summary -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Queries (24h)</dt>
-                <dd class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-                    {{ "{:,}".format(adguard.queries_24h) }}
-                </dd>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:20px;">
+            <div class="card card-p" style="text-align:center;">
+                <div style="font:500 11px/1 var(--font-sans);color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">Queries (24h)</div>
+                <div class="tnum" style="font:700 22px/1 var(--font-sans);color:var(--text);margin-top:8px;letter-spacing:-0.02em;">{{ "{:,}".format(adguard.queries_24h) }}</div>
             </div>
-            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Blocked</dt>
-                <dd class="mt-1 text-2xl font-bold text-red-600 dark:text-red-400">
-                    {{ "{:,}".format(adguard.blocked_24h) }}
-                </dd>
+            <div class="card card-p" style="text-align:center;">
+                <div style="font:500 11px/1 var(--font-sans);color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">Blocked</div>
+                <div class="tnum" style="font:700 22px/1 var(--font-sans);color:var(--crit);margin-top:8px;letter-spacing:-0.02em;">{{ "{:,}".format(adguard.blocked_24h) }}</div>
             </div>
-            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Block Rate</dt>
-                <dd class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-                    {{ adguard.blocked_percentage }}%
-                </dd>
+            <div class="card card-p" style="text-align:center;">
+                <div style="font:500 11px/1 var(--font-sans);color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">Block Rate</div>
+                <div class="tnum" style="font:700 22px/1 var(--font-sans);color:var(--text);margin-top:8px;letter-spacing:-0.02em;">{{ adguard.blocked_percentage }}%</div>
             </div>
-            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">DNS Risk Score</dt>
-                <dd class="mt-1 text-2xl font-bold {% if adguard.dns_risk_score > 50 %}text-red-600 dark:text-red-400{% elif adguard.dns_risk_score > 20 %}text-yellow-600 dark:text-yellow-400{% else %}text-green-600 dark:text-green-400{% endif %}">
+            <div class="card card-p" style="text-align:center;">
+                <div style="font:500 11px/1 var(--font-sans);color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">DNS Risk Score</div>
+                <div class="tnum" style="font:700 22px/1 var(--font-sans);margin-top:8px;letter-spacing:-0.02em;
+                    color:{% if adguard.dns_risk_score > 50 %}var(--crit){% elif adguard.dns_risk_score > 20 %}var(--warn){% else %}var(--ok){% endif %};">
                     {{ adguard.dns_risk_score }}/100
-                </dd>
+                </div>
             </div>
         </div>
 
         <!-- DNS Risk Score Bar -->
-        <div class="mb-6">
-            <div class="flex items-center justify-between text-sm mb-1">
-                <span class="font-medium text-gray-700 dark:text-gray-300">DNS Behavior Risk</span>
-                <span class="text-gray-500 dark:text-gray-400">{{ adguard.dns_risk_score }}/100</span>
+        <div style="margin-bottom:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <span style="font:500 13px/1 var(--font-sans);color:var(--text-2);">DNS Behavior Risk</span>
+                <span style="font:500 12px/1 var(--font-mono);color:var(--text-4);">{{ adguard.dns_risk_score }}/100</span>
             </div>
-            <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-3">
-                <div class="h-3 rounded-full transition-all duration-300
-                    {% if adguard.dns_risk_score > 50 %}bg-red-500{% elif adguard.dns_risk_score > 20 %}bg-yellow-500{% else %}bg-green-500{% endif %}"
-                    style="width: {{ adguard.dns_risk_score }}%"></div>
+            <div class="progress-track">
+                <div class="progress-bar" style="width:{{ adguard.dns_risk_score }}%;background:{% if adguard.dns_risk_score > 50 %}var(--crit){% elif adguard.dns_risk_score > 20 %}var(--warn){% else %}var(--ok){% endif %};box-shadow:none;"></div>
             </div>
         </div>
 
         <!-- Suspicious Domains Alert -->
         {% if adguard.suspicious_domains and adguard.suspicious_domains|length > 0 %}
-        <div class="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-r-lg">
-            <div class="flex items-start">
-                <svg class="h-5 w-5 text-red-500 mr-3 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+        <div style="margin-bottom:20px;background:var(--crit-bg);border-left:3px solid var(--crit);padding:14px 16px;border-radius:0 var(--r-2) var(--r-2) 0;">
+            <div style="display:flex;gap:10px;align-items:flex-start;">
+                <svg style="width:16px;height:16px;color:var(--crit);flex-shrink:0;margin-top:1px;" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
                 </svg>
                 <div>
-                    <h4 class="text-sm font-semibold text-red-800 dark:text-red-200">Suspicious Domains Detected</h4>
-                    <p class="mt-1 text-sm text-red-700 dark:text-red-300">
-                        This device has contacted potentially suspicious domains:
-                    </p>
-                    <ul class="mt-2 space-y-1">
+                    <p style="font:600 13px/1 var(--font-sans);color:var(--crit);">Suspicious Domains Detected</p>
+                    <p style="font:400 12px/1.5 var(--font-sans);color:var(--text-2);margin-top:4px;">This device has contacted potentially suspicious domains:</p>
+                    <ul style="margin-top:8px;display:flex;flex-direction:column;gap:4px;list-style:none;padding:0;">
                         {% for domain in adguard.suspicious_domains %}
-                        <li class="text-sm font-mono text-red-600 dark:text-red-400">{{ domain }}</li>
+                        <li class="mono" style="font-size:12px;color:var(--crit);">{{ domain }}</li>
                         {% endfor %}
                     </ul>
                 </div>
@@ -696,55 +663,49 @@
         {% endif %}
 
         <!-- Top Domains and Blocked Domains -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Top Domains -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;">
             {% if adguard.top_domains and adguard.top_domains|length > 0 %}
             <div>
-                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                    <svg class="h-4 w-4 mr-2 text-teal-500" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M12.577 4.878a.75.75 0 01.919-.53l4.78 1.281a.75.75 0 01.531.919l-1.281 4.78a.75.75 0 01-1.449-.387l.81-3.022a19.407 19.407 0 00-5.594 5.203.75.75 0 01-1.139.093L7 10.06l-4.72 4.72a.75.75 0 01-1.06-1.061l5.25-5.25a.75.75 0 011.06 0l3.074 3.073a20.923 20.923 0 015.545-4.931l-3.042-.815a.75.75 0 01-.53-.919z" clip-rule="evenodd" />
-                    </svg>
-                    Top Domains (24h)
-                </h4>
-                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden">
-                    <ul class="divide-y divide-gray-200 dark:divide-gray-600">
-                        {% for item in adguard.top_domains[:10] %}
-                        <li class="px-4 py-2 flex justify-between items-center">
-                            <span class="text-sm font-mono text-gray-700 dark:text-gray-300 truncate max-w-xs" title="{{ item.domain }}">
-                                {{ item.domain }}
-                            </span>
-                            <span class="ml-2 text-sm font-medium text-gray-500 dark:text-gray-400">
-                                {{ "{:,}".format(item.count) }}
-                            </span>
-                        </li>
-                        {% endfor %}
-                    </ul>
+                <div class="section-header">
+                    <div>
+                        <div class="section-title" style="display:flex;align-items:center;gap:8px;">
+                            <svg style="width:14px;height:14px;color:var(--accent);" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M12.577 4.878a.75.75 0 01.919-.53l4.78 1.281a.75.75 0 01.531.919l-1.281 4.78a.75.75 0 01-1.449-.387l.81-3.022a19.407 19.407 0 00-5.594 5.203.75.75 0 01-1.139.093L7 10.06l-4.72 4.72a.75.75 0 01-1.06-1.061l5.25-5.25a.75.75 0 011.06 0l3.074 3.073a20.923 20.923 0 015.545-4.931l-3.042-.815a.75.75 0 01-.53-.919z" clip-rule="evenodd" />
+                            </svg>
+                            Top Domains (24h)
+                        </div>
+                    </div>
+                </div>
+                <div class="card" style="overflow:hidden;">
+                    {% for item in adguard.top_domains[:10] %}
+                    <div class="data-table-row" style="grid-template-columns:1fr auto;cursor:default;">
+                        <span class="mono truncate" style="font-size:12px;color:var(--text-2);" title="{{ item.domain }}">{{ item.domain }}</span>
+                        <span class="tnum" style="font:500 12px/1 var(--font-mono);color:var(--text-4);">{{ "{:,}".format(item.count) }}</span>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
             {% endif %}
 
-            <!-- Blocked Domains -->
             {% if adguard.blocked_domains and adguard.blocked_domains|length > 0 %}
             <div>
-                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                    <svg class="h-4 w-4 mr-2 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd" />
-                    </svg>
-                    Blocked Domains (24h)
-                </h4>
-                <div class="bg-red-50 dark:bg-red-900/20 rounded-lg overflow-hidden">
-                    <ul class="divide-y divide-red-100 dark:divide-red-900/40">
-                        {% for item in adguard.blocked_domains[:10] %}
-                        <li class="px-4 py-2 flex justify-between items-center">
-                            <span class="text-sm font-mono text-red-700 dark:text-red-300 truncate max-w-xs" title="{{ item.domain }}">
-                                {{ item.domain }}
-                            </span>
-                            <span class="ml-2 text-sm font-medium text-red-500 dark:text-red-400">
-                                {{ "{:,}".format(item.count) }}
-                            </span>
-                        </li>
-                        {% endfor %}
-                    </ul>
+                <div class="section-header">
+                    <div>
+                        <div class="section-title" style="display:flex;align-items:center;gap:8px;">
+                            <svg style="width:14px;height:14px;color:var(--crit);" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd" />
+                            </svg>
+                            Blocked Domains (24h)
+                        </div>
+                    </div>
+                </div>
+                <div class="card" style="overflow:hidden;border-color:color-mix(in oklch,var(--crit) 25%,var(--line));">
+                    {% for item in adguard.blocked_domains[:10] %}
+                    <div class="data-table-row" style="grid-template-columns:1fr auto;cursor:default;">
+                        <span class="mono truncate" style="font-size:12px;color:var(--crit);" title="{{ item.domain }}">{{ item.domain }}</span>
+                        <span class="tnum" style="font:500 12px/1 var(--font-mono);color:var(--crit);opacity:0.7;">{{ "{:,}".format(item.count) }}</span>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
             {% endif %}
@@ -752,13 +713,11 @@
 
         <!-- Query Types -->
         {% if adguard.query_types %}
-        <div class="mt-6">
-            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Query Types</h4>
-            <div class="flex flex-wrap gap-2">
+        <div style="margin-top:20px;">
+            <div class="section-title" style="margin-bottom:10px;">Query Types</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
                 {% for qtype, count in adguard.query_types.items() %}
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                    {{ qtype }}: {{ "{:,}".format(count) }}
-                </span>
+                <span class="chip">{{ qtype }}: {{ "{:,}".format(count) }}</span>
                 {% endfor %}
             </div>
         </div>
@@ -768,7 +727,7 @@
 {% endif %}
 
 <!-- Device Settings (Edit Form) -->
-<div class="mt-6 bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-hidden"
+<div class="card" style="margin-top:24px;"
      x-data="{
          editing: false,
          saving: false,
@@ -801,7 +760,6 @@
                      this.message = 'Device settings saved successfully';
                      this.messageType = 'success';
                      this.editing = false;
-                     // Reload zones in case a new one was added
                      this.loadZones();
                  } else {
                      const data = await res.json();
@@ -819,68 +777,73 @@
          }
      }"
      x-init="init()">
-    <div class="px-4 py-5 sm:px-6 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex items-center justify-between">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Device Settings</h3>
+    <div style="padding:16px 20px;background:var(--bg-2);border-bottom:1px solid var(--line);border-radius:var(--r-3) var(--r-3) 0 0;display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="font:600 15px/1 var(--font-sans);letter-spacing:-0.01em;color:var(--text);">Device Settings</h3>
         <button @click="editing = !editing"
                 x-text="editing ? 'Cancel' : 'Edit'"
-                class="px-3 py-1.5 text-sm font-medium rounded-md"
-                :class="editing ? 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500' : 'bg-indigo-600 text-white hover:bg-indigo-700'">
+                class="btn btn-sm"
+                :class="editing ? 'btn-ghost' : 'btn-primary'">
         </button>
     </div>
 
     <!-- Success/Error Message -->
     <div x-show="message" x-cloak
-         class="px-4 py-3"
-         :class="messageType === 'success' ? 'bg-green-50 dark:bg-green-900/30' : 'bg-red-50 dark:bg-red-900/30'">
-        <p class="text-sm"
-           :class="messageType === 'success' ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'"
+         style="padding:12px 20px;"
+         :style="messageType === 'success' ? 'background:var(--ok-bg);' : 'background:var(--crit-bg);'">
+        <p style="font:500 13px/1 var(--font-sans);"
+           :style="messageType === 'success' ? 'color:var(--ok);' : 'color:var(--crit);'"
            x-text="message"></p>
     </div>
 
-    <div class="px-4 py-5 sm:p-6">
+    <div style="padding:20px;">
         <!-- View Mode -->
-        <dl x-show="!editing" class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Label</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white" x-text="form.label || '-'"></dd>
-            </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Zone</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white">
-                    <span x-show="form.zone" x-text="form.zone"
-                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200"></span>
-                    <span x-show="!form.zone" class="text-gray-400 dark:text-gray-500">-</span>
-                </dd>
-            </div>
-            <div>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Trusted Device</dt>
-                <dd class="mt-1 text-sm">
-                    <span x-show="form.is_trusted" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
-                        Trusted
-                    </span>
-                    <span x-show="!form.is_trusted" class="text-gray-400 dark:text-gray-500">Not trusted</span>
-                </dd>
-            </div>
-            <div class="sm:col-span-2">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Notes</dt>
-                <dd class="mt-1 text-sm text-gray-900 dark:text-white whitespace-pre-wrap" x-text="form.notes || '-'"></dd>
-            </div>
-        </dl>
-
-        <!-- Edit Mode -->
-        <form x-show="editing" x-cloak @submit.prevent="saveDevice" class="space-y-4">
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div x-show="!editing">
+            <div class="setting-row">
                 <div>
-                    <label for="label" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Label</label>
-                    <input type="text" id="label" x-model="form.label"
-                           placeholder="e.g., Living Room TV, Dad's Laptop"
-                           class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white">
+                    <div class="setting-label">Label</div>
+                </div>
+                <div style="font:500 13px/1 var(--font-sans);color:var(--text);" x-text="form.label || '-'"></div>
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Zone</div>
                 </div>
                 <div>
-                    <label for="zone" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Zone</label>
+                    <span x-show="form.zone" x-text="form.zone" class="chip tone-info"></span>
+                    <span x-show="!form.zone" style="color:var(--text-4);font:400 13px/1 var(--font-sans);">-</span>
+                </div>
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Trusted Device</div>
+                </div>
+                <div>
+                    <span x-show="form.is_trusted" class="chip tone-ok">Trusted</span>
+                    <span x-show="!form.is_trusted" style="color:var(--text-4);font:400 13px/1 var(--font-sans);">Not trusted</span>
+                </div>
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Notes</div>
+                </div>
+                <div style="font:400 13px/1.5 var(--font-sans);color:var(--text);white-space:pre-wrap;" x-text="form.notes || '-'"></div>
+            </div>
+        </div>
+
+        <!-- Edit Mode -->
+        <form x-show="editing" x-cloak @submit.prevent="saveDevice" style="display:flex;flex-direction:column;gap:16px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div>
+                    <label for="label" style="display:block;font:500 12px/1 var(--font-sans);color:var(--text-3);margin-bottom:6px;">Label</label>
+                    <input type="text" id="label" x-model="form.label"
+                           placeholder="e.g., Living Room TV, Dad's Laptop"
+                           class="input">
+                </div>
+                <div>
+                    <label for="zone" style="display:block;font:500 12px/1 var(--font-sans);color:var(--text-3);margin-bottom:6px;">Zone</label>
                     <input type="text" id="zone" x-model="form.zone" list="zone-list"
                            placeholder="e.g., IoT, Servers, Guest"
-                           class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white">
+                           class="input">
                     <datalist id="zone-list">
                         <template x-for="z in zones" :key="z">
                             <option :value="z"></option>
@@ -888,27 +851,24 @@
                     </datalist>
                 </div>
             </div>
-            <div class="flex items-center">
+            <div style="display:flex;align-items:center;gap:10px;">
                 <input type="checkbox" id="is_trusted" x-model="form.is_trusted"
-                       class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700">
-                <label for="is_trusted" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                       style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
+                <label for="is_trusted" style="font:500 13px/1 var(--font-sans);color:var(--text);cursor:pointer;">
                     Mark as trusted device
                 </label>
             </div>
             <div>
-                <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Notes</label>
+                <label for="notes" style="display:block;font:500 12px/1 var(--font-sans);color:var(--text-3);margin-bottom:6px;">Notes</label>
                 <textarea id="notes" x-model="form.notes" rows="3"
                           placeholder="Add notes about this device..."
-                          class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white"></textarea>
+                          class="input" style="resize:vertical;height:auto;line-height:1.5;"></textarea>
             </div>
-            <div class="flex justify-end space-x-3">
-                <button type="button" @click="editing = false"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600">
-                    Cancel
-                </button>
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+                <button type="button" @click="editing = false" class="btn btn-ghost btn-sm">Cancel</button>
                 <button type="submit"
                         :disabled="saving"
-                        class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none disabled:opacity-50">
+                        class="btn btn-primary btn-sm">
                     <span x-show="!saving">Save Changes</span>
                     <span x-show="saving">Saving...</span>
                 </button>
@@ -919,84 +879,70 @@
 
 <!-- Security Threats & Recommendations -->
 {% if device.threat_details and device.threat_details.threats %}
-<div class="mt-8">
-    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
-        Security Issues & Recommendations
-    </h3>
+<div style="margin-top:32px;">
+    <div class="section-header">
+        <div>
+            <div class="section-title">Security Issues &amp; Recommendations</div>
+        </div>
+    </div>
 
     {% if device.threat_details.top_recommendation %}
-    <div class="mb-4 rounded-md bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 p-4">
-        <div class="flex">
-            <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
-                </svg>
-            </div>
-            <div class="ml-3">
-                <h3 class="text-sm font-medium text-indigo-800 dark:text-indigo-200">Top Priority</h3>
-                <p class="mt-1 text-sm text-indigo-700 dark:text-indigo-300">{{ device.threat_details.top_recommendation }}</p>
+    <div style="margin-bottom:16px;background:var(--accent-bg);border:1px solid color-mix(in oklch,var(--accent) 30%,transparent);border-radius:var(--r-2);padding:14px 16px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+            <svg style="width:16px;height:16px;color:var(--accent);flex-shrink:0;margin-top:1px;" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+            </svg>
+            <div>
+                <p style="font:600 12px/1 var(--font-sans);color:var(--accent);text-transform:uppercase;letter-spacing:.06em;">Top Priority</p>
+                <p style="font:400 13px/1.5 var(--font-sans);color:var(--text-2);margin-top:5px;">{{ device.threat_details.top_recommendation }}</p>
             </div>
         </div>
     </div>
     {% endif %}
 
-    <div class="space-y-4">
+    <div style="display:flex;flex-direction:column;gap:12px;">
         {% for threat in device.threat_details.threats %}
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-700 border-l-4
-            {% if threat.risk_level == 'critical' %}border-red-500
-            {% elif threat.risk_level == 'high' %}border-orange-500
-            {% elif threat.risk_level == 'medium' %}border-yellow-500
-            {% else %}border-blue-500{% endif %}">
-            <div class="p-4">
-                <div class="flex items-start justify-between">
-                    <div class="flex items-center">
-                        <span class="inline-flex items-center justify-center w-10 h-10 rounded-full
-                            {% if threat.risk_level == 'critical' %}bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300
-                            {% elif threat.risk_level == 'high' %}bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300
-                            {% elif threat.risk_level == 'medium' %}bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300
-                            {% else %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300{% endif %} font-mono font-bold text-sm">
+        <div class="card" style="overflow:hidden;border-left:3px solid {% if threat.risk_level == 'critical' %}var(--crit){% elif threat.risk_level == 'high' %}var(--warn){% elif threat.risk_level == 'medium' %}oklch(0.75 0.16 80){% else %}var(--info){% endif %};">
+            <div style="padding:16px;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div class="mono tnum" style="width:40px;height:40px;border-radius:var(--r-1);display:grid;place-items:center;font:700 12px/1 var(--font-mono);
+                            background:{% if threat.risk_level == 'critical' %}var(--crit-bg){% elif threat.risk_level == 'high' %}var(--warn-bg){% elif threat.risk_level == 'medium' %}var(--warn-bg){% else %}var(--info-bg){% endif %};
+                            color:{% if threat.risk_level == 'critical' %}var(--crit){% elif threat.risk_level == 'high' %}var(--warn){% elif threat.risk_level == 'medium' %}var(--warn){% else %}var(--info){% endif %};">
                             {{ threat.port }}
-                        </span>
-                        <div class="ml-3">
-                            <h4 class="text-sm font-semibold text-gray-900 dark:text-white">
+                        </div>
+                        <div>
+                            <p style="font:600 13px/1.2 var(--font-sans);color:var(--text);">
                                 Port {{ threat.port }}/{{ threat.protocol }} - {{ threat.service_name }}
-                            </h4>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                                {% if threat.risk_level == 'critical' %}bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200
-                                {% elif threat.risk_level == 'high' %}bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200
-                                {% elif threat.risk_level == 'medium' %}bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200
-                                {% else %}bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200{% endif %}">
+                            </p>
+                            <span class="chip {% if threat.risk_level == 'critical' %}tone-crit{% elif threat.risk_level == 'high' %}tone-warn{% elif threat.risk_level == 'medium' %}tone-warn{% else %}tone-info{% endif %}" style="margin-top:6px;">
                                 {{ threat.risk_level | upper }}
                             </span>
                         </div>
                     </div>
                 </div>
-                <div class="mt-3">
-                    <p class="text-sm text-gray-600 dark:text-gray-300">
-                        <span class="font-medium">Issue:</span> {{ threat.description }}
+                <div style="margin-top:12px;">
+                    <p style="font:400 13px/1.5 var(--font-sans);color:var(--text-2);">
+                        <span style="font-weight:600;color:var(--text);">Issue:</span> {{ threat.description }}
                     </p>
                 </div>
-                <div class="mt-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
-                    <p class="text-sm text-gray-700 dark:text-gray-300">
-                        <span class="font-medium text-indigo-600 dark:text-indigo-400">Recommendation:</span> {{ threat.recommendation }}
+                <div style="margin-top:8px;padding:12px;background:var(--bg-2);border-radius:var(--r-2);">
+                    <p style="font:400 13px/1.5 var(--font-sans);color:var(--text-2);">
+                        <span style="font-weight:600;color:var(--accent);">Recommendation:</span> {{ threat.recommendation }}
                     </p>
                 </div>
                 {% if threat.cves and threat.cves|length > 0 %}
-                <div class="mt-3 border-t border-gray-200 dark:border-gray-600 pt-3">
-                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Associated CVEs:</p>
-                    <div class="flex flex-wrap gap-2">
+                <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);">
+                    <p style="font:500 11px/1 var(--font-sans);color:var(--text-4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Associated CVEs</p>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
                         {% for cve in threat.cves %}
                         <a href="https://nvd.nist.gov/vuln/detail/{{ cve.id }}"
                            target="_blank"
-                           class="inline-flex items-center px-2 py-1 rounded text-xs font-medium
-                               {% if cve.severity == 'critical' %}bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200
-                               {% elif cve.severity == 'high' %}bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200
-                               {% elif cve.severity == 'medium' %}bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200
-                               {% else %}bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200{% endif %}
-                               hover:opacity-80">
+                           class="chip {% if cve.severity == 'critical' %}tone-crit{% elif cve.severity == 'high' %}tone-warn{% elif cve.severity == 'medium' %}tone-warn{% else %}tone-info{% endif %}"
+                           style="text-decoration:none;opacity:0.9;">
                             {{ cve.id }}
-                            <span class="ml-1 text-[10px] opacity-75">({{ cve.cvss_score }})</span>
-                            <svg class="ml-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <span style="opacity:0.7;font-size:10px;">({{ cve.cvss_score }})</span>
+                            <svg style="width:10px;height:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                             </svg>
                         </a>
@@ -1011,222 +957,196 @@
 </div>
 {% endif %}
 
-<!-- CVE Summary Section - Confirmed Vulnerabilities Only -->
+<!-- CVE Summary Section -->
 {% if device.threat_details and device.threat_details.cves and device.threat_details.cves|length > 0 %}
-<div class="mt-8">
-    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-        <svg class="h-5 w-5 text-red-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-        </svg>
-        Known Vulnerabilities ({{ device.threat_details.cves|length }} CVEs)
-    </h3>
-    <div class="bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-x-auto border-l-4 border-red-500">
-        <table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-            <thead class="bg-red-50 dark:bg-red-900/30">
-                <tr>
-                    <th scope="col" class="py-3 pl-4 pr-3 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase">CVE ID</th>
-                    <th scope="col" class="px-3 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase">Confidence</th>
-                    <th scope="col" class="px-3 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase">Severity</th>
-                    <th scope="col" class="px-3 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase">CVSS</th>
-                    <th scope="col" class="px-3 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase">Matched Product</th>
-                    <th scope="col" class="px-3 py-3 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase">Description</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                {% for cve in device.threat_details.cves %}
-                <tr class="{% if cve.severity == 'critical' %}bg-red-50 dark:bg-red-900/20{% elif cve.severity == 'high' %}bg-orange-50 dark:bg-orange-900/20{% endif %}">
-                    <td class="whitespace-nowrap py-3 pl-4 pr-3 text-sm">
-                        <a href="https://nvd.nist.gov/vuln/detail/{{ cve.id }}"
-                           target="_blank"
-                           class="font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300">
-                            {{ cve.id }}
-                            <svg class="inline h-3 w-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                            </svg>
-                        </a>
-                    </td>
-                    <td class="whitespace-nowrap px-3 py-3 text-sm">
-                        {% if cve.confidence == 'confirmed' %}
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
-                            <svg class="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
-                            </svg>
-                            Confirmed
-                        </span>
-                        {% elif cve.confidence == 'likely' %}
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
-                            <svg class="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
-                            </svg>
-                            Likely
-                        </span>
-                        {% else %}
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                            <svg class="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.94 6.94a.75.75 0 11-1.061-1.061 3 3 0 112.871 5.026v.345a.75.75 0 01-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 108.94 6.94zM10 15a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                            </svg>
-                            Possible
-                        </span>
-                        {% endif %}
-                    </td>
-                    <td class="whitespace-nowrap px-3 py-3 text-sm">
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                            {% if cve.severity == 'critical' %}bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200
-                            {% elif cve.severity == 'high' %}bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200
-                            {% elif cve.severity == 'medium' %}bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200
-                            {% else %}bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200{% endif %}">
-                            {{ cve.severity | upper }}
-                        </span>
-                    </td>
-                    <td class="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                        {{ cve.cvss_score }}
-                    </td>
-                    <td class="whitespace-nowrap px-3 py-3 text-sm text-gray-600 dark:text-gray-300">
-                        {% if cve.matched_product %}
-                            <span class="font-medium">{{ cve.matched_product }}</span>
-                            {% if cve.matched_version %}
-                            <span class="text-gray-500 dark:text-gray-400">v{{ cve.matched_version }}</span>
-                            {% endif %}
-                        {% else %}
-                            <span class="text-gray-400 dark:text-gray-500">-</span>
-                        {% endif %}
-                    </td>
-                    <td class="px-3 py-3 text-sm text-gray-600 dark:text-gray-300 max-w-md">
-                        {{ cve.description | truncate(150) }}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<div style="margin-top:32px;">
+    <div class="section-header">
+        <div>
+            <div class="section-title" style="display:flex;align-items:center;gap:8px;">
+                <svg style="width:16px;height:16px;color:var(--crit);" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                </svg>
+                Known Vulnerabilities ({{ device.threat_details.cves|length }} CVEs)
+            </div>
+        </div>
+    </div>
+    <div class="card" style="overflow-x:auto;border-left:3px solid var(--crit);">
+        <div class="data-table-header" style="grid-template-columns:140px 100px 90px 70px 160px 1fr;">
+            <span>CVE ID</span>
+            <span>Confidence</span>
+            <span>Severity</span>
+            <span>CVSS</span>
+            <span>Matched Product</span>
+            <span>Description</span>
+        </div>
+        {% for cve in device.threat_details.cves %}
+        <div class="data-table-row" style="grid-template-columns:140px 100px 90px 70px 160px 1fr;cursor:default;
+            {% if cve.severity == 'critical' %}background:var(--crit-bg);{% elif cve.severity == 'high' %}background:var(--warn-bg);{% endif %}">
+            <div>
+                <a href="https://nvd.nist.gov/vuln/detail/{{ cve.id }}"
+                   target="_blank"
+                   style="color:var(--accent);font:500 12px/1 var(--font-mono);display:inline-flex;align-items:center;gap:4px;">
+                    {{ cve.id }}
+                    <svg style="width:10px;height:10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                </a>
+            </div>
+            <div>
+                {% if cve.confidence == 'confirmed' %}
+                <span class="chip tone-ok" style="font-size:11px;">
+                    <svg style="width:10px;height:10px;" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                    </svg>
+                    Confirmed
+                </span>
+                {% elif cve.confidence == 'likely' %}
+                <span class="chip tone-warn" style="font-size:11px;">
+                    <svg style="width:10px;height:10px;" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+                    </svg>
+                    Likely
+                </span>
+                {% else %}
+                <span class="chip" style="font-size:11px;">
+                    <svg style="width:10px;height:10px;" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.94 6.94a.75.75 0 11-1.061-1.061 3 3 0 112.871 5.026v.345a.75.75 0 01-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 108.94 6.94zM10 15a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                    </svg>
+                    Possible
+                </span>
+                {% endif %}
+            </div>
+            <div>
+                <span class="chip {% if cve.severity == 'critical' %}tone-crit{% elif cve.severity == 'high' %}tone-warn{% elif cve.severity == 'medium' %}tone-warn{% else %}tone-info{% endif %}" style="font-size:11px;">
+                    {{ cve.severity | upper }}
+                </span>
+            </div>
+            <div class="tnum" style="font:600 13px/1 var(--font-mono);color:var(--text);">{{ cve.cvss_score }}</div>
+            <div style="font:500 13px/1.3 var(--font-sans);color:var(--text-2);">
+                {% if cve.matched_product %}
+                    <span style="font-weight:600;">{{ cve.matched_product }}</span>
+                    {% if cve.matched_version %}
+                    <span style="color:var(--text-4);"> v{{ cve.matched_version }}</span>
+                    {% endif %}
+                {% else %}
+                    <span style="color:var(--text-4);">-</span>
+                {% endif %}
+            </div>
+            <div style="font:400 12px/1.5 var(--font-sans);color:var(--text-3);">{{ cve.description | truncate(150) }}</div>
+        </div>
+        {% endfor %}
     </div>
 </div>
 {% endif %}
 
 <!-- Protocol Security Warnings Section -->
 {% if device.threat_details and device.threat_details.warnings and device.threat_details.warnings|length > 0 %}
-<div class="mt-8">
-    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-        <svg class="h-5 w-5 text-amber-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
-        </svg>
-        Protocol Security Warnings ({{ device.threat_details.warnings|length }})
-    </h3>
-    <div class="bg-white dark:bg-gray-800 shadow dark:shadow-gray-700 rounded-lg overflow-hidden border-l-4 border-amber-500">
-        <div class="divide-y divide-gray-200 dark:divide-gray-700">
-            {% for warning in device.threat_details.warnings %}
-            <div class="p-4 bg-amber-50/50 dark:bg-amber-900/10">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                        </svg>
+<div style="margin-top:32px;">
+    <div class="section-header">
+        <div>
+            <div class="section-title" style="display:flex;align-items:center;gap:8px;">
+                <svg style="width:16px;height:16px;color:var(--warn);" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+                </svg>
+                Protocol Security Warnings ({{ device.threat_details.warnings|length }})
+            </div>
+        </div>
+    </div>
+    <div class="card" style="overflow:hidden;border-left:3px solid var(--warn);">
+        {% for warning in device.threat_details.warnings %}
+        <div style="padding:16px;background:color-mix(in oklch,var(--warn-bg) 40%,var(--bg-1));{% if not loop.first %}border-top:1px solid var(--line-soft);{% endif %}">
+            <div style="display:flex;gap:12px;align-items:flex-start;">
+                <svg style="width:16px;height:16px;color:var(--warn);flex-shrink:0;margin-top:1px;" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                </svg>
+                <div style="flex:1;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                        <p style="font:600 13px/1 var(--font-sans);color:var(--warn);">{{ warning.id }}</p>
+                        <span class="chip {% if warning.severity == 'high' %}tone-warn{% elif warning.severity == 'medium' %}tone-warn{% else %}tone-info{% endif %}" style="font-size:11px;">
+                            {{ warning.severity | upper }}
+                        </span>
                     </div>
-                    <div class="ml-3 flex-1">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm font-medium text-amber-800 dark:text-amber-200">
-                                {{ warning.id }}
-                            </p>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                                {% if warning.severity == 'high' %}bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200
-                                {% elif warning.severity == 'medium' %}bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200
-                                {% else %}bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200{% endif %}">
-                                {{ warning.severity | upper }}
-                            </span>
-                        </div>
-                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                            {{ warning.description }}
-                        </p>
-                        {% if warning.remediation %}
-                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            <span class="font-medium">Recommendation:</span> {{ warning.remediation }}
-                        </p>
-                        {% endif %}
-                    </div>
+                    <p style="font:400 13px/1.5 var(--font-sans);color:var(--text-2);margin-top:6px;">{{ warning.description }}</p>
+                    {% if warning.remediation %}
+                    <p style="font:400 12px/1.5 var(--font-sans);color:var(--text-3);margin-top:6px;">
+                        <span style="font-weight:600;color:var(--text-2);">Recommendation:</span> {{ warning.remediation }}
+                    </p>
+                    {% endif %}
                 </div>
             </div>
-            {% endfor %}
         </div>
+        {% endfor %}
     </div>
 </div>
 {% endif %}
 
 <!-- Open Ports -->
-<div class="mt-8">
-    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Open Ports ({{ device.ports | length }})</h3>
+<div style="margin-top:32px;">
+    <div class="section-header">
+        <div>
+            <div class="section-title">Open Ports ({{ device.ports | length }})</div>
+        </div>
+    </div>
     {% if device.ports %}
-    <div class="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 dark:ring-gray-700 rounded-lg">
-        <table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-800">
-                <tr>
-                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Port</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Protocol</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Risk</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Service</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Product / Version</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
-                {% for port in device.ports %}
-                {% set port_risk = namespace(level='safe') %}
-                {% if port.port_number in [23, 512, 513, 514, 31337, 12345, 4444, 5554, 9996] %}
-                    {% set port_risk.level = 'critical' %}
-                {% elif port.port_number in [21, 25, 135, 137, 138, 139, 445, 1433, 1434, 3306, 3389, 5900, 5901, 6379, 27017] %}
-                    {% set port_risk.level = 'high' %}
-                {% elif port.port_number in [22, 53, 80, 110, 143, 161, 1900, 5000, 8080] %}
-                    {% set port_risk.level = 'medium' %}
+    <div class="card" style="overflow-x:auto;">
+        <div class="data-table-header" style="grid-template-columns:80px 90px 100px 120px 1fr;">
+            <span>Port</span>
+            <span>Protocol</span>
+            <span>Risk</span>
+            <span>Service</span>
+            <span>Product / Version</span>
+        </div>
+        {% for port in device.ports %}
+        {% set port_risk = namespace(level='safe') %}
+        {% if port.port_number in [23, 512, 513, 514, 31337, 12345, 4444, 5554, 9996] %}
+            {% set port_risk.level = 'critical' %}
+        {% elif port.port_number in [21, 25, 135, 137, 138, 139, 445, 1433, 1434, 3306, 3389, 5900, 5901, 6379, 27017] %}
+            {% set port_risk.level = 'high' %}
+        {% elif port.port_number in [22, 53, 80, 110, 143, 161, 1900, 5000, 8080] %}
+            {% set port_risk.level = 'medium' %}
+        {% endif %}
+        <div class="data-table-row" style="grid-template-columns:80px 90px 100px 120px 1fr;cursor:default;
+            {% if port_risk.level == 'critical' %}background:var(--crit-bg);{% elif port_risk.level == 'high' %}background:color-mix(in oklch,var(--warn-bg) 60%,var(--bg-1));{% elif port_risk.level == 'medium' %}background:color-mix(in oklch,var(--warn-bg) 30%,var(--bg-1));{% endif %}">
+            <div style="display:flex;align-items:center;gap:6px;">
+                {% if port_risk.level in ['critical', 'high'] %}
+                <svg style="width:14px;height:14px;color:var(--crit);flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                </svg>
                 {% endif %}
-                <tr class="{% if port_risk.level == 'critical' %}bg-red-50 dark:bg-red-900/30{% elif port_risk.level == 'high' %}bg-orange-50 dark:bg-orange-900/30{% elif port_risk.level == 'medium' %}bg-yellow-50 dark:bg-yellow-900/30{% endif %}">
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white">
-                        <div class="flex items-center">
-                            {% if port_risk.level in ['critical', 'high'] %}
-                            <svg class="h-4 w-4 text-red-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                            </svg>
-                            {% endif %}
-                            {{ port.port_number }}
-                        </div>
-                    </td>
-                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 uppercase">
-                        {{ port.protocol }}
-                    </td>
-                    <td class="whitespace-nowrap px-3 py-4 text-sm">
-                        {% if port_risk.level == 'critical' %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
-                            Critical
-                        </span>
-                        {% elif port_risk.level == 'high' %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200">
-                            High
-                        </span>
-                        {% elif port_risk.level == 'medium' %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
-                            Medium
-                        </span>
-                        {% else %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
-                            Safe
-                        </span>
-                        {% endif %}
-                    </td>
-                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {{ port.service_name or '-' }}
-                    </td>
-                    <td class="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {% if port.service_product %}
-                        {{ port.service_product }}{% if port.service_version %} {{ port.service_version }}{% endif %}
-                        {% else %}
-                        -
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                <span class="port-tag {% if port_risk.level in ['critical', 'high'] %}risky{% endif %}">{{ port.port_number }}</span>
+            </div>
+            <div style="font:500 12px/1 var(--font-sans);color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;">{{ port.protocol }}</div>
+            <div>
+                {% if port_risk.level == 'critical' %}
+                <span class="chip tone-crit">Critical</span>
+                {% elif port_risk.level == 'high' %}
+                <span class="chip tone-warn">High</span>
+                {% elif port_risk.level == 'medium' %}
+                <span class="chip tone-warn" style="opacity:0.8;">Medium</span>
+                {% else %}
+                <span class="chip tone-ok">Safe</span>
+                {% endif %}
+            </div>
+            <div style="font:500 13px/1 var(--font-sans);color:var(--text-2);">{{ port.service_name or '-' }}</div>
+            <div style="font:400 13px/1.3 var(--font-sans);color:var(--text-3);">
+                {% if port.service_product %}
+                {{ port.service_product }}{% if port.service_version %} {{ port.service_version }}{% endif %}
+                {% else %}
+                -
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
     </div>
     {% else %}
-    <div class="text-center py-8 bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-700">
-        <p class="text-sm text-gray-500 dark:text-gray-400">No open ports detected on this device.</p>
-        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Try running a "normal" or "intensive" scan profile to detect ports.</p>
+    <div class="card">
+        <div class="empty-state">
+            <svg style="width:32px;height:32px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <p class="empty-state-title">No open ports detected</p>
+            <p class="empty-state-body">Try running a "normal" or "intensive" scan profile to detect ports.</p>
+        </div>
     </div>
     {% endif %}
 </div>

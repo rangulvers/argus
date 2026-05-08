@@ -1,100 +1,115 @@
 {% extends "base.html" %}
 
-{% block title %}Scan History - Argus{% endblock %}
+{% block title %}Scan History — ARGUS{% endblock %}
 {% block page_title %}Scan History{% endblock %}
 
 {% block content %}
 {% if scans %}
-<div class="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 dark:ring-gray-700 rounded-lg">
-    <table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-        <thead class="bg-gray-50 dark:bg-gray-800">
-            <tr>
-                <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white">ID</th>
-                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Started</th>
-                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Completed</th>
-                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Status</th>
-                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Profile</th>
-                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Subnet</th>
-                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Devices</th>
-                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Changes</th>
-                <th scope="col" class="relative py-3.5 pl-3 pr-4">
-                    <span class="sr-only">Actions</span>
-                </th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
-            {% for scan in scans %}
-            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
-                <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white">
-                    #{{ scan.id }}
-                </td>
-                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                    {{ scan.started_at.strftime('%Y-%m-%d %H:%M:%S') }}
-                </td>
-                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                    {% if scan.completed_at %}
-                    {{ scan.completed_at.strftime('%Y-%m-%d %H:%M:%S') }}
-                    {% else %}
-                    -
-                    {% endif %}
-                </td>
-                <td class="whitespace-nowrap px-3 py-4 text-sm">
-                    {% if scan.status == 'completed' %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
-                        Completed
-                    </span>
-                    {% elif scan.status == 'running' %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
-                        Running
-                    </span>
-                    {% else %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
-                        Failed
-                    </span>
-                    {% endif %}
-                </td>
-                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                    {{ scan.scan_profile }}
-                </td>
-                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 font-mono">
-                    {{ scan.subnet }}
-                </td>
-                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                    {{ scan.devices_found }}
-                </td>
-                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                    {% set change_count = scan.changes | length %}
-                    {% if change_count > 0 %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
-                        {{ change_count }}
-                    </span>
-                    {% else %}
-                    <span class="text-gray-400 dark:text-gray-500">0</span>
-                    {% endif %}
-                </td>
-                <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium space-x-3">
-                    <a href="/devices?scan_id={{ scan.id }}" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300">Devices</a>
-                    <a href="/changes?scan_id={{ scan.id }}" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300">Changes</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="card" style="overflow:hidden;">
+
+  {# ── Header ── #}
+  <div style="padding:14px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:14px;">
+    <div>
+      <div class="section-title">Scan history</div>
+      <div style="font:500 12px/1.4 var(--font-sans); color:var(--text-4); margin-top:3px;">{{ scans|length }} scans shown</div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <a href="/compare" class="btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+        Compare two
+      </a>
+      <button class="btn btn-primary" id="run-scan-btn" onclick="runScan(this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+        Run scan
+      </button>
+    </div>
+  </div>
+
+  {# ── Column headers ── #}
+  <div style="display:grid; grid-template-columns:100px 1fr 100px 80px 80px 90px 80px 80px; padding:10px 18px; gap:10px; font:500 11px/1 var(--font-sans); color:var(--text-4); text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--line-soft);">
+    <div>ID</div>
+    <div>When</div>
+    <div>Duration</div>
+    <div>Devices</div>
+    <div>New</div>
+    <div>Changed</div>
+    <div>Gone</div>
+    <div>Ports</div>
+  </div>
+
+  {# ── Rows ── #}
+  {% for scan in scans %}
+  {% set new_count     = scan.changes | selectattr('change_type', 'equalto', 'device_added')   | list | length %}
+  {% set gone_count    = scan.changes | selectattr('change_type', 'equalto', 'device_removed')  | list | length %}
+  {% set opened_count  = scan.changes | selectattr('change_type', 'equalto', 'port_opened')     | list | length %}
+  {% set closed_count  = scan.changes | selectattr('change_type', 'equalto', 'port_closed')     | list | length %}
+  {% set port_count    = opened_count + closed_count %}
+  {% set changed_count = (scan.changes | length) - new_count - gone_count - port_count %}
+  {% if scan.completed_at %}
+    {% set dur = (scan.completed_at - scan.started_at).seconds %}
+    {% set dur_str = (dur // 60)|string + 'm ' + (dur % 60)|string + 's' %}
+  {% else %}
+    {% set dur_str = '—' %}
+  {% endif %}
+
+  <a href="/devices?scan_id={{ scan.id }}"
+     style="display:grid; grid-template-columns:100px 1fr 100px 80px 80px 90px 80px 80px; padding:12px 18px; gap:10px; align-items:center; border-top:1px solid var(--line-soft); font:500 13px/1 var(--font-sans); text-decoration:none; color:inherit; transition:background 100ms;"
+     onmouseover="this.style.background='var(--bg-2)'" onmouseout="this.style.background=''">
+
+    <span class="mono" style="font-size:12px; color:var(--accent);">#{{ scan.id }}</span>
+
+    <span class="mono" style="font-size:12px; color:var(--text-2);">{{ scan.started_at.strftime('%Y-%m-%d %H:%M') }}</span>
+
+    <span class="mono tnum" style="font-size:12px; color:var(--text-3);">{{ dur_str }}</span>
+
+    <span class="mono tnum" style="font-size:13px; font-weight:600;">{{ scan.devices_found }}</span>
+
+    <span class="mono tnum" style="font-size:13px; color:{% if new_count %}var(--ok){% else %}var(--text-4){% endif %};">
+      {% if new_count %}+{{ new_count }}{% else %}—{% endif %}
+    </span>
+
+    <span class="mono tnum" style="font-size:13px; color:{% if changed_count > 0 %}var(--warn){% else %}var(--text-4){% endif %};">
+      {{ changed_count if changed_count > 0 else '—' }}
+    </span>
+
+    <span class="mono tnum" style="font-size:13px; color:{% if gone_count %}var(--crit){% else %}var(--text-4){% endif %};">
+      {% if gone_count %}-{{ gone_count }}{% else %}—{% endif %}
+    </span>
+
+    <span class="mono tnum" style="font-size:13px; color:{% if port_count %}var(--text-2){% else %}var(--text-4){% endif %};">
+      {{ port_count if port_count else '—' }}
+    </span>
+
+  </a>
+  {% endfor %}
+
 </div>
+
 {% else %}
-<div class="text-center py-16 bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-700">
-    <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+<div class="card">
+  <div class="empty-state">
+    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+      <circle cx="22" cy="22" r="14"/>
+      <circle cx="22" cy="22" r="6"/>
+      <path d="M8 22h8M28 22h8M22 8v8M22 28v8" stroke-opacity=".5"/>
     </svg>
-    <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-white">No scans yet</h3>
-    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Trigger your first scan from the dashboard to start monitoring your network.</p>
-    <a href="/"
-       class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-        <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-        </svg>
-        Go to Dashboard
-    </a>
+    <div class="empty-state-title">No scans yet</div>
+    <div class="empty-state-body">Trigger your first scan from the dashboard to start monitoring your network</div>
+    <a href="/" class="btn btn-primary">Go to Dashboard</a>
+  </div>
 </div>
 {% endif %}
+
+<script>
+async function runScan(btn) {
+  btn.disabled = true;
+  btn.textContent = 'Starting…';
+  try {
+    const r = await fetch('/api/scan/trigger?profile=normal', { method: 'POST' });
+    if (r.ok) { window.location.href = '/'; }
+    else { btn.textContent = 'Failed'; setTimeout(() => { btn.disabled = false; btn.innerHTML = 'Run scan'; }, 2000); }
+  } catch(e) { btn.textContent = 'Error'; setTimeout(() => { btn.disabled = false; btn.innerHTML = 'Run scan'; }, 2000); }
+}
+</script>
+
 {% endblock %}
