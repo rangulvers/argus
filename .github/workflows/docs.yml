@@ -52,7 +52,9 @@ jobs:
         run: mkdocs build --strict
 
       - name: Copy landing page
-        run: cp landing.html site/landing.html
+        run: |
+          cp landing.html site/landing.html
+          cp landing.html site/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
