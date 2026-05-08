@@ -336,6 +336,8 @@ function Donut({ segments, size = 140, thickness = 18, label, sub }) {
 
 /* ── Data ── */
 const TREND_DEVICES = [33,34,34,34,35,35,36,36,37,37,37,38,38,38,38,38,39,39,39,40,40,40,40,40,41,41,41,41,42,42];
+const TREND_RISK    = [18,20,19,21,22,20,23,24,22,21,22,25,24,23,22,24,26,25,24,23,25,27,26,25,24,26,28,27,26,25];
+const TREND_PORTS   = [44,44,45,45,46,46,46,47,47,47,47,48,48,48,48,48,48,49,49,49,49,49,50,50,50,50,50,50,50,51];
 const CVES = [
   { id: "CVE-2024-21887", score: 9.1, sev: "Critical", title: "Command injection in web management UI", on: "qnap-ts453d", port: 8080, published: "2024-01-10" },
   { id: "CVE-2024-37032", score: 7.5, sev: "High",     title: "Auth bypass in management API",          on: "qnap-ts453d", port: 5000, published: "2024-06-12" },
@@ -800,17 +802,22 @@ function SidebarMini() {
 }
 
 function MockDashboard() {
+  const [series, setSeries] = React.useState("devices");
+  const seriesData = { devices: TREND_DEVICES, risk: TREND_RISK, ports: TREND_PORTS };
+  const seriesColor = { devices: "var(--accent)", risk: "var(--crit)", ports: "var(--warn)" };
   return (
     <div style={{ padding: 18, background: "var(--bg-0)" }}>
       <BrowserBar url="argus.lan/dashboard"/>
       <div style={{ marginTop: 12, padding: 14, background: "var(--bg-1)", borderRadius: 12, border: "1px solid var(--line)" }}>
         <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: 14 }}>
           <SidebarMini/>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
-            <div className="card" style={{ padding: 12, borderColor: "color-mix(in oklch, var(--crit) 35%, var(--line))", background: "color-mix(in oklch, var(--crit-bg) 60%, var(--bg-1))", display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+            {/* Alert banner */}
+            <div className="card" style={{ padding: "10px 12px", borderColor: "color-mix(in oklch, var(--crit) 35%, var(--line))", background: "color-mix(in oklch, var(--crit-bg) 60%, var(--bg-1))", display: "flex", gap: 10, alignItems: "center" }}>
               <span style={{ color: "var(--crit)", flexShrink: 0 }}>{I.alert}</span>
-              <span style={{ font: "500 12px var(--font-sans)" }}>2 devices need attention · 5 active CVEs</span>
+              <span style={{ font: "500 11px var(--font-sans)" }}>2 devices need attention · 5 active CVEs</span>
             </div>
+            {/* 5 stat cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
               {[["Devices","42","var(--text)"],["At risk","3","var(--crit)"],["Scans","67","var(--text)"],["Ports","48","var(--warn)"],["Changes","10","var(--text)"]].map(([l, v, c], i) => (
                 <div key={i} className="card" style={{ padding: 10 }}>
@@ -819,21 +826,67 @@ function MockDashboard() {
                 </div>
               ))}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 10 }}>
-              <div className="card" style={{ padding: 12 }}>
-                <div style={{ font: "600 12px/1 var(--font-sans)", marginBottom: 8 }}>Devices online · 30 days</div>
-                <Spark data={TREND_DEVICES} w={300} h={72} stroke="var(--accent)" fill="var(--accent)" area/>
+            {/* Trend card with segmented control */}
+            <div className="card" style={{ padding: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div style={{ font: "600 12px/1 var(--font-sans)" }}>{{ devices: "Devices online", risk: "Avg risk score", ports: "Open ports" }[series]}</div>
+                <div style={{ position: "relative", display: "flex", padding: 3, borderRadius: 999, background: "var(--bg-2)", border: "1px solid var(--line)" }}>
+                  <div style={{ position: "absolute", top: 3, bottom: 3, left: 3, width: "calc((100% - 6px) / 3)", borderRadius: 999, background: "var(--bg-0)", boxShadow: "var(--shadow-1)", transition: "transform 220ms cubic-bezier(0.4,0,0.2,1)", transform: `translateX(calc(${["devices","risk","ports"].indexOf(series)} * 100%))` }}/>
+                  {["devices","risk","ports"].map(k => (
+                    <button key={k} onClick={() => setSeries(k)} style={{ position: "relative", zIndex: 1, flex: 1, padding: "3px 8px", borderRadius: 999, border: "none", cursor: "pointer", font: "500 10px/1 var(--font-sans)", background: "transparent", color: series === k ? "var(--text)" : "var(--text-3)", transition: "color 150ms" }}>
+                      {k.charAt(0).toUpperCase()+k.slice(1)}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="card" style={{ padding: 12, display: "grid", placeItems: "center" }}>
-                <Donut size={96} thickness={12} label="92%" sub="safe or low" segments={[
-                  { value: 22, color: "var(--ok)" },
-                  { value: 12, color: "var(--info)" },
-                  { value: 5,  color: "var(--warn)" },
-                  { value: 3,  color: "var(--crit)" },
-                ]}/>
-              </div>
+              <Spark data={seriesData[series]} w={300} h={60} stroke={seriesColor[series]} fill={seriesColor[series]} area/>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MockScanHistory() {
+  const rows = [
+    { id: 142, when: "2026-05-08 14:01", dur: "3m 12s", dev: 42, nw:  1, ch: 0, gn: 0, pt: 2 },
+    { id: 141, when: "2026-05-07 14:00", dur: "3m 08s", dev: 41, nw:  0, ch: 1, gn: 0, pt: 0 },
+    { id: 140, when: "2026-05-06 14:02", dur: "3m 21s", dev: 41, nw:  0, ch: 0, gn: 1, pt: 1 },
+    { id: 139, when: "2026-05-05 14:01", dur: "2m 58s", dev: 42, nw:  2, ch: 0, gn: 0, pt: 3 },
+    { id: 138, when: "2026-05-04 14:00", dur: "3m 05s", dev: 40, nw:  0, ch: 2, gn: 0, pt: 0 },
+  ];
+  const cols = "60px 1fr 72px 52px 44px 52px 44px 44px";
+  return (
+    <div style={{ padding: 18, background: "var(--bg-0)" }}>
+      <BrowserBar url="argus.lan/scans"/>
+      <div style={{ marginTop: 12, padding: 14, background: "var(--bg-1)", borderRadius: 12, border: "1px solid var(--line)" }}>
+        <div className="card" style={{ overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ font: "600 13px/1 var(--font-sans)" }}>Scan history</div>
+              <div style={{ font: "500 11px/1 var(--font-sans)", color: "var(--text-4)", marginTop: 3 }}>5 of 142 shown</div>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <div style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid var(--line)", font: "500 11px/1 var(--font-sans)", color: "var(--text-2)", background: "var(--bg-2)" }}>Compare two</div>
+              <div style={{ padding: "5px 10px", borderRadius: 8, background: "var(--accent)", font: "600 11px/1 var(--font-sans)", color: "oklch(0.15 0.02 250)" }}>Run scan</div>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: cols, padding: "8px 16px", gap: 8, font: "500 9px/1 var(--font-sans)", color: "var(--text-4)", textTransform: "uppercase", letterSpacing: ".04em", borderBottom: "1px solid var(--line-soft)" }}>
+            {["ID","When","Dur","Dev","New","Chg","Gone","Ports"].map(h => <div key={h}>{h}</div>)}
+          </div>
+          {rows.map((r, i) => (
+            <div key={r.id} style={{ display: "grid", gridTemplateColumns: cols, padding: "9px 16px", gap: 8, alignItems: "center", borderTop: i ? "1px solid var(--line-soft)" : "none", font: "500 11px/1 var(--font-mono)" }}>
+              <span style={{ color: "var(--accent)" }}>#{r.id}</span>
+              <span style={{ color: "var(--text-2)", fontSize: 10 }}>{r.when}</span>
+              <span style={{ color: "var(--text-3)" }}>{r.dur}</span>
+              <span style={{ fontWeight: 600 }}>{r.dev}</span>
+              <span style={{ color: r.nw ? "var(--ok)" : "var(--text-4)" }}>{r.nw ? `+${r.nw}` : "—"}</span>
+              <span style={{ color: r.ch ? "var(--warn)" : "var(--text-4)" }}>{r.ch || "—"}</span>
+              <span style={{ color: r.gn ? "var(--crit)" : "var(--text-4)" }}>{r.gn ? `-${r.gn}` : "—"}</span>
+              <span style={{ color: r.pt ? "var(--text-2)" : "var(--text-4)" }}>{r.pt || "—"}</span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -956,8 +1009,8 @@ function MockTopology() {
 function Screenshots() {
   const [active, setActive] = useState(0);
   const shots = [
-    { title: "Dashboard",   body: "Stat row, trend, risk distribution, recent changes, integrations health.", mock: <MockDashboard/> },
-    { title: "Live scan",   body: "Watch devices appear in real time as ARGUS works through the subnet.", mock: <MockScan/> },
+    { title: "Dashboard",    body: "Stat row, trend chart with series switcher, risk distribution, changes feed.", mock: <MockDashboard/> },
+    { title: "Scan history", body: "Git-log style history — ID, duration, new devices, changes, ports opened/closed.", mock: <MockScanHistory/> },
     { title: "Device detail", body: "Per-device CVE match, port verdict, integration cross-references.", mock: <MockDevice/> },
     { title: "Topology",    body: "Gateway at center; devices grouped by role; high-risk nodes ringed in red.", mock: <MockTopology/> },
   ];
